@@ -1,0 +1,28 @@
+# 环境变量（含真实密钥）
+.env
+
+# 向量库本地数据
+chroma_db/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# 运行时输入/输出数据（含真实客户方案，不应上云）
+files/
+images/
+debug_zips/
+# 旧版调试产物（parser.py.1.1 时期用的目录名，含真实 pptx 原文件）
+debug_mineru_result/
+debug_mineru_result.zip
+
+# IDE 配置
+.vscode/
+.idea/
+
+# Windows 缩略图缓存
+Thumbs.db
+
+# 本地调试输出（query 命令的临时产物）
+test_query_output*.txt

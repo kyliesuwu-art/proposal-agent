@@ -1,0 +1,11 @@
+[project]
+name = "electrical-scheme-kb"
+version = "0.1.0"
+description = "康晋电气方案知识库 — 历史 PPTX 入库、语义检索、方案生成"
+requires-python = ">=3.12"
+dependencies = [
+    "mineru-open-sdk>=0.1",
+    "chromadb>=0.5",
+    "python-dotenv>=1.0",
+    "openai>=1.0",
+]
