@@ -14,6 +14,7 @@ from src.adapters.vector_store import VectorStore
 from src.adapters.llm_client import LLMClient
 
 # 相邻 slide 扩展：命中的 slide 前后各带几张，见 claude.md 检索流程第 4 步
+#！！！！后期可以思考一下，有没有更好的减少上下文损益的方式
 _ADJACENT_WINDOW = 1
 
 # 生成方案初稿时使用的系统提示词。核心约束：只能基于参考资料改写，不能
@@ -97,12 +98,16 @@ def ingest(pptx_path: str) -> None:
 
 
 def _annotate_slides(store: VectorStore, slides: list[dict]) -> None:
-    """逐张生成 context/metadata，全部生成完之后一次性批量写回向量库。
+    """逐张生成 context/图片 caption，全部生成完之后一次性批量写回向量库。
 
-    LLM 调用仍然是逐张进行的（context 是 slide 专属的，没法合并成一次
-    调用），但对 Chroma 的写入合并成一次批量 update，不是生成一张就写
-    一次。单张生成失败时直接跳过这张，不纳入最后的批量更新，该 slide
-    保留裸存时的原始内容，不影响其他 slide 继续处理。
+    文字 context 和图片 caption 是两条独立链路，分别调用、分别处理失败：
+    任何一条失败都不影响另一条继续跑。图片 caption 这条链路内部粒度更细——
+    一张 slide 可能有多张图片，其中某几张生成失败，不影响同一 slide 里
+    其他图片继续生成（每张图片独立失败、独立兜底为空字符串）。
+
+    只有当这张 slide 的文字 context 生成失败、且图片 caption 一张都没成功
+    （包括本来就没有图片的情况）时，才判定为完全没有产出，跳过写回，
+    保留裸存时的原始内容。
     """
     llm = LLMClient()
     # 只取标题，不传全文，控制 token 成本——用作"文档大纲"上下文，
@@ -111,23 +116,39 @@ def _annotate_slides(store: VectorStore, slides: list[dict]) -> None:
 
     succeeded_slides = []
     succeeded_contexts = []
-    failed_count = 0
+    skipped_count = 0
 
     for i, slide in enumerate(slides, 1):
-        print(f"  [{i}/{len(slides)}] Slide {slide['slide_number']} 生成 context...")
+        print(f"  [{i}/{len(slides)}] Slide {slide['slide_number']} 处理中...")
+        ctx = None
         try:
             ctx = llm.generate_slide_context(slide, outline_titles)
-            succeeded_slides.append(slide)
-            succeeded_contexts.append(ctx)
-        except Exception as e:  # noqa: BLE001 — 有意宽泛捕获，见函数说明
-            failed_count += 1
-            print(f"    警告：生成失败（{e}），该 slide 保留原始内容，跳过增强")
+        except Exception as e:  # noqa: BLE001
+            print(f"    警告：文字 context 生成失败（{e}）")
+
+        captions_updated = False
+        if slide.get("images"):
+            try:
+                captions = llm.generate_image_captions(slide)
+                for img, caption in zip(slide["images"], captions):
+                    img["caption"] = caption
+                captions_updated = any(captions)
+            except Exception as e:  # noqa: BLE001
+                print(f"    警告：图片 caption 生成失败（{e}）")
+        
+        if ctx is None and not captions_updated:
+            skipped_count += 1
+            print("    文字和图片均无产出，该 slide 保留原始内容，跳过增强")
+            continue
+
+        succeeded_slides.append(slide)
+        succeeded_contexts.append(ctx or {})
 
     if succeeded_slides:
         store.update_slide_contexts(succeeded_slides, succeeded_contexts)
 
-    success = len(slides) - failed_count
-    print(f"  context 生成完成（{success}/{len(slides)} 成功，已批量写回）")
+    success = len(succeeded_slides)
+    print(f"  处理完成（{success}/{len(slides)} 张 slide 有更新，已批量写回，{skipped_count} 张跳过）")
 
 def annotate(source_file: str) -> None:
     """对已入库但还没做 context 增强的文件，补跑 LLM context/metadata 生成。

@@ -26,3 +26,4 @@ Thumbs.db
 
 # 本地调试输出（query 命令的临时产物）
 test_query_output*.txt
+

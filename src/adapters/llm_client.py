@@ -1,5 +1,8 @@
 # llm_client.py
 """LLM 生成接口封装：调用 DashScope Qwen，用于基于检索结果生成新方案内容。"""
+import base64
+from pathlib import Path
+
 
 import json
 import time
@@ -7,10 +10,14 @@ import time
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 import os
 
-# 默认使用的模型。qwen3.7-max 是性价比和能力的均衡档，先用它跑通整条链路；
+# 默认使用的模型。qwen3.7-plus  是性价比和能力的均衡档，先用它跑通整条链路；
 # 如果后面发现生成质量不够，换成 qwen-max 只需要改这一个字符串。
 # 模型列表：https://help.aliyun.com/zh/model-studio/getting-started/models
 _DEFAULT_MODEL = "qwen3.7-max"
+
+# 图片理解专用的视觉模型，跟 _DEFAULT_MODEL 是两条独立的链路：
+# 文字生成用 _DEFAULT_MODEL，看图用这个，互不干扰
+_VISION_MODEL = "qwen3-vl-plus"
 
 # 单次请求失败时的最大重试次数，兜底偶发的网络抖动 / 限流
 _MAX_RETRIES = 3
@@ -40,11 +47,19 @@ _QUERY_REWRITE_SYSTEM_PROMPT = (
     '{"queries": ["查询1", "查询2"], "proposal_type": "方案类型或空字符串"}'
 )
 
+_IMAGE_CAPTION_SYSTEM_PROMPT = (
+    "你是电气工程方案库的图片理解助手。请用一句话客观描述这张图片的内容，"
+    "如果是系统拓扑图/接线图/设备照片等，说明图中包含的关键设备、结构或流程；"
+    "不要输出与描述无关的文字，不要以“这张图片”开头，直接描述内容本身。"
+)
+
+
+
 
 class LLMClient:
     """调用 DashScope Qwen 生成文本，与 vector_store.py 共用同一套 DashScope 账号。"""
 
-    def __init__(self, model: str = _DEFAULT_MODEL) -> None:
+    def __init__(self, model: str = _DEFAULT_MODEL, vision_model: str = _VISION_MODEL) -> None:
         # DashScope 兼容 OpenAI 接口，直接用 openai 包调用，
         # 跟 vector_store.py 里的 DashScopeEmbeddingFunction 是同一种调用方式
         self._client = OpenAI(
@@ -53,6 +68,7 @@ class LLMClient:
             timeout=120.0,
         )
         self._model = model
+        self._vision_model = vision_model
 
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         """把 prompt 发给模型，返回生成的文本。
@@ -153,6 +169,68 @@ class LLMClient:
 
         raw = self.generate(user_prompt, system_prompt=_CONTEXT_METADATA_SYSTEM_PROMPT)
         return self._parse_context_metadata(raw)
+    
+
+    def generate_image_captions(self, slide: dict) -> list[str]:
+        """为一张 slide 里的每张图片生成一句话描述，用于图片内容的语义检索。
+        与 generate_slide_context 是两条独立链路：这里专用视觉模型
+    （self._vision_model），文字理解继续用 self._model，互不干扰——
+    任何一条链路失败都不影响另一条（参考 FastGPT 的图像 caption
+    回退管线设计）。
+
+    单张图片生成失败时，这张图片的 caption 返回空字符串，不抛异常、
+    不影响同一 slide 里其他图片继续生成。
+     Args:
+        slide: 当前 slide dict，用它的 images 字段（每项含 "path"）
+
+    Returns:
+        与 slide["images"] 一一对应（按下标）的 caption 字符串列表
+    """
+        captions = []
+        for img in slide.get("images", []):
+            try:
+                caption = self._generate_single_image_caption(img["path"], slide)
+                captions.append(caption)
+            except Exception as e:
+                print(f"  警告：图片 {img['path']} caption 生成失败，跳过，原因：{e}")
+                captions.append("")
+        return captions
+
+    
+    def _generate_single_image_caption(self, image_path: str, slide: dict) -> str:
+        """对单张本地图片调用视觉模型，生成一句话内容描述。
+        图片是本地文件（parser 存的是本地路径），不是可公开访问的 URL，
+        所以读文件转 base64、拼成 data URL 传给模型，而不是传 URL。
+        """
+        path_obj = Path(image_path)
+        if not path_obj.exists():
+            raise FileNotFoundError(f"图片文件不存在: {image_path}")
+        with open(path_obj, "rb") as f:
+            b64_data = base64.b64encode(f.read()).decode("utf-8")
+        
+        ext = path_obj.suffix.lstrip(".").lower() or "jpeg"
+        data_url = f"data:image/{ext};base64,{b64_data}"
+
+        messages = [
+            {"role": "system", "content": _IMAGE_CAPTION_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                    {
+                        "type": "text",
+                        "text": (
+                            f"这张图片出自方案《{slide['source_file']}》"
+                            f"第 {slide['slide_number']} 页，标题：{slide['title'] or '无'}。"
+                            f"请用一句话描述这张图片的内容。"
+                        ),
+                    },
+                ],
+            },
+        ]   
+        return self._call_with_retry(messages, model=self._vision_model).strip()
+    
+    
 
     @staticmethod
     def _parse_context_metadata(raw: str) -> dict:
@@ -178,13 +256,14 @@ class LLMClient:
             )
             return fallback
 
-    def _call_with_retry(self, messages: list[dict]) -> str:
+    def _call_with_retry(self, messages: list[dict], model: str | None = None) -> str:
         last_error: Exception | None = None
+        target_model = model or self._model
 
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
                 resp = self._client.chat.completions.create(
-                    model=self._model,
+                    model=target_model,
                     messages=messages,
                 )
                 return resp.choices[0].message.content or ""

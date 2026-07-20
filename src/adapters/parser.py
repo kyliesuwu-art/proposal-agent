@@ -3,12 +3,14 @@
 """MinerU 官方 SDK 封装：解析 PPTX 文件，按 slide（page_idx）返回结构化内容。"""
 
 import hashlib
+import html
 import io
 import json
 import os
 import shutil
 import time
 import zipfile
+from html.parser import HTMLParser
 from pathlib import Path
 
 from mineru import MinerU
@@ -33,6 +35,40 @@ _DEBUG_ZIP_DIR = Path("debug_zips")
 # 每次重新解析同一个 pptx 时会先清空对应子目录再重新提取，避免新版本
 # slide/图片数量变少后，旧版本残留的图片文件混在里面。
 _IMAGES_DIR = Path("images")
+
+
+class _TableTextParser(HTMLParser):
+    """用标准库 HTMLParser 从 MinerU 返回的 HTML 表格标记中提取行文本。
+
+    MinerU 的 table_body 是逐字符的 HTML 列表（如 ['<', 't', 'a', ...]），
+    join 后得到完整 HTML。这个 parser 按 <tr> 分组、逐行提取 <td> 文本，
+    不管 colspan 属性，按出现顺序输出，每行用 " | " 连接。
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._rows: list[list[str]] = []
+        self._in_td: bool = False
+        self._current_text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "tr":
+            self._rows.append([])
+        elif tag == "td":
+            self._in_td = True
+            self._current_text = []
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "td" and self._in_td:
+            text = "".join(self._current_text).strip()
+            if text:
+                # HTML 实体解码（&amp; → &，&nbsp; →  等）
+                self._rows[-1].append(html.unescape(text))
+            self._in_td = False
+
+    def handle_data(self, data: str) -> None:
+        if self._in_td:
+            self._current_text.append(data)
 
 
 class MinerUParser:
@@ -71,6 +107,10 @@ class MinerUParser:
               ...
             ]
         """
+
+        #!!!!!!!!!!后面记得改成多个文件轮询
+        #！！！！！！后面做一个不用文件路径，只用文件名就可以ingest的功能
+        #！！！！记得做pdf和多格式的兼容
         file_path = Path(file_path)
         if not file_path.exists():
             raise FileNotFoundError(f"文件不存在: {file_path}")
@@ -251,13 +291,31 @@ class MinerUParser:
                 parts.extend(str(item).strip() for item in items if str(item).strip())
 
             elif block_type == "table":
-                caption = (block.get("table_caption") or "").strip()
+                # table_caption 有时是空 list []，有时是空字符串 ""
+                caption_raw = block.get("table_caption")
+                if isinstance(caption_raw, list):
+                    caption = " ".join(str(x).strip() for x in caption_raw if str(x).strip())
+                else:
+                    caption = (caption_raw or "").strip()
                 if caption:
                     parts.append(f"[表格] {caption}")
-                for row in block.get("table_body") or []:
-                    row_text = " | ".join(str(cell).strip() for cell in row)
-                    if row_text.strip(" |"):
-                        parts.append(row_text)
+
+                # MinerU 的 table_body 是逐字符的 HTML 列表，先 join 再解析。
+                body = block.get("table_body") or []
+                if isinstance(body, list) and len(body) > 0:
+                    table_html = "".join(str(c) for c in body)
+                    parser = _TableTextParser()
+                    try:
+                        parser.feed(table_html)
+                    except Exception:
+                        # 解析失败时退回到简单拼接，至少保留原始文本
+                        parser = _TableTextParser()
+                        parser.feed("<table><tr><td>" + table_html + "</td></tr></table>")
+
+                    for row_cells in parser._rows:
+                        row_text = " | ".join(row_cells)
+                        if row_text.strip():
+                            parts.append(row_text)
 
             elif block_type == "image":
                 caption = (block.get("image_caption") or "").strip()

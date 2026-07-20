@@ -4,6 +4,7 @@
 用法：
     uv run python src/main.py ingest <pptx_path>    # 解析 PPTX 并入库
     uv run python src/main.py query "需求描述"       # 检索相关 slide 并生成方案初稿
+    uv run python src/main.py annotate <source_file> # 为源文件进行标注/打标签
     uv run python src/main.py status                 # 查看库状态
 """
 

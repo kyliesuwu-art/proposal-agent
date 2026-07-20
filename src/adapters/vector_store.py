@@ -229,6 +229,16 @@ class VectorStore:
             base_text = (
                 f"{slide['title']}\n{slide['content']}" if slide["title"] else slide["content"]
             )
+
+            # 把图片 caption 拼进参与检索的文本里，让"配电柜接线图"这类描述
+            # 也能命中这张 slide，不只是靠周围文字
+            image_captions = [
+                img["caption"] for img in slide.get("images", []) if img.get("caption")
+            ]
+            if image_captions:
+                captions_text = "\n".join(f"[图片描述] {c}" for c in image_captions)
+                base_text = f"{base_text}\n{captions_text}"
+
             context_summary = ctx.get("context_summary", "")
             text = f"{context_summary}\n{base_text}" if context_summary else base_text
 
@@ -237,6 +247,10 @@ class VectorStore:
             metadatas.append({
                 "proposal_type": ctx.get("proposal_type", ""),
                 "client_industry": ctx.get("client_industry", ""),
+                # 把更新后的 images（含真实 caption）写回，覆盖 add_slides 时
+                # 存的空 caption 版本——Chroma metadata 是按字段合并，不传这个
+                # key 的话旧的空 caption 版本会一直留着
+                "images": json.dumps(slide.get("images", []), ensure_ascii=False),
             })
 
         self._collection.update(ids=ids, documents=documents, metadatas=metadatas)
