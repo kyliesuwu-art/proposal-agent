@@ -319,8 +319,8 @@ class VectorStore:
         Args:
             query: 检索关键词或自然语言查询
             n_results: 返回结果数量，默认 10
-            proposal_type: 可选，按方案类型过滤（如"光伏"），需要与入库时
-                写入的 proposal_type 完全匹配
+            proposal_type: 可选的精确 metadata 过滤值。查询编排层仅会在用户
+                明确指定类型时尝试它，并在候选不足时自动回退。
             client_industry: 可选，按客户行业过滤，同上
             include_policy: 是否包含政策参考类文档（doc_type="policy"）。
                 默认 False，检索时自动过滤掉政策类，只在方案/技术资料

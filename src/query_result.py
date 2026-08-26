@@ -21,8 +21,8 @@ class SearchHit:
 
     @property
     def is_adjacent(self) -> bool:
-        """兼容更直观的相邻页判断。"""
-        return self.context_role == "adjacent"
+        """兼容旧调用方对相邻补充页的判断。"""
+        return self.context_role in {"adjacent", "supporting"}
 
 
 @dataclass(frozen=True)

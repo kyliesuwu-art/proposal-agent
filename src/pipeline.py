@@ -15,6 +15,13 @@ from src.adapters.vector_store import VectorStore
 from src.adapters.llm_client import LLMClient
 from src.config import INGEST_MANIFEST_PATH
 from src.query_result import Citation, QueryResult, SearchHit
+from src.retrieval import (
+    TYPE_MATCH_RULES,
+    explicit_requested_type,
+    metadata_filter_values,
+    rerank_candidates,
+    select_supporting_context,
+)
 
 # ingest_manifest.csv 路径：用于判断文件的 doc_type（policy / proposal）
 _MANIFEST_PATH = INGEST_MANIFEST_PATH
@@ -23,6 +30,8 @@ _manifest_cache: dict[str, str] | None = None
 # 相邻 slide 扩展：命中的 slide 前后各带几张，见 claude.md 检索流程第 4 步
 #！！！！后期可以思考一下，有没有更好的减少上下文损益的方式
 _ADJACENT_WINDOW = 1
+_CANDIDATE_MULTIPLIER = 3
+_TYPE_FILTER_MIN_RESULTS = 2
 
 
 def _get_doc_type(filename: str) -> str:
@@ -476,7 +485,7 @@ def _build_structured_context(hits: list[SearchHit]) -> str:
     """以统一引用格式组织生成上下文。"""
     blocks = []
     for index, hit in enumerate(hits, 1):
-        role = "主命中" if hit.context_role == "primary" else "相邻页补充"
+        role = "主命中" if hit.context_role == "primary" else "补充上下文"
         lines = [f"### 参考{index}（{role}）：[来源: {hit.source_file}, 第 {hit.page_number} 页]"]
         if hit.title:
             lines.append(f"标题：{hit.title}")
@@ -522,7 +531,7 @@ def render_markdown(result: QueryResult) -> str:
 
 
 def query(need_description: str, top_n: int = 10) -> QueryResult:
-    """保留原有召回策略，返回渠道无关的结构化 QueryResult。"""
+    """两阶段召回与纯本地轻量重排，返回渠道无关的结构化结果。"""
     store = VectorStore()
     total = store.count()
     if total == 0:
@@ -531,36 +540,74 @@ def query(need_description: str, top_n: int = 10) -> QueryResult:
     llm = LLMClient()
     rewrite = llm.rewrite_query(need_description)
     queries = rewrite["queries"]
-    proposal_type = rewrite["proposal_type"] or None
+    requested_type, matched_alias = explicit_requested_type(need_description)
+    candidate_limit = max(top_n, top_n * _CANDIDATE_MULTIPLIER)
+    filter_values = metadata_filter_values(requested_type, matched_alias)
 
-    def search_with(filter_value: str | None) -> list[dict]:
+    def search_with(filter_values: list[str] | None) -> list[dict]:
         merged: dict[str, dict] = {}
         for query_text in queries:
-            for record in store.search(query_text, n_results=top_n, proposal_type=filter_value):
-                key = f"{record['source_file']}_slide_{record['slide_number']}"
-                existing = merged.get(key)
-                if existing is None or (record["distance"] or 0) < (existing["distance"] or 0):
-                    merged[key] = record
-        return sorted(merged.values(), key=lambda record: record["distance"] or 0)[:top_n]
+            for filter_value in filter_values or [None]:
+                for record in store.search(
+                    query_text, n_results=candidate_limit, proposal_type=filter_value
+                ):
+                    key = f"{record['source_file']}_slide_{record['slide_number']}"
+                    existing = merged.get(key)
+                    if existing is None or (record["distance"] or 0) < (existing["distance"] or 0):
+                        merged[key] = record
+        return list(merged.values())
 
-    primary_records = search_with(proposal_type)
+    type_filter_attempted = bool(filter_values)
+    filtered_candidates = search_with(filter_values) if type_filter_attempted else []
     fallback_used = False
-    if not primary_records and proposal_type:
-        primary_records = search_with(None)
-        fallback_used = True
+    fallback_used = type_filter_attempted and len(filtered_candidates) < min(top_n, _TYPE_FILTER_MIN_RESULTS)
+    if not type_filter_attempted or fallback_used:
+        candidates = search_with(None)
+    else:
+        candidates = filtered_candidates
+    primary_records = rerank_candidates(
+        candidates,
+        "\n".join([need_description, *queries]),
+        requested_type,
+        top_n,
+    )
     retrieval_metadata = {
         "total_documents": total,
-        "proposal_type": proposal_type,
-        "fallback_used": fallback_used,
+        "candidate_limit": candidate_limit,
+        "user_explicit_type_requested": bool(requested_type),
+        "requested_type": requested_type,
+        "requested_type_alias": matched_alias,
+        "rewrite_proposal_type": rewrite.get("proposal_type", ""),
+        "type_filter_attempted": type_filter_attempted,
+        "type_filter_values": filter_values,
+        "type_filter_candidate_count": len(filtered_candidates),
+        "type_filter_fallback": fallback_used,
+        "type_match_rules": list(TYPE_MATCH_RULES),
         "primary_hit_count": len(primary_records),
     }
     if not primary_records:
         return QueryResult(need_description, queries, [], "", [], ["未找到相关来源。"], retrieval_metadata)
 
+    adjacent_by_primary = {
+        (record["source_file"], record["slide_number"]): store.get_adjacent_slides(
+            record["source_file"], record["slide_number"], window=_ADJACENT_WINDOW
+        )
+        for record in primary_records
+    }
+    primary_records, supporting_records = select_supporting_context(
+        primary_records,
+        adjacent_by_primary,
+        "\n".join([need_description, *queries]),
+    )
+    retrieval_metadata["supporting_hit_count"] = len(supporting_records)
+    retrieval_metadata["context_selection"] = {
+        "adjacent_window": _ADJACENT_WINDOW,
+        "max_pages_per_file": 4,
+        "max_total_pages": 14,
+        "max_total_characters": 16_000,
+    }
     hits = [_hit_from_record(record, "primary") for record in primary_records]
-    for record in primary_records:
-        adjacent_records = store.get_adjacent_slides(record["source_file"], record["slide_number"], window=_ADJACENT_WINDOW)
-        hits.extend(_hit_from_record(record, "adjacent") for record in adjacent_records)
+    hits.extend(_hit_from_record(record, "supporting") for record in supporting_records)
     citations = _citations_from_hits(hits)
     available_sources = "\n".join(citation.display() for citation in citations)
     prompt = (
@@ -574,6 +621,7 @@ def query(need_description: str, top_n: int = 10) -> QueryResult:
         hits,
         draft,
         citations,
-        _validate_structured_citations(draft, citations),
+        (["proposal_type 精确过滤候选不足，已回退到不过滤类型的候选集。"] if fallback_used and type_filter_attempted else [])
+        + _validate_structured_citations(draft, citations),
         retrieval_metadata,
     )

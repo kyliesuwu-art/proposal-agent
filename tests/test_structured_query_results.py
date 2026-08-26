@@ -13,7 +13,7 @@ class FakeStore:
         return 2
 
     def search(self, _query, n_results, proposal_type=None) -> list[dict]:
-        assert n_results == 10
+        assert n_results == 30
         assert proposal_type is None
         return [
             {
