@@ -11,3 +11,8 @@ dependencies = [
     "beautifulsoup4>=4.15.0",
     "wecom-aibot-sdk-python>=0.1.7",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]

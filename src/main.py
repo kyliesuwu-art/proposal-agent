@@ -15,9 +15,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-# 确保能 import src 下的模块
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+# 确保以脚本方式执行时也能 import src 下的模块。
+_BOOTSTRAP_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_BOOTSTRAP_PROJECT_ROOT))
+
+from src.config import PROJECT_ROOT
 
 from src import pipeline
 from src.adapters.parser import SUPPORTED_EXTENSIONS

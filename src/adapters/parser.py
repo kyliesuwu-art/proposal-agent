@@ -21,6 +21,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from mineru import MinerU
+from src.config import DEBUG_ZIPS_DIR, IMAGES_DIR
 
 # MinerU 官方 SDK 使用 MINERU_TOKEN 环境变量
 MINERU_TOKEN = os.environ.get("MINERU_TOKEN", "")
@@ -46,12 +47,12 @@ SUPPORTED_EXTENSIONS = {".pptx", ".pdf",  ".docx",  ".doc"}
 # 调试用 zip 包的保存目录：每个源文件各留一份最新结果，重新解析时覆盖旧的，
 # 不同源文件之间互不覆盖，方便排查是哪个 pptx 解析出的问题。
 # 后期过了开发阶段，可以删掉这个设计，确实不需要保留文件的zip file。
-_DEBUG_ZIP_DIR = Path("debug_zips")
+_DEBUG_ZIP_DIR = DEBUG_ZIPS_DIR
 
 # 图片素材的保存目录：按 pptx 文件名分子目录存放提取出的图片。
 # 每次重新解析同一个 pptx 时会先清空对应子目录再重新提取，避免新版本
 # slide/图片数量变少后，旧版本残留的图片文件混在里面。
-_IMAGES_DIR = Path("images")
+_IMAGES_DIR = IMAGES_DIR
 
 
 class _TableTextParser(HTMLParser):

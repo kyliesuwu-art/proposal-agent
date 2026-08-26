@@ -3,6 +3,7 @@
 
 # 向量库本地数据
 chroma_db/
+chroma_db_backup_*/
 
 # Python
 __pycache__/
@@ -27,3 +28,11 @@ Thumbs.db
 # 本地调试输出（query 命令的临时产物）
 test_query_output*.txt
 
+# 本地运行进度与评测生成产物
+reingest.log
+progress.json
+.deepeval/
+candidate_testset*.csv
+deepeval-results/
+deepeval_test_runs/
+ragas_outputs/

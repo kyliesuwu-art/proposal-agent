@@ -13,9 +13,10 @@ from pathlib import Path
 from src.adapters.parser import MinerUParser
 from src.adapters.vector_store import VectorStore
 from src.adapters.llm_client import LLMClient
+from src.config import INGEST_MANIFEST_PATH
 
 # ingest_manifest.csv 路径：用于判断文件的 doc_type（policy / proposal）
-_MANIFEST_PATH = Path(__file__).resolve().parent.parent / "ingest_manifest.csv"
+_MANIFEST_PATH = INGEST_MANIFEST_PATH
 _manifest_cache: dict[str, str] | None = None
 
 # 相邻 slide 扩展：命中的 slide 前后各带几张，见 claude.md 检索流程第 4 步

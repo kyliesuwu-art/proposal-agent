@@ -9,6 +9,7 @@ from typing import TypedDict
 import chromadb
 from chromadb.utils.embedding_functions import EmbeddingFunction
 from openai import APIStatusError, OpenAI
+from src.config import CHROMA_PATH, resolve_project_path
 
 
 class SlideDict(TypedDict):
@@ -98,14 +99,16 @@ class DashScopeEmbeddingFunction(EmbeddingFunction):
 class VectorStore:
     """封装 Chroma，按 slide 存入和检索。"""
 
-    def __init__(self, persist_dir: str = "./chroma_db") -> None:
+    def __init__(self, persist_dir: str | None = None) -> None:
         """初始化 Chroma 客户端，使用持久化存储。
 
         Args:
-            persist_dir: Chroma 数据持久化目录，默认 ./chroma_db
+            persist_dir: Chroma 数据持久化目录。未传时使用项目根目录下的
+                绝对默认路径；相对覆盖路径也相对项目根目录解析。
         """
         # 使用 PersistentClient 保证重启后数据不丢失
-        self._client = chromadb.PersistentClient(path=persist_dir)
+        database_path = CHROMA_PATH if persist_dir is None else resolve_project_path(persist_dir)
+        self._client = chromadb.PersistentClient(path=str(database_path))
 
         # 获取或创建 collection，使用 cosine 距离适合中文语义检索
         self._collection = self._client.get_or_create_collection(
