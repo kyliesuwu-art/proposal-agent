@@ -22,6 +22,7 @@ from pathlib import Path
 
 from mineru import MinerU
 from src.config import DEBUG_ZIPS_DIR, IMAGES_DIR
+from src.domain.models import ParseResult
 
 # MinerU 官方 SDK 使用 MINERU_TOKEN 环境变量
 MINERU_TOKEN = os.environ.get("MINERU_TOKEN", "")
@@ -185,22 +186,12 @@ class MinerUParser:
         file_path = Path(file_path)
         return hashlib.md5(file_path.read_bytes()).hexdigest()
 
-    def parse_document(self, file_path: str | Path) -> list[dict]:
-        """解析本地文档，返回按页面（page_idx）分好的内容列表。
+    def parse_document(self, file_path: str | Path) -> ParseResult:
+        """解析本地文档，返回通用 ``ParseResult``。
 
-        返回格式：
-            [
-              {
-                "slide_number": 1,        # page_idx + 1
-                "title": "封面标题",      # text_level == 0 的文字块，可能为空
-                "content": "正文文字",    # 同页其余 text/list/table/image 拼接
-                "source_file": "xxx.pptx",
-                "images": [],
-                "raw_blocks": [],          # 原始 MinerU block，供调用方审查
-                "indexable": True          # False 时不应写入向量索引
-              },
-              ...
-            ]
+        ``ParseResult.pages`` 使用通用的 ``Page(page_number=...)`` 模型。
+        为兼容尚未迁移的调用方，该结果同时可迭代，迭代时给出原有的页面字典
+        （含 ``slide_number``、``source_file`` 等历史字段）。
         """
 
         file_path = Path(file_path)
@@ -220,12 +211,14 @@ class MinerUParser:
         # 第二步：每隔 _POLL_INTERVAL 秒查一次状态，直到完成或超时
         zip_bytes = self._poll_until_done(batch_id, file_path.name)
 
-        # 第三步：从 zip 包里取出 content_list.json，按 page_idx 分组
-        return self._split_into_pages(zip_bytes, file_path.name)
+        # 第三步：从 zip 包里取出 content_list.json，按 page_idx 分组。旧字典
+        # 视图仍保留，现有 pipeline 与 Chroma schema 不在本批迁移。
+        legacy_pages = self._split_into_pages(zip_bytes, file_path.name)
+        return ParseResult.from_legacy_pages(file_path.name, ext.lstrip("."), legacy_pages)
 
     def parse_pptx(self, file_path: str | Path) -> list[dict]:
-        """兼容旧调用：实际实现已由 parse_document() 承担通用文档职责。"""
-        return self.parse_document(file_path)
+        """PPTX 兼容入口，继续返回含 ``slide_number`` 的旧页面字典。"""
+        return self.parse_document(file_path).to_legacy_pages()
 
     # ------------------------------------------------------------------
     # 内部方法

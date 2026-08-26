@@ -24,6 +24,19 @@ claude.md 中仅留索引，避免每次代码会话加载无关上下文。
 - 图片保留 MinerU caption 作为 fallback；视觉 caption 成功时覆盖它；最终索引文本中
   每张图片最多出现一次 `[图片]` 描述。
 
+## 文件身份与通用文档模型基础（2026-08）
+
+- 新流程的 `source_key` 是相对逻辑来源根目录的规范化路径，统一使用 `/`；因此
+  `项目A/方案.pdf` 与 `项目B/方案.pdf` 是不同来源，且不将本机绝对路径写入身份。
+  目录入库以用户传入目录为逻辑根；单文件未指定根时，明确使用该文件父目录作为
+  `single-file` 回退根，只得到文件名 source_key。需要跨目录区分同名单文件时必须传根。
+- `document_id` 由固定 UUID5 命名空间和 `source_key` 派生，改内容不变；`content_hash`
+  是每份源文件流式计算一次的 SHA-256；`version_id` 由该 hash 派生，内容变化必变。
+  这避免为每页重复 hash，也将“文件身份”和“内容版本”分开。
+- 本批只建立领域模型与未来身份能力，旧 Chroma `source_file + slide_number` ID、旧 MD5
+  判重 metadata 均不迁移、不读取也不改写。文件改名目前视为新的 `source_key`；若要把
+  改名识别为同一文档，后续必须提供显式、可审计的迁移功能。
+
 ## 查询结果与引用身份（2026-08）
 
 - `pipeline.query()` 返回渠道无关的 `QueryResult`；CLI 仅负责将其渲染为 Markdown，
