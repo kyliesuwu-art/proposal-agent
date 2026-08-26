@@ -1,3 +1,8 @@
+#!!parser.py再完善一下，后面要拆开，已经包含三个功能了，太乱了。
+#hash码的算密码在这里，怎么比密码不在这里，后面要把整个链条化。
+#存一份zipfile的这个功能，在后期项目上线了以后要记得删掉，这是只供开发调试写的代码。
+
+
 #parser.py
 
 """MinerU 官方 SDK 封装：解析 PPTX 文件，按 slide（page_idx）返回结构化内容。"""
@@ -8,6 +13,8 @@ import io
 import json
 import os
 import shutil
+
+import re
 import time
 import zipfile
 from html.parser import HTMLParser
@@ -24,11 +31,21 @@ _POLL_INTERVAL = 10
 # 最大等待时间（秒）：超过这个时间抛出异常
 _MAX_WAIT = 1800
 
+# pending 阶段单独超时（秒）：任务提交后长时间卡在 pending（不转 running），
+# 说明大概率是 MinerU 服务端任务丢失/队列拥堵，不用等满 _MAX_WAIT 才报错。
+# 调大/调小这个常量即可调整 pending 阶段的耐心程度。
+_PENDING_TIMEOUT = 300
+
 # 入库时忽略的 block 类型（页脚等噪音内容）
-_IGNORED_TYPES = {"page_footnote"}
+# PDF/DOC 解析会额外产出 header/footer/page_number 等 block，PPTX 里通常没有
+_IGNORED_TYPES = {"page_footnote", "header", "footer", "page_number"}
+
+# 支持解析的文件格式
+SUPPORTED_EXTENSIONS = {".pptx", ".pdf",  ".docx",  ".doc"}
 
 # 调试用 zip 包的保存目录：每个源文件各留一份最新结果，重新解析时覆盖旧的，
 # 不同源文件之间互不覆盖，方便排查是哪个 pptx 解析出的问题。
+# 后期过了开发阶段，可以删掉这个设计，确实不需要保留文件的zip file。
 _DEBUG_ZIP_DIR = Path("debug_zips")
 
 # 图片素材的保存目录：按 pptx 文件名分子目录存放提取出的图片。
@@ -40,35 +57,109 @@ _IMAGES_DIR = Path("images")
 class _TableTextParser(HTMLParser):
     """用标准库 HTMLParser 从 MinerU 返回的 HTML 表格标记中提取行文本。
 
-    MinerU 的 table_body 是逐字符的 HTML 列表（如 ['<', 't', 'a', ...]），
-    join 后得到完整 HTML。这个 parser 按 <tr> 分组、逐行提取 <td> 文本，
-    不管 colspan 属性，按出现顺序输出，每行用 " | " 连接。
+    MinerU 的 table_body 是逐字符的 HTML 列表（如 ['<', 't', 'a', ...]),
+    join 后得到完整 HTML。这个 parser 按 <tr> 分组、逐行提取单元格文本，
+    每行用 " | " 连接。
+
+    修复记录（原来的版本在这两点上会丢数据）：
+    - <th> 之前完全没被处理（只认 <td>），而 MinerU 输出的表格 100% 用
+      <th> 做表头行，导致表头整行被丢弃。现在 <td>/<th> 一视同仁。
+    - rowspan 之前完全没处理：跨行合并的单元格只会在第一次出现的那一行
+      被记录，后续被合并覆盖的行里对应位置直接是空的。现在会把该单元格
+      的文本延续填充到 rowspan 覆盖的后续行，并按原来的列位置对齐，不会
+      因为对齐问题让后面的列错位。
+    - colspan 仍然不处理：跨列单元格只在起始列输出一次，不做列扩展。
+      对语义检索影响很小，而且不同表格的真实列数没法从 colspan 可靠推断，
+      强行展开反而容易在列对齐上引入新 bug。
     """
 
     def __init__(self) -> None:
         super().__init__()
-        self._rows: list[list[str]] = []
-        self._in_td: bool = False
+        # 每行用 {列号: 文本} 表示，而不是单纯的 list，
+        # 这样才能让 rowspan 延续的单元格落在正确的列位置上。
+        self._rows: list[dict[int, str]] = []
+        self._in_cell: bool = False
         self._current_text: list[str] = []
+        self._current_rowspan: int = 1
+        self._col_idx: int = 0
+        # 还没消耗完的 rowspan 单元格：{列号: [剩余需要填充的行数, 文本]}
+        self._pending_rowspans: dict[int, list] = {}
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag == "tr":
-            self._rows.append([])
-        elif tag == "td":
-            self._in_td = True
+            row: dict[int, str] = {}
+            # 新的一行先用还没消耗完的 rowspan 单元格占位
+            for col, (remaining, text) in list(self._pending_rowspans.items()):
+                row[col] = text
+                remaining -= 1
+                if remaining <= 0:
+                    del self._pending_rowspans[col]
+                else:
+                    self._pending_rowspans[col][0] = remaining
+            self._rows.append(row)
+            self._col_idx = 0
+        elif tag in ("td", "th"):
+            self._in_cell = True
             self._current_text = []
+            attrs_dict = dict(attrs)
+            raw_rowspan = attrs_dict.get("rowspan")
+            try:
+                self._current_rowspan = int(raw_rowspan) if raw_rowspan else 1
+            except ValueError:
+                self._current_rowspan = 1
+            # 跳过已经被上面 rowspan 占用的列，找到这个单元格真正落在的列号
+            if self._rows:
+                while self._col_idx in self._rows[-1]:
+                    self._col_idx += 1
 
     def handle_endtag(self, tag: str) -> None:
-        if tag == "td" and self._in_td:
-            text = "".join(self._current_text).strip()
+        if tag in ("td", "th") and self._in_cell:
+            text = "".join(self._current_text)
+            # 折叠内部换行/多余空白（MinerU 有些表头单元格文字自带换行，
+            # 比如 "每次充电电量\n（KWH）"，原样保留会把 Markdown 表格的
+            # 行结构撑坏，这里统一压成单行）
+            text = " ".join(text.split())
             if text:
                 # HTML 实体解码（&amp; → &，&nbsp; →  等）
-                self._rows[-1].append(html.unescape(text))
-            self._in_td = False
+                text = html.unescape(text)
+            if self._rows:
+                self._rows[-1][self._col_idx] = text
+            if self._current_rowspan > 1:
+                self._pending_rowspans[self._col_idx] = [self._current_rowspan - 1, text]
+            self._col_idx += 1
+            self._current_rowspan = 1
+            self._in_cell = False
 
     def handle_data(self, data: str) -> None:
-        if self._in_td:
+        if self._in_cell:
             self._current_text.append(data)
+
+    def get_rows(self) -> list[list[str]]:
+        """按列号排序、丢弃空单元格后，返回每行的文本列表。
+
+        适合纯文本检索场景（不要求严格的列对齐）。要生成规范的 Markdown
+        表格（列数必须每行一致），请用 get_grid()。
+        """
+        return [
+            [row[col] for col in sorted(row.keys()) if row.get(col)]
+            for row in self._rows
+        ]
+
+    def get_grid(self) -> list[list[str]]:
+        """返回按列对齐的完整二维网格，保留空单元格（用空字符串占位）。
+
+        列数以出现过的最大列号为准；哪一行缺了某一列（比如某行没有
+        "规格型号"这一格），就用空字符串补上，而不是像 get_rows() 那样
+        直接跳过——这样每一行的列数才能保持一致，才能拼成合法的
+        Markdown 表格（表头和数据行列数不一致的话，很多渲染器会显示错乱）。
+        """
+        if not self._rows:
+            return []
+        max_col = max((max(row.keys()) for row in self._rows if row), default=-1)
+        return [
+            [row.get(col, "") for col in range(max_col + 1)]
+            for row in self._rows
+        ]
 
 
 class MinerUParser:
@@ -108,12 +199,15 @@ class MinerUParser:
             ]
         """
 
-        #!!!!!!!!!!后面记得改成多个文件轮询
-        #！！！！！！后面做一个不用文件路径，只用文件名就可以ingest的功能
-        #！！！！记得做pdf和多格式的兼容
         file_path = Path(file_path)
         if not file_path.exists():
             raise FileNotFoundError(f"文件不存在: {file_path}")
+
+        ext = file_path.suffix.lower()
+        if ext not in SUPPORTED_EXTENSIONS:
+            raise ValueError(
+                f"不支持的文件格式: {ext}（目前支持 {', '.join(sorted(SUPPORTED_EXTENSIONS))}）"
+            )
 
         # 第一步：提交任务，立刻拿到 batch_id，不等待结果
         print(f"  提交解析任务: {file_path.name}")
@@ -124,6 +218,10 @@ class MinerUParser:
 
         # 第三步：从 zip 包里取出 content_list.json，按 page_idx 分组
         return self._split_by_page(zip_bytes, file_path.name)
+
+    def parse_document(self, file_path: str | Path) -> list[dict]:
+        """parse_pptx 的别名，历史遗留命名，现在已支持 pdf/doc/docx 等多种格式。"""
+        return self.parse_pptx(file_path)
 
     # ------------------------------------------------------------------
     # 内部方法
@@ -144,6 +242,7 @@ class MinerUParser:
             RuntimeError: 任务失败，或返回结果中没有 zip 包
         """
         deadline = time.monotonic() + _MAX_WAIT
+        pending_since: float | None = None  # 第一次进入 pending 的时刻
         elapsed = 0
 
         while True:
@@ -159,7 +258,7 @@ class MinerUParser:
                 # 同一文件重新解析会覆盖旧的调试包（不保留历史版本），
                 # 不同文件各自独立命名，互不覆盖。
                 _DEBUG_ZIP_DIR.mkdir(exist_ok=True)
-                debug_zip_path = _DEBUG_ZIP_DIR / f"{Path(file_name).stem}.zip"
+                debug_zip_path = _DEBUG_ZIP_DIR / f"{Path(file_name).name}.zip"
                 debug_zip_path.write_bytes(result._zip_bytes)
                 print(f"  已保存调试用 zip 包到: {debug_zip_path.resolve()}")
 
@@ -168,6 +267,16 @@ class MinerUParser:
             if result.state == "failed":
                 raise RuntimeError(f"MinerU 解析失败: {result.error}")
 
+            # pending 阶段单独超时：卡在 pending 太久大概率是任务丢失
+            if result.state == "pending":
+                if pending_since is None:
+                    pending_since = time.monotonic()
+                elif time.monotonic() - pending_since > _PENDING_TIMEOUT:
+                    raise TimeoutError(
+                        f"解析任务卡在 pending 状态超过 {_PENDING_TIMEOUT}s，"
+                        f"可能是 MinerU 队列拥堵或任务丢失（batch_id={batch_id}）"
+                    )
+
             # 还在运行中，打印进度
             if result.progress:
                 p = result.progress
@@ -175,9 +284,9 @@ class MinerUParser:
             else:
                 print(f"  [state={result.state}]（已等待 {elapsed}s)")
 
-            # 检查是否超时
+            # 检查总超时（running 阶段主要靠这个兜底）
             if time.monotonic() > deadline:
-                raise TimeoutError(f"解析超时（>{_MAX_WAIT}s),batch_id={batch_id}")
+                raise TimeoutError(f"解析总超时（>{_MAX_WAIT}s），batch_id={batch_id}")
 
             time.sleep(_POLL_INTERVAL)
             elapsed += _POLL_INTERVAL
@@ -199,7 +308,7 @@ class MinerUParser:
 
             # 重新解析同一个 pptx 前，先清空它专属的图片子目录，避免新版本
             # 图片变少之后，旧版本残留的图片文件还留在目录里造成脏数据。
-            images_dir = _IMAGES_DIR / Path(source_file).stem
+            images_dir = _IMAGES_DIR / Path(source_file).name
             if images_dir.exists():
                 shutil.rmtree(images_dir)
 
@@ -242,6 +351,75 @@ class MinerUParser:
 
         with zf.open(content_list_name) as f:
             return json.load(f)
+
+    @staticmethod
+    def _split_banner_rows(grid: list[list[str]]) -> tuple[list[str], list[list[str]]]:
+        """把网格最前面那些"只有 1 个非空格子、其余列全是空"的整行摘出来。
+
+        这种行通常是源表格里用 colspan 横跨全部列的说明性文字（比如"电价编号:
+        xxx"、"广东省两充两放策略"这类小标题/横幅）。我们不解析 colspan，
+        所以这类行在网格里只有第一格有内容、其余格子是空的——如果照常把
+        网格第一行当 Markdown 表头，就会把这种说明文字错当成列标题，后面
+        真正的列标题（比如"开始时间 | 结束时间 | 峰谷属性 | 备注"）反而被
+        当成了数据行。
+
+        只在列数 >= 3 时做这个处理：只有 2 列的表里大量存在"属性名 | 属性值"
+        这种正常的键值对表格（比如设备参数表），其中某一行也可能碰巧只有
+        1 个非空格子（分类小标题，如"基本数据"占了整行的第一列），这种
+        情况下没法可靠区分"这是横幅"还是"这就是正常数据"——贸然摘出来，
+        下一行真正的数据行就会被误当成表头，风险比不处理更大，所以列数
+        较少时直接跳过，保留原来的行为。
+
+        Returns:
+            (被摘出来的横幅文字列表, 去掉横幅行之后剩下的网格)
+        """
+        if not grid or len(grid[0]) < 3:
+            return [], grid
+
+        banners: list[str] = []
+        idx = 0
+        for row in grid:
+            non_empty = [cell for cell in row if cell.strip()]
+            if len(non_empty) == 1:
+                banners.append(non_empty[0])
+                idx += 1
+            else:
+                break
+        return banners, grid[idx:]
+
+    @staticmethod
+    def _grid_to_markdown(grid: list[list[str]]) -> str:
+        """把 get_grid() 返回的二维网格拼成文本：先摘掉开头的横幅说明行
+        （见 _split_banner_rows），剩下的部分再拼成标准 Markdown 表格
+        （表头行 + 分隔线 + 数据行），方便入库后无论是给人看还是喂给
+        下游 LLM 生成方案草稿，都能识别出这是一张结构化的表格，而不是
+        一堆没有对齐关系的纯文本行。
+
+        - 整行全是空字符串的行（比如源数据里出现的空 <tr></tr>）会被过滤掉
+        - 单元格里如果本身含有 "|" 字符会被转义，否则会被误判成新的分隔符
+        - 摘出来的横幅行摆在表格前面，各自一行，不参与表格的列结构
+        """
+        banners, rest = MinerUParser._split_banner_rows(grid)
+
+        rows = [row for row in rest if any(cell.strip() for cell in row)]
+        table_md = ""
+        if rows:
+            col_count = max(len(row) for row in rows)
+            rows = [row + [""] * (col_count - len(row)) for row in rows]
+
+            def _escape(cell: str) -> str:
+                return cell.replace("|", "\\|")
+
+            lines = ["| " + " | ".join(_escape(c) for c in rows[0]) + " |"]
+            lines.append("|" + "|".join([" --- "] * col_count) + "|")
+            for row in rows[1:]:
+                lines.append("| " + " | ".join(_escape(c) for c in row) + " |")
+            table_md = "\n".join(lines)
+
+        combined = list(banners)
+        if table_md:
+            combined.append(table_md)
+        return "\n".join(combined)
 
     @staticmethod
     def _render_page(
@@ -304,21 +482,34 @@ class MinerUParser:
                 body = block.get("table_body") or []
                 if isinstance(body, list) and len(body) > 0:
                     table_html = "".join(str(c) for c in body)
-                    parser = _TableTextParser()
+                    grid: list[list[str]] = []
                     try:
-                        parser.feed(table_html)
-                    except Exception:
-                        # 解析失败时退回到简单拼接，至少保留原始文本
                         parser = _TableTextParser()
-                        parser.feed("<table><tr><td>" + table_html + "</td></tr></table>")
+                        parser.feed(table_html)
+                        grid = parser.get_grid()
+                    except Exception:
+                        # 解析失败时的兜底：不再把原始 HTML 重新塞回同一套
+                        # <tr>/<td> 解析逻辑（原来的写法在 table_html 本身
+                        # 就带有 <tr>/<td> 标签时，会被当成新的多行重新展开，
+                        # 起不到"退化成单个单元格"的效果）。这里直接暴力
+                        # 剥掉所有标签，保留原始文字，好歹不让整张表格的
+                        # 内容彻底消失。
+                        plain_text = re.sub(r"<[^>]+>", " ", table_html)
+                        plain_text = html.unescape(" ".join(plain_text.split()))
+                        if plain_text:
+                            grid = [[plain_text]]
 
-                    for row_cells in parser._rows:
-                        row_text = " | ".join(row_cells)
-                        if row_text.strip():
-                            parts.append(row_text)
+                    markdown_table = MinerUParser._grid_to_markdown(grid)
+                    if markdown_table:
+                        parts.append(markdown_table)
 
             elif block_type == "image":
-                caption = (block.get("image_caption") or "").strip()
+                # image_caption 有时是 list（跟 table_caption 一样）
+                caption_raw = block.get("image_caption")
+                if isinstance(caption_raw, list):
+                    caption = " ".join(str(x).strip() for x in caption_raw if str(x).strip())
+                else:
+                    caption = (caption_raw or "").strip()
                 img_path_in_zip = block.get("img_path", "")
 
                 if img_path_in_zip:
@@ -331,6 +522,12 @@ class MinerUParser:
 
                 if caption:
                     parts.append(f"[图片] {caption}")
+
+            else:
+                print(
+                    f"  警告: 未处理的 block 类型 '{block_type}'"
+                    f"（{source_file} 第 {slide_number} 页），该 block 内容已跳过"
+                )
 
         return title, "\n".join(parts).strip(), images
 
@@ -359,7 +556,7 @@ class MinerUParser:
             return None
 
         ext = Path(img_path_in_zip).suffix or ".jpg"
-        out_dir = _IMAGES_DIR / Path(source_file).stem
+        out_dir = _IMAGES_DIR / Path(source_file).name
         out_dir.mkdir(parents=True, exist_ok=True)
 
         out_path = out_dir / f"slide_{slide_number}_{image_idx}{ext}"

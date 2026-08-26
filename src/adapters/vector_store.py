@@ -20,7 +20,7 @@ class SlideDict(TypedDict):
     # 每项为 {"path": 本地图片路径, "caption": 图片描述（可能是空字符串）}
     images: list[dict]
 
-
+#前期保持联网embedding吧，别改了
 class DashScopeEmbeddingFunction(EmbeddingFunction):
     """调用 DashScope text-embedding-v3 生成向量，替换 Chroma 默认的本地 ONNX 模型。"""
 
@@ -28,7 +28,7 @@ class DashScopeEmbeddingFunction(EmbeddingFunction):
         # DashScope 兼容 OpenAI 接口，直接用 openai 包调用
         self._client = OpenAI(
             api_key=os.environ.get("DASHSCOPE_API_KEY", ""),
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            base_url=os.environ.get("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
         )
 
     # DashScope text-embedding-v3 单次请求最多接受 10 条文本，超过会报
@@ -66,7 +66,7 @@ class DashScopeEmbeddingFunction(EmbeddingFunction):
         """调用一次 DashScope embeddings 接口，遇到限流等瞬时错误时重试。
 
         Returns:
-            按 index 排好序的 embedding 数据列表（每项带 .embedding / .index）
+            按 index 排好序的 embedding 数据列表（每项带 .embedding / .index)
         """
         last_error: Exception | None = None
 
@@ -114,6 +114,7 @@ class VectorStore:
             embedding_function=DashScopeEmbeddingFunction(),
         )
 
+
     # ------------------------------------------------------------------
     # 公共接口
     # ------------------------------------------------------------------
@@ -123,6 +124,7 @@ class VectorStore:
         slides: list[SlideDict],
         file_hash: str,
         slide_contexts: list[dict] | None = None,
+        doc_type: str = "proposal",
     ) -> int:
         """将一批 slide 存入向量库。
 
@@ -142,6 +144,8 @@ class VectorStore:
                 {"context_summary", "proposal_type", "client_industry"}。
                 不传时按原来的行为存（不做 context 增强，metadata 里两个
                 业务字段留空），保持向后兼容。
+            doc_type: 文档类型标记，"proposal"（方案/技术资料）或 "policy"
+                （政策参考类）。默认 "proposal"，检索时默认过滤掉 policy 类。
 
         Returns:
             实际入库的 slide 数量
@@ -188,6 +192,8 @@ class VectorStore:
                 # 保证 Chroma metadata 结构一致，方便 where 过滤查询。
                 "proposal_type": ctx.get("proposal_type", ""),
                 "client_industry": ctx.get("client_industry", ""),
+                # 文档类型：policy（政策参考）/ proposal（方案/技术资料）
+                "doc_type": doc_type,
             })
 
         self._collection.add(
@@ -293,6 +299,7 @@ class VectorStore:
         n_results: int = 10,
         proposal_type: str | None = None,
         client_industry: str | None = None,
+        include_policy: bool = False,
     ) -> list[dict]:
         """按语义检索，返回最相关的 slide，可选按 metadata 过滤。
 
@@ -302,11 +309,14 @@ class VectorStore:
             proposal_type: 可选，按方案类型过滤（如"光伏"），需要与入库时
                 写入的 proposal_type 完全匹配
             client_industry: 可选，按客户行业过滤，同上
+            include_policy: 是否包含政策参考类文档（doc_type="policy"）。
+                默认 False，检索时自动过滤掉政策类，只在方案/技术资料
+                中检索；传 True 时不做 doc_type 过滤，检索全部内容。
 
         Returns:
             按相关性排序的 slide 列表，每个包含完整元信息
         """
-        where = self._build_where(proposal_type, client_industry)
+        where = self._build_where(proposal_type, client_industry, include_policy)
 
         results = self._collection.query(
             query_texts=[query],
@@ -410,20 +420,40 @@ class VectorStore:
 
     def count(self) -> int:
         """返回库中 slide 总数。"""
-        return self._collection.count()
+        try:
+            return self._collection.count()
+        except Exception as e:
+            print("Vector DB corrupted:")
+            print(e)
+            return -1
+
 
     # ------------------------------------------------------------------
     # 内部辅助
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _build_where(proposal_type: str | None, client_industry: str | None) -> dict | None:
-        """把可选的过滤条件拼成 Chroma 的 where 子句，没有条件时返回 None。"""
+    def _build_where(
+        proposal_type: str | None,
+        client_industry: str | None,
+        include_policy: bool = False,
+    ) -> dict | None:
+        """把可选的过滤条件拼成 Chroma 的 where 子句，没有条件时返回 None。
+
+        Args:
+            proposal_type: 按方案类型精确匹配
+            client_industry: 按客户行业精确匹配
+            include_policy: 是否包含政策参考类。默认 False 时会追加
+                doc_type="proposal" 的过滤条件，排除政策类文档。
+        """
         conditions = []
         if proposal_type:
             conditions.append({"proposal_type": proposal_type})
         if client_industry:
             conditions.append({"client_industry": client_industry})
+        # 默认过滤掉政策类文档，只在方案/技术资料中检索
+        if not include_policy:
+            conditions.append({"doc_type": "proposal"})
 
         if not conditions:
             return None
@@ -454,5 +484,6 @@ class VectorStore:
             "images": images,
             "proposal_type": meta.get("proposal_type", ""),
             "client_industry": meta.get("client_industry", ""),
+            "doc_type": meta.get("doc_type", "proposal"),
             "distance": distance,
         }

@@ -3,7 +3,6 @@
 import base64
 from pathlib import Path
 
-
 import json
 import time
 
@@ -12,8 +11,9 @@ import os
 
 # 默认使用的模型。qwen3.7-plus  是性价比和能力的均衡档，先用它跑通整条链路；
 # 如果后面发现生成质量不够，换成 qwen-max 只需要改这一个字符串。
+# qwen3.8-max-preview 当前为预览版本，预览期间模型能力会持续迭代升级。预览结束后该模型会下线或替换成正式版本。
 # 模型列表：https://help.aliyun.com/zh/model-studio/getting-started/models
-_DEFAULT_MODEL = "qwen3.7-max"
+_DEFAULT_MODEL = "qwen3.7-plus"
 
 # 图片理解专用的视觉模型，跟 _DEFAULT_MODEL 是两条独立的链路：
 # 文字生成用 _DEFAULT_MODEL，看图用这个，互不干扰
@@ -27,29 +27,49 @@ _RETRY_SLEEP_SECONDS = 2.0
 
 # 生成 slide context 摘要 + metadata 用的系统提示词。强制要求只输出 JSON，
 # 不输出别的文字，方便下游直接解析。
+#
+# 注：proposal_type / client_industry 目前每张 slide 各自独立判断一次，
+# 同一份方案的不同 slide 理论上可能被判成不同类型。这是架构层面的取舍，
+# 如果后续发现同一方案内类型不一致的情况变多，再考虑改成文档级缓存复用。
 _CONTEXT_METADATA_SYSTEM_PROMPT = (
     "你是电气工程方案库的信息整理助手。给定一份历史方案 PPT 中某一张幻灯片的"
     "标题和正文，以及整份方案的幻灯片标题大纲，请判断这张幻灯片在方案中的"
-    "位置，以及这份方案的业务信息。只输出一个 JSON 对象，不要输出任何其他"
-    "文字、不要用 markdown 代码块包裹，格式如下：\n"
-    '{"context_summary": "一句话说明这张幻灯片属于哪份方案、大致章节位置", '
-    '"proposal_type": "方案类型，如配电/光伏/储能/自动化等，无法判断填空字符串", '
-    '"client_industry": "客户所属行业，无法判断填空字符串"}'
+    "位置，以及这份方案的业务信息。\n"
+    "context_summary：用 30-60 字概括这张幻灯片在方案中处于什么阶段/章节，"
+    "主要讲的是什么内容。\n"
+    "proposal_type：请从以下列表中选择最贴切的一个：配电、光伏、储能、自动化、"
+    "综合能源/零碳园区、电力交易、智能微电网、电能质量/无功补偿、用电信息"
+    "采集/计量、变电站/开关站、其他。如果这份方案大纲中确实综合了多个类型，"
+    "选择这张幻灯片所属章节对应的那一个；实在无法判断填空字符串。\n"
+    "client_industry：请尽量从以下列表中选择：政府/园区、工业制造、数据中心、"
+    "交通、医院、教育、商业地产、电网公司、其他。无法判断填空字符串。\n"
+    "只输出一个 JSON 对象，不要输出任何其他文字、不要用 markdown 代码块包裹，"
+    "格式如下：\n"
+    '{"context_summary": "30-60字的章节位置与内容概括", '
+    '"proposal_type": "上述列表中的一个或空字符串", '
+    '"client_industry": "上述列表中的一个或空字符串"}'
 )
 
 # query 改写用的系统提示词，同样强制只输出 JSON
 _QUERY_REWRITE_SYSTEM_PROMPT = (
     "你是电气工程方案库的检索助手。给定用户想要生成新方案的需求描述，"
     "请把它改写成 1-3 个更适合语义检索的查询语句（覆盖需求里不同的关键"
-    "角度），并且如果能从描述里判断出方案类型（如配电/光伏/储能/自动化"
-    "等），一并给出，无法判断则留空字符串。只输出一个 JSON 对象，不要"
-    "输出任何其他文字、不要用 markdown 代码块包裹，格式如下：\n"
-    '{"queries": ["查询1", "查询2"], "proposal_type": "方案类型或空字符串"}'
+    "角度，例如技术方案角度、客户场景角度、设备/规格角度等，不要三个查询"
+    "都是同一句话的简单变形）。\n"
+    "并且如果能从描述里判断出方案类型，请从以下列表中选择最贴切的一个："
+    "配电、光伏、储能、自动化、综合能源/零碳园区、电力交易、智能微电网、"
+    "电能质量/无功补偿、用电信息采集/计量、变电站/开关站、其他；无法判断"
+    "则留空字符串。\n"
+    "只输出一个 JSON 对象，不要输出任何其他文字、不要用 markdown 代码块包裹，"
+    "格式如下：\n"
+    '{"queries": ["查询1", "查询2"], "proposal_type": "上述列表中的一个或空字符串"}'
 )
 
 _IMAGE_CAPTION_SYSTEM_PROMPT = (
-    "你是电气工程方案库的图片理解助手。请用一句话客观描述这张图片的内容，"
-    "如果是系统拓扑图/接线图/设备照片等，说明图中包含的关键设备、结构或流程；"
+    "你是电气工程方案库的图片理解助手。请用一句话客观描述这张图片的内容。\n"
+    "如果图片是系统拓扑图/接线图/设备照片/参数表格等，请在这句话里明确点出"
+    "关键设备名称、型号规格（如有）、拓扑结构或流程环节，方便后续按关键词检索；"
+    "如果是纯装饰性配图或看不出具体信息，客观描述画面内容即可，不要编造设备信息。\n"
     "不要输出与描述无关的文字，不要以“这张图片”开头，直接描述内容本身。"
 )
 
@@ -64,7 +84,7 @@ class LLMClient:
         # 跟 vector_store.py 里的 DashScopeEmbeddingFunction 是同一种调用方式
         self._client = OpenAI(
             api_key=os.environ.get("DASHSCOPE_API_KEY", ""),
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            base_url=os.environ.get("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
             timeout=120.0,
         )
         self._model = model
@@ -120,6 +140,7 @@ class LLMClient:
             if cleaned.startswith("```"):
                 cleaned = cleaned.strip("`")
                 cleaned = cleaned.removeprefix("json").strip()
+
             data = json.loads(cleaned)
             queries = data.get("queries", [])
             if not isinstance(queries, list) or not queries:
@@ -172,20 +193,17 @@ class LLMClient:
     
 
     def generate_image_captions(self, slide: dict) -> list[str]:
-        """为一张 slide 里的每张图片生成一句话描述，用于图片内容的语义检索。
-        与 generate_slide_context 是两条独立链路：这里专用视觉模型
-    （self._vision_model），文字理解继续用 self._model，互不干扰——
-    任何一条链路失败都不影响另一条（参考 FastGPT 的图像 caption
-    回退管线设计）。
+        """为 slide 里的所有图片依次生成一句话 caption。
 
-    单张图片生成失败时，这张图片的 caption 返回空字符串，不抛异常、
-    不影响同一 slide 里其他图片继续生成。
-     Args:
-        slide: 当前 slide dict，用它的 images 字段（每项含 "path"）
+           对 slide["images"] 逐张调用 _generate_single_image_caption；
+           某张图片生成失败时该项返回空字符串，不抛异常，不影响其他图片继续处理。
 
-    Returns:
-        与 slide["images"] 一一对应（按下标）的 caption 字符串列表
-    """
+           Args:
+            slide: 当前 slide dict，用它的 images 字段（每项含 "path"）
+
+           Returns:
+           与 slide["images"] 一一对应（按下标）的 caption 字符串列表
+        """
         captions = []
         for img in slide.get("images", []):
             try:
@@ -198,7 +216,7 @@ class LLMClient:
 
     
     def _generate_single_image_caption(self, image_path: str, slide: dict) -> str:
-        """对单张本地图片调用视觉模型，生成一句话内容描述。
+        """对单张图片调用视觉模型，返回一句话 caption。
         图片是本地文件（parser 存的是本地路径），不是可公开访问的 URL，
         所以读文件转 base64、拼成 data URL 传给模型，而不是传 URL。
         """

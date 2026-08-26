@@ -5,6 +5,7 @@
 这里只负责 ingest / query / status 这几条业务流程怎么串起来。
 """
 
+import csv
 import re
 import sys
 from pathlib import Path
@@ -13,9 +14,39 @@ from src.adapters.parser import MinerUParser
 from src.adapters.vector_store import VectorStore
 from src.adapters.llm_client import LLMClient
 
+# ingest_manifest.csv 路径：用于判断文件的 doc_type（policy / proposal）
+_MANIFEST_PATH = Path(__file__).resolve().parent.parent / "ingest_manifest.csv"
+_manifest_cache: dict[str, str] | None = None
+
 # 相邻 slide 扩展：命中的 slide 前后各带几张，见 claude.md 检索流程第 4 步
 #！！！！后期可以思考一下，有没有更好的减少上下文损益的方式
 _ADJACENT_WINDOW = 1
+
+
+def _get_doc_type(filename: str) -> str:
+    """从 ingest_manifest.csv 查询文件的 doc_type。
+
+    先按 rel_path 匹配（含子目录层级），再按 filename 兜底匹配。
+    manifest 不存在或找不到记录时，默认返回 "proposal"。
+    """
+    global _manifest_cache
+    if _manifest_cache is None:
+        _manifest_cache = {}
+        if _MANIFEST_PATH.exists():
+            with open(_MANIFEST_PATH, newline="", encoding="utf-8-sig") as f:
+                for row in csv.DictReader(f):
+                    # rel_path 优先（含子目录层级，更精确）
+                    rel = row.get("rel_path", "").replace("\\", "/")
+                    if rel:
+                        _manifest_cache[rel] = row.get("doc_type", "proposal")
+                    # 再记一份 filename 兜底
+                    fn = row.get("filename", "")
+                    if fn:
+                        _manifest_cache[fn] = row.get("doc_type", "proposal")
+
+    if _manifest_cache:
+        return _manifest_cache.get(filename, "proposal")
+    return "proposal"
 
 # 生成方案初稿时使用的系统提示词。核心约束：只能基于参考资料改写，不能
 # 编造参考资料里没有的具体数据/型号——这类工程方案文档如果被模型瞎编
@@ -55,6 +86,11 @@ def ingest(pptx_path: str) -> None:
         print(f"  库中总计: {store.count()} 个 slide")
         return
 
+    # 从 manifest 获取文档类型（policy / proposal）
+    doc_type = _get_doc_type(pptx_file.name)
+    if doc_type == "policy":
+        print(f"  [政策参考类] 将标记为 doc_type=policy（检索时默认过滤）")
+
     # 第一步：MinerU 解析。先解析成功拿到完整数据，再动 Chroma——
     # 万一解析中途失败，旧数据还留着，不会出现"删了旧的、新的又没进来"的空档
     print("\n[1/3] 调用 MinerU 解析 PPTX...")
@@ -84,8 +120,8 @@ def ingest(pptx_path: str) -> None:
         deleted = store.delete_source(pptx_file.name)
         print(f"  检测到内容更新，已清空旧版本 {deleted} 个 slide")
 
-    count = store.add_slides(slides, file_hash=file_hash)
-    print(f"  已存入 {count} 个 slide（尚未生成 context 增强）")
+    count = store.add_slides(slides, file_hash=file_hash, doc_type=doc_type)
+    print(f"  已存入 {count} 个 slide（doc_type={doc_type}，尚未生成 context 增强）")
 
     # 第三步：逐张生成 context/metadata（LLM 调用逐张进行，没法合并），
     # 全部生成完之后一次性批量 update 回 Chroma——不是生成一张存一张。

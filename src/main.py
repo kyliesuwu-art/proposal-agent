@@ -2,7 +2,7 @@
 """方案知识库 CLI 入口：解析命令行参数，分发到 pipeline.py 里的业务逻辑。
 
 用法：
-    uv run python src/main.py ingest <pptx_path>    # 解析 PPTX 并入库
+    uv run python src/main.py ingest <文件或目录路径> # 解析并入库（单个文件或整个目录批量）
     uv run python src/main.py query "需求描述"       # 检索相关 slide 并生成方案初稿
     uv run python src/main.py annotate <source_file> # 为源文件进行标注/打标签
     uv run python src/main.py status                 # 查看库状态
@@ -20,6 +20,50 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src import pipeline
+from src.adapters.parser import SUPPORTED_EXTENSIONS
+
+
+def _ingest_path(path_str: str) -> None:
+    """支持传入单个文件，也支持传入目录（自动遍历目录下所有受支持格式的文件）。"""
+    path = Path(path_str)
+    if not path.exists():
+        print(f"路径不存在: {path}")
+        sys.exit(1)
+
+    if path.is_dir():
+        files = sorted(
+            p for p in path.rglob("*")
+            if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS
+        )
+        if not files:
+            print(f"目录下没有找到支持的文件（{', '.join(sorted(SUPPORTED_EXTENSIONS))}）: {path}")
+            return
+
+        print(f"共找到 {len(files)} 个文件，开始批量入库...\n")
+        succeeded: list[str] = []
+        failed: list[tuple[str, str]] = []
+
+        for i, f in enumerate(files, 1):
+            print(f"[{i}/{len(files)}] {f.name}")
+            try:
+                pipeline.ingest(str(f))
+                succeeded.append(f.name)
+            except Exception as e:
+                print(f"  [FAIL] 失败: {e}")
+                failed.append((f.name, str(e)))
+            print()
+
+        print("=" * 40)
+        print(f"批量入库完成：成功 {len(succeeded)} / 失败 {len(failed)}（共 {len(files)}）")
+        if failed:
+            print("失败列表：")
+            for name, err in failed:
+                print(f"  - {name}: {err}")
+    else:
+        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+            print(f"不支持的文件格式: {path.suffix}（目前支持 {', '.join(sorted(SUPPORTED_EXTENSIONS))}）")
+            sys.exit(1)
+        pipeline.ingest(str(path))
 
 
 def main() -> None:
@@ -32,9 +76,9 @@ def main() -> None:
 
     if command == "ingest":
         if len(sys.argv) < 3:
-            print("用法: python main.py ingest <pptx_path>")
+            print("用法: python main.py ingest <文件或目录路径>")
             sys.exit(1)
-        pipeline.ingest(sys.argv[2])
+        _ingest_path(sys.argv[2])
 
     elif command == "query":
         if len(sys.argv) < 3:
