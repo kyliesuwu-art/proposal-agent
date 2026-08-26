@@ -4,7 +4,7 @@
 import json
 import os
 import time
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 import chromadb
 from chromadb.utils.embedding_functions import EmbeddingFunction
@@ -20,6 +20,9 @@ class SlideDict(TypedDict):
     source_file: str
     # 每项为 {"path": 本地图片路径, "caption": 图片描述（可能是空字符串）}
     images: list[dict]
+    # 目录页等保留给调用方审查、但不参与向量索引的页面。
+    indexable: NotRequired[bool]
+    raw_blocks: NotRequired[list[dict]]
 
 #前期保持联网embedding吧，别改了
 class DashScopeEmbeddingFunction(EmbeddingFunction):
@@ -159,11 +162,19 @@ class VectorStore:
         if slide_contexts is None:
             slide_contexts = [{}] * len(slides)
 
+        indexable_pairs = [
+            (slide, ctx)
+            for slide, ctx in zip(slides, slide_contexts)
+            if slide.get("indexable", True)
+        ]
+        if not indexable_pairs:
+            return 0
+
         ids = []
         documents = []
         metadatas = []
 
-        for slide, ctx in zip(slides, slide_contexts):
+        for slide, ctx in indexable_pairs:
             # 用 source_file + slide_number 做唯一 ID
             doc_id = f"{slide['source_file']}_slide_{slide['slide_number']}"
             ids.append(doc_id)
@@ -229,11 +240,19 @@ class VectorStore:
         if not slides:
             return
 
+        indexable_pairs = [
+            (slide, ctx)
+            for slide, ctx in zip(slides, contexts)
+            if slide.get("indexable", True)
+        ]
+        if not indexable_pairs:
+            return
+
         ids = []
         documents = []
         metadatas = []
 
-        for slide, ctx in zip(slides, contexts):
+        for slide, ctx in indexable_pairs:
             doc_id = f"{slide['source_file']}_slide_{slide['slide_number']}"
             base_text = (
                 f"{slide['title']}\n{slide['content']}" if slide["title"] else slide["content"]
@@ -245,7 +264,7 @@ class VectorStore:
                 img["caption"] for img in slide.get("images", []) if img.get("caption")
             ]
             if image_captions:
-                captions_text = "\n".join(f"[图片描述] {c}" for c in image_captions)
+                captions_text = "\n".join(f"[图片] {c}" for c in image_captions)
                 base_text = f"{base_text}\n{captions_text}"
 
             context_summary = ctx.get("context_summary", "")

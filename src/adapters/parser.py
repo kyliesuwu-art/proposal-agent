@@ -5,7 +5,7 @@
 
 #parser.py
 
-"""MinerU 官方 SDK 封装：解析 PPTX 文件，按 slide（page_idx）返回结构化内容。"""
+"""MinerU 官方 SDK 封装：解析文档并按 page_idx 返回页面结构化内容。"""
 
 import hashlib
 import html
@@ -185,8 +185,8 @@ class MinerUParser:
         file_path = Path(file_path)
         return hashlib.md5(file_path.read_bytes()).hexdigest()
 
-    def parse_pptx(self, file_path: str | Path) -> list[dict]:
-        """解析本地 PPTX，返回按 slide（page_idx）分好的内容列表。
+    def parse_document(self, file_path: str | Path) -> list[dict]:
+        """解析本地文档，返回按页面（page_idx）分好的内容列表。
 
         返回格式：
             [
@@ -194,7 +194,10 @@ class MinerUParser:
                 "slide_number": 1,        # page_idx + 1
                 "title": "封面标题",      # text_level == 0 的文字块，可能为空
                 "content": "正文文字",    # 同页其余 text/list/table/image 拼接
-                "source_file": "xxx.pptx"
+                "source_file": "xxx.pptx",
+                "images": [],
+                "raw_blocks": [],          # 原始 MinerU block，供调用方审查
+                "indexable": True          # False 时不应写入向量索引
               },
               ...
             ]
@@ -218,11 +221,11 @@ class MinerUParser:
         zip_bytes = self._poll_until_done(batch_id, file_path.name)
 
         # 第三步：从 zip 包里取出 content_list.json，按 page_idx 分组
-        return self._split_by_page(zip_bytes, file_path.name)
+        return self._split_into_pages(zip_bytes, file_path.name)
 
-    def parse_document(self, file_path: str | Path) -> list[dict]:
-        """parse_pptx 的别名，历史遗留命名，现在已支持 pdf/doc/docx 等多种格式。"""
-        return self.parse_pptx(file_path)
+    def parse_pptx(self, file_path: str | Path) -> list[dict]:
+        """兼容旧调用：实际实现已由 parse_document() 承担通用文档职责。"""
+        return self.parse_document(file_path)
 
     # ------------------------------------------------------------------
     # 内部方法
@@ -293,7 +296,7 @@ class MinerUParser:
             elapsed += _POLL_INTERVAL
 
     @staticmethod
-    def _split_by_page(zip_bytes: bytes, source_file: str) -> list[dict]:
+    def _split_into_pages(zip_bytes: bytes, source_file: str) -> list[dict]:
         """从 zip 包中读取 content_list.json，按 page_idx 把 block 分组成 slide。
 
         content_list.json 是扁平的 block 列表，每个 block 用 page_idx 标明属于第几页
@@ -325,6 +328,9 @@ class MinerUParser:
                 title, content, images = MinerUParser._render_page(
                     pages[page_idx], zf, source_file, slide_number
                 )
+                indexable = not MinerUParser._is_toc_page(
+                    pages[page_idx], title, content
+                )
                 slides.append({
                     "slide_number": slide_number,
                     "title": title,
@@ -333,9 +339,49 @@ class MinerUParser:
                     # 每项为 {"path": 本地图片路径, "caption": 图片描述}，
                     # caption 可能是空字符串（不是所有图片都有说明文字）
                     "images": images,
+                    # 保留原始 block，便于调用方审查；向量层不会写入此字段。
+                    "raw_blocks": pages[page_idx],
+                    "indexable": indexable,
                 })
 
             return slides
+
+    @staticmethod
+    def _split_by_page(zip_bytes: bytes, source_file: str) -> list[dict]:
+        """兼容旧内部调用：请优先使用 _split_into_pages()。"""
+        return MinerUParser._split_into_pages(zip_bytes, source_file)
+
+    @staticmethod
+    def _is_toc_page(blocks: list[dict], title: str, content: str) -> bool:
+        """用强信号和保守弱信号识别目录页，不依赖 LLM。
+
+        强信号是标题/正文中的“目录”或“Contents”，以及多个 MinerU `_Toc`
+        anchor。弱信号仅接受至少三条“标题 + 连续引导符 + 页码”的文本行，
+        不检查 table block，避免将参数表、报价表或工程量表误判为目录。
+        """
+        visible_text = f"{title}\n{content}".casefold()
+        if "目录" in visible_text or "contents" in visible_text:
+            return True
+
+        raw_json = json.dumps(blocks, ensure_ascii=False)
+        if len(re.findall(r"_toc(?:[\w-]+)?", raw_json, flags=re.IGNORECASE)) >= 2:
+            return True
+
+        text_lines: list[str] = []
+        for block in blocks:
+            if block.get("type") == "text":
+                text = str(block.get("text") or "").strip()
+                if text:
+                    text_lines.extend(text.splitlines())
+            elif block.get("type") == "list":
+                text_lines.extend(
+                    str(item).strip()
+                    for item in block.get("list_items") or []
+                    if str(item).strip()
+                )
+
+        toc_line_pattern = re.compile(r".+(?:\.{2,}|…{2,}|·{2,}|-{3,}|—{2,})\s*\d{1,4}\s*$")
+        return sum(bool(toc_line_pattern.match(line.strip())) for line in text_lines) >= 3
 
     @staticmethod
     def _read_content_list(zf: zipfile.ZipFile) -> list[dict]:
@@ -481,8 +527,13 @@ class MinerUParser:
 
                 # MinerU 的 table_body 是逐字符的 HTML 列表，先 join 再解析。
                 body = block.get("table_body") or []
-                if isinstance(body, list) and len(body) > 0:
+                if isinstance(body, list):
                     table_html = "".join(str(c) for c in body)
+                elif isinstance(body, str):
+                    table_html = body
+                else:
+                    table_html = ""
+                if table_html:
                     grid: list[list[str]] = []
                     try:
                         parser = _TableTextParser()
@@ -520,9 +571,6 @@ class MinerUParser:
                     if local_path is not None:
                         images.append({"path": str(local_path), "caption": caption})
                         image_idx += 1
-
-                if caption:
-                    parts.append(f"[图片] {caption}")
 
             else:
                 print(

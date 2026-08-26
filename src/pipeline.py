@@ -96,11 +96,19 @@ def ingest(pptx_path: str) -> None:
     # 万一解析中途失败，旧数据还留着，不会出现"删了旧的、新的又没进来"的空档
     print("\n[1/3] 调用 MinerU 解析 PPTX...")
     parser = MinerUParser()
-    slides = parser.parse_pptx(pptx_file)
-    print(f"  解析完成，共 {len(slides)} 个 slide")
+    parsed_pages = parser.parse_document(pptx_file)
+    print(f"  解析完成，共 {len(parsed_pages)} 个页面")
 
-    if not slides:
+    if not parsed_pages:
         print("  警告：没有提取到任何文字内容")
+        return
+
+    slides = [page for page in parsed_pages if page.get("indexable", True)]
+    skipped_pages = len(parsed_pages) - len(slides)
+    if skipped_pages:
+        print(f"  已识别并跳过 {skipped_pages} 个目录页，不写入向量索引")
+    if not slides:
+        print("  警告：没有可写入向量索引的页面，保留已有库内容")
         return
 
     # 打印前几个 slide 预览，顺带看一眼图片提取情况
@@ -167,11 +175,17 @@ def _annotate_slides(store: VectorStore, slides: list[dict]) -> None:
         if slide.get("images"):
             try:
                 captions = llm.generate_image_captions(slide)
-                for img, caption in zip(slide["images"], captions):
-                    img["caption"] = caption
-                captions_updated = any(captions)
+                for img, generated_caption in zip(slide["images"], captions):
+                    # 视觉模型成功时覆盖 MinerU caption；失败时保留原始 caption。
+                    if generated_caption:
+                        img["caption"] = generated_caption
+                    if img.get("caption"):
+                        captions_updated = True
             except Exception as e:  # noqa: BLE001
                 print(f"    警告：图片 caption 生成失败（{e}）")
+                # 即使整次视觉调用失败，也让已有 MinerU caption 作为 fallback
+                # 写回索引文本，而不是把图片说明完全丢掉。
+                captions_updated = any(img.get("caption") for img in slide["images"])
         
         if ctx is None and not captions_updated:
             skipped_count += 1
