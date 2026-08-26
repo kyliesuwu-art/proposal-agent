@@ -9,6 +9,7 @@ from typing import NotRequired, TypedDict
 import chromadb
 from chromadb.utils.embedding_functions import EmbeddingFunction
 from openai import APIStatusError, OpenAI
+from src.adapters.parser import MinerUParser
 from src.config import CHROMA_PATH, resolve_project_path
 
 
@@ -181,8 +182,8 @@ class VectorStore:
 
             # 把 title 和 content 拼合作为基础文本，title 权重更高；
             # content 里已经包含了有 caption 的图片描述，天然参与语义检索
-            base_text = (
-                f"{slide['title']}\n{slide['content']}" if slide["title"] else slide["content"]
+            base_text = MinerUParser.build_index_text(
+                slide, include_image_captions=False
             )
 
             # contextual retrieval：如果生成了 context 摘要，prepend 到
@@ -254,18 +255,8 @@ class VectorStore:
 
         for slide, ctx in indexable_pairs:
             doc_id = f"{slide['source_file']}_slide_{slide['slide_number']}"
-            base_text = (
-                f"{slide['title']}\n{slide['content']}" if slide["title"] else slide["content"]
-            )
-
-            # 把图片 caption 拼进参与检索的文本里，让"配电柜接线图"这类描述
-            # 也能命中这张 slide，不只是靠周围文字
-            image_captions = [
-                img["caption"] for img in slide.get("images", []) if img.get("caption")
-            ]
-            if image_captions:
-                captions_text = "\n".join(f"[图片] {c}" for c in image_captions)
-                base_text = f"{base_text}\n{captions_text}"
+            # 复用 parser 的纯文本拼接规则，确保离线预览与最终更新文本一致。
+            base_text = MinerUParser.build_index_text(slide)
 
             context_summary = ctx.get("context_summary", "")
             text = f"{context_summary}\n{base_text}" if context_summary else base_text

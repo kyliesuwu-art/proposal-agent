@@ -359,13 +359,24 @@ class MinerUParser:
         anchor。弱信号仅接受至少三条“标题 + 连续引导符 + 页码”的文本行，
         不检查 table block，避免将参数表、报价表或工程量表误判为目录。
         """
+        return bool(MinerUParser._toc_page_reasons(blocks, title, content))
+
+    @staticmethod
+    def _toc_page_reasons(blocks: list[dict], title: str, content: str) -> list[str]:
+        """返回目录页命中的规则，供本地预览解释而不改变识别逻辑。"""
+        reasons: list[str] = []
         visible_text = f"{title}\n{content}".casefold()
-        if "目录" in visible_text or "contents" in visible_text:
-            return True
+        if "目录" in visible_text:
+            reasons.append('标题或正文包含“目录”')
+        if "contents" in visible_text:
+            reasons.append('标题或正文包含“Contents”')
 
         raw_json = json.dumps(blocks, ensure_ascii=False)
-        if len(re.findall(r"_toc(?:[\w-]+)?", raw_json, flags=re.IGNORECASE)) >= 2:
-            return True
+        toc_anchor_count = len(
+            re.findall(r"_toc(?:[\w-]+)?", raw_json, flags=re.IGNORECASE)
+        )
+        if toc_anchor_count >= 2:
+            reasons.append(f"存在 {toc_anchor_count} 个 _Toc anchor")
 
         text_lines: list[str] = []
         for block in blocks:
@@ -381,7 +392,95 @@ class MinerUParser:
                 )
 
         toc_line_pattern = re.compile(r".+(?:\.{2,}|…{2,}|·{2,}|-{3,}|—{2,})\s*\d{1,4}\s*$")
-        return sum(bool(toc_line_pattern.match(line.strip())) for line in text_lines) >= 3
+        matched_lines = sum(
+            bool(toc_line_pattern.match(line.strip())) for line in text_lines
+        )
+        if matched_lines >= 3:
+            reasons.append(f"{matched_lines} 行标题引导符加页码")
+        return reasons
+
+    @staticmethod
+    def preview_debug_zip(zip_path: str | Path, source_file: str | None = None) -> list[dict]:
+        """只读本地 MinerU debug zip，生成拟入库页面预览数据。
+
+        不构造 MinerU 客户端、不提取图片，也不触及 Chroma。图片仅按正式
+        入库时的命名规则生成相对路径，方便开发时与既有素材目录对照。
+        """
+        zip_path = Path(zip_path)
+        if source_file is None:
+            source_file = zip_path.name.removesuffix(".zip")
+
+        with zipfile.ZipFile(zip_path) as zf:
+            blocks = MinerUParser._read_content_list(zf)
+
+        pages: dict[int, list[dict]] = {}
+        for block in blocks:
+            pages.setdefault(block.get("page_idx", 0), []).append(block)
+
+        preview_pages = []
+        for page_idx in sorted(pages):
+            slide_number = page_idx + 1
+
+            def preview_image_path(img_path: str, image_idx: int) -> str:
+                ext = Path(img_path).suffix or ".jpg"
+                return (
+                    Path("images")
+                    / Path(source_file).name
+                    / f"slide_{slide_number}_{image_idx}{ext}"
+                ).as_posix()
+
+            title, content, images = MinerUParser._render_page_with_image_resolver(
+                pages[page_idx], preview_image_path
+            )
+            reasons = MinerUParser._toc_page_reasons(
+                pages[page_idx], title, content
+            )
+            table_markdown = []
+            for block in pages[page_idx]:
+                if block.get("type") == "table":
+                    _, table_content, _ = MinerUParser._render_page_with_image_resolver(
+                        [block], preview_image_path
+                    )
+                    if table_content:
+                        table_markdown.append(table_content)
+
+            preview_pages.append({
+                "slide_number": slide_number,
+                "title": title,
+                "content": content,
+                "source_file": source_file,
+                "images": images,
+                "raw_blocks": pages[page_idx],
+                "indexable": not reasons,
+                "toc_reasons": reasons,
+                "table_markdown": table_markdown,
+            })
+        return preview_pages
+
+    @staticmethod
+    def build_index_text(page: dict, include_image_captions: bool = True) -> str:
+        """按当前向量层规则拼接不含 LLM context 的页面文本。
+
+        首次裸存仍可关闭图片说明；完成图片 annotation 或离线预览时使用默认
+        值，让每张图片 caption 只进入文本一次。
+        """
+        base_text = (
+            f"{page['title']}\n{page['content']}"
+            if page.get("title")
+            else page.get("content", "")
+        )
+        if not include_image_captions:
+            return base_text
+        captions = [
+            image["caption"]
+            for image in page.get("images", [])
+            if image.get("caption")
+        ]
+        if captions:
+            return f"{base_text}\n" + "\n".join(
+                f"[图片] {caption}" for caption in captions
+            )
+        return base_text
 
     @staticmethod
     def _read_content_list(zf: zipfile.ZipFile) -> list[dict]:
@@ -475,6 +574,18 @@ class MinerUParser:
         source_file: str,
         slide_number: int,
     ) -> tuple[str, str, list[dict]]:
+        """渲染正式入库页面，并将图片提取到本地素材目录。"""
+        return MinerUParser._render_page_with_image_resolver(
+            blocks,
+            lambda img_path, image_idx: MinerUParser._extract_image(
+                zf, img_path, source_file, slide_number, image_idx
+            ),
+        )
+
+    @staticmethod
+    def _render_page_with_image_resolver(
+        blocks: list[dict], image_resolver
+    ) -> tuple[str, str, list[dict]]:
         """把同一页的 block 列表渲染成 (title, content, images)。
 
         - type == "text" 且 text_level == 0：作为 slide 标题（取第一个出现的）
@@ -482,10 +593,9 @@ class MinerUParser:
         - type == "text" 且没有 text_level：正文
         - type == "list"：list_items 逐条拼接
         - type == "table"：table_caption + table_body 按行拼接
-        - type == "image"：图片文件提取到本地（不管有没有 caption 都保留）；
-          caption 非空时额外拼进正文，让图片描述也能参与语义检索——caption
-          为空的图片依然会出现在返回的 images 列表里，只是不影响这页文字
-          的检索命中，方案员搜到这页时照样能拿到对应的图片素材。
+        - type == "image"：通过 image_resolver 获取正式图片路径或预览相对
+          路径；caption 保留在 images metadata，稍后由 build_index_text()
+          只写入最终索引文本一次。
         - type == "page_footnote"：忽略（页脚噪音，如公司名）
         """
         title = ""
@@ -565,17 +675,14 @@ class MinerUParser:
                 img_path_in_zip = block.get("img_path", "")
 
                 if img_path_in_zip:
-                    local_path = MinerUParser._extract_image(
-                        zf, img_path_in_zip, source_file, slide_number, image_idx
-                    )
+                    local_path = image_resolver(img_path_in_zip, image_idx)
                     if local_path is not None:
                         images.append({"path": str(local_path), "caption": caption})
                         image_idx += 1
 
             else:
                 print(
-                    f"  警告: 未处理的 block 类型 '{block_type}'"
-                    f"（{source_file} 第 {slide_number} 页），该 block 内容已跳过"
+                    f"  警告: 未处理的 block 类型 '{block_type}'，该 block 内容已跳过"
                 )
 
         return title, "\n".join(parts).strip(), images
