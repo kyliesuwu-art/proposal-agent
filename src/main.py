@@ -3,7 +3,7 @@
 
 用法：
     uv run python src/main.py ingest <文件或目录路径> # 解析并入库（单个文件或整个目录批量）
-    uv run python src/main.py query "需求描述"       # 检索相关 slide 并生成方案初稿
+    uv run python src/main.py query "需求描述" [--output <路径>] # 检索并输出 Markdown
     uv run python src/main.py annotate <source_file> # 为源文件进行标注/打标签
     uv run python src/main.py status                 # 查看库状态
 """
@@ -84,9 +84,23 @@ def main() -> None:
 
     elif command == "query":
         if len(sys.argv) < 3:
-            print("用法: python main.py query \"需求描述\"")
+            print("用法: python main.py query \"需求描述\" [--output <路径>]")
             sys.exit(1)
-        pipeline.query(sys.argv[2])
+        output_path = None
+        extra_args = sys.argv[3:]
+        if extra_args:
+            if len(extra_args) != 2 or extra_args[0] != "--output":
+                print("用法: python main.py query \"需求描述\" [--output <路径>]")
+                sys.exit(1)
+            output_path = Path(extra_args[1])
+
+        result = pipeline.query(sys.argv[2])
+        markdown = pipeline.render_markdown(result)
+        if output_path is not None:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(markdown, encoding="utf-8")
+            print(f"已写入 Markdown：{output_path.resolve()}")
+        print(markdown)
 
     elif command == "annotate":
         if len(sys.argv) < 3:

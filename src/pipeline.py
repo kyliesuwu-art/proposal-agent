@@ -14,6 +14,7 @@ from src.adapters.parser import MinerUParser
 from src.adapters.vector_store import VectorStore
 from src.adapters.llm_client import LLMClient
 from src.config import INGEST_MANIFEST_PATH
+from src.query_result import Citation, QueryResult, SearchHit
 
 # ingest_manifest.csv 路径：用于判断文件的 doc_type（policy / proposal）
 _MANIFEST_PATH = INGEST_MANIFEST_PATH
@@ -59,8 +60,8 @@ _GENERATION_SYSTEM_PROMPT = """你是康晋电气的方案撰写助手，负责�
 - 内容基于下面提供的参考资料改写、整合，不要编造参考资料中没有出现的具体数据、型号、参数
 - 保持专业、简洁的方案文档语气
 - 按逻辑结构组织内容（如：项目背景、技术方案、系统组成、优势亮点等），不必完全照搬参考资料的原始顺序
-- 在每个段落末尾用类似 [来源: xxx.pptx Slide N] 的方式标注改写自哪份参考资料，方便后续核对原始设计
-- **重要**：标注来源时，Slide 编号只能从下方"可引用编号集合"中选择，不得编造不存在的编号"""
+- 在每个段落末尾用严格的 [来源: <文件名>, 第 <页码> 页] 格式标注改写自哪份参考资料，方便后续核对原始设计
+- **重要**：引用必须从下方"可引用来源集合"中逐字选择文件名和页码，不得拼接不同来源或编造不存在的组合"""
 
 
 def ingest(pptx_path: str) -> None:
@@ -437,3 +438,142 @@ def status() -> None:
             print(f"    - {s}")
     else:
         print("  暂无入库文件")
+
+
+# 查询输出模型化后，以下函数成为 query() 的实际实现；上方的旧辅助函数保留
+# 在这一批中不再调用，避免把已有入库/查询策略改动扩散到无关路径。
+def _hit_from_record(record: dict, context_role: str) -> SearchHit:
+    """将现有 Chroma 记录的 slide_number 映射为通用 page_number。"""
+    metadata = {
+        key: value for key, value in record.items()
+        if key not in {"source_file", "slide_number", "title", "content", "distance", "images", "adjacent"}
+    }
+    return SearchHit(
+        source_file=record["source_file"],
+        page_number=record["slide_number"],
+        title=record.get("title", ""),
+        content=record.get("content", ""),
+        distance=record.get("distance"),
+        images=record.get("images") or [],
+        context_role=context_role,
+        metadata=metadata,
+    )
+
+
+def _citations_from_hits(hits: list[SearchHit]) -> list[Citation]:
+    """按文件名和页码去重，保留主命中和相邻页全部来源。"""
+    citations: list[Citation] = []
+    seen: set[tuple[str, int]] = set()
+    for hit in hits:
+        identity = (hit.source_file, hit.page_number)
+        if identity not in seen:
+            citations.append(Citation(hit.source_file, hit.page_number, hit.title, tuple(hit.images)))
+            seen.add(identity)
+    return citations
+
+
+def _build_structured_context(hits: list[SearchHit]) -> str:
+    """以统一引用格式组织生成上下文。"""
+    blocks = []
+    for index, hit in enumerate(hits, 1):
+        role = "主命中" if hit.context_role == "primary" else "相邻页补充"
+        lines = [f"### 参考{index}（{role}）：[来源: {hit.source_file}, 第 {hit.page_number} 页]"]
+        if hit.title:
+            lines.append(f"标题：{hit.title}")
+        lines.append(f"内容：\n{hit.content}")
+        if hit.images:
+            captions = "; ".join(image.get("caption") or "无说明" for image in hit.images)
+            lines.append(f"（该页含 {len(hit.images)} 张图片素材：{captions}）")
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
+
+
+def _validate_structured_citations(draft: str, citations: list[Citation]) -> list[str]:
+    """只接受本次 hits 中真实存在的“文件名 + 页码”引用组合。"""
+    available = {(citation.source_file, citation.page_number) for citation in citations}
+    pattern = re.compile(r"\[来源:\s*(?P<source>.+),\s*第\s*(?P<page>\d+)\s*页\]")
+    warnings = []
+    for match in pattern.finditer(draft):
+        identity = (match.group("source").strip(), int(match.group("page")))
+        if identity not in available:
+            warnings.append(f"引用不在本次检索来源中：{match.group(0)}")
+    return list(dict.fromkeys(warnings))
+
+
+def render_markdown(result: QueryResult) -> str:
+    """将 QueryResult 渲染为 CLI 与文件可复用的 Markdown。"""
+    lines = ["# 方案查询结果", "", "## 用户问题", "", result.original_query, ""]
+    if result.rewritten_queries:
+        lines.extend(["## 检索查询", ""])
+        lines.extend(f"- {item}" for item in result.rewritten_queries)
+        lines.append("")
+    lines.extend(["## 方案正文", "", result.proposal_markdown or "（未生成方案正文）", "", "## 来源列表", ""])
+    if result.citations:
+        for citation in result.citations:
+            title_note = f" — {citation.title}" if citation.title else ""
+            image_note = f"；图片 {len(citation.images)} 张" if citation.images else ""
+            lines.append(f"- {citation.display()}{title_note}{image_note}")
+    else:
+        lines.append("（本次没有命中可引用页面）")
+    if result.warnings:
+        lines.extend(["", "## Warnings", ""])
+        lines.extend(f"- {warning}" for warning in result.warnings)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def query(need_description: str, top_n: int = 10) -> QueryResult:
+    """保留原有召回策略，返回渠道无关的结构化 QueryResult。"""
+    store = VectorStore()
+    total = store.count()
+    if total == 0:
+        return QueryResult(need_description, [], [], "", [], ["知识库为空，请先入库后再查询。"], {"total_documents": total})
+
+    llm = LLMClient()
+    rewrite = llm.rewrite_query(need_description)
+    queries = rewrite["queries"]
+    proposal_type = rewrite["proposal_type"] or None
+
+    def search_with(filter_value: str | None) -> list[dict]:
+        merged: dict[str, dict] = {}
+        for query_text in queries:
+            for record in store.search(query_text, n_results=top_n, proposal_type=filter_value):
+                key = f"{record['source_file']}_slide_{record['slide_number']}"
+                existing = merged.get(key)
+                if existing is None or (record["distance"] or 0) < (existing["distance"] or 0):
+                    merged[key] = record
+        return sorted(merged.values(), key=lambda record: record["distance"] or 0)[:top_n]
+
+    primary_records = search_with(proposal_type)
+    fallback_used = False
+    if not primary_records and proposal_type:
+        primary_records = search_with(None)
+        fallback_used = True
+    retrieval_metadata = {
+        "total_documents": total,
+        "proposal_type": proposal_type,
+        "fallback_used": fallback_used,
+        "primary_hit_count": len(primary_records),
+    }
+    if not primary_records:
+        return QueryResult(need_description, queries, [], "", [], ["未找到相关来源。"], retrieval_metadata)
+
+    hits = [_hit_from_record(record, "primary") for record in primary_records]
+    for record in primary_records:
+        adjacent_records = store.get_adjacent_slides(record["source_file"], record["slide_number"], window=_ADJACENT_WINDOW)
+        hits.extend(_hit_from_record(record, "adjacent") for record in adjacent_records)
+    citations = _citations_from_hits(hits)
+    available_sources = "\n".join(citation.display() for citation in citations)
+    prompt = (
+        f"客户需求描述：\n{need_description}\n\n可引用来源集合：\n{available_sources}\n\n"
+        f"可参考的历史方案内容：\n{_build_structured_context(hits)}\n\n请基于以上参考资料，撰写一份方案初稿。"
+    )
+    draft = llm.generate(prompt, system_prompt=_GENERATION_SYSTEM_PROMPT)
+    return QueryResult(
+        need_description,
+        queries,
+        hits,
+        draft,
+        citations,
+        _validate_structured_citations(draft, citations),
+        retrieval_metadata,
+    )
