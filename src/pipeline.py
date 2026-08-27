@@ -16,11 +16,14 @@ from src.adapters.llm_client import LLMClient
 from src.config import CHROMA_PATH, INGEST_MANIFEST_PATH
 from src.domain import build_document_identity
 from src.hybrid_v2 import HybridTestStore
+from src.hybrid_v2 import LocalHashEmbeddingFunction
+from src.cache_recovery import recover_debug_zip
 from src.query_result import Citation, QueryResult, SearchHit
 from src.retrieval import (
     TYPE_MATCH_RULES,
     explicit_requested_type,
     metadata_filter_values,
+    keyword_overlap,
     rerank_candidates,
     select_supporting_context,
 )
@@ -670,3 +673,45 @@ def query_v2(query_text: str, *, test_db: str | Path, top_n: int = 10) -> QueryR
     hits.extend(_hit_from_record(record, "supporting") for record in supporting)
     citations = _citations_from_hits(hits)
     return QueryResult(query_text, [query_text], hits, "", citations, retrieval_metadata={"retrieval_mode": "hybrid_v2", "fusion": "RRF(k=60)", "semantic_candidates": len(primary), "supporting_hit_count": len(supporting)})
+
+
+def ingest_v2_cache(zip_path: str | Path, *, test_db: str | Path) -> dict:
+    """Offline-only V2 ingestion from a MinerU debug ZIP; never opens original files."""
+    if Path(test_db).resolve() == CHROMA_PATH.resolve():
+        raise ValueError("--test-db 不能指向旧 CHROMA_PATH；请指定独立、可删除的 V2 测试目录")
+    recovered = recover_debug_zip(zip_path)
+    store = HybridTestStore(test_db, embedding_function=LocalHashEmbeddingFunction())
+    try:
+        existing = store.existing_version(recovered.identity.document_id)
+        if existing == recovered.identity.version_id:
+            return {"status": "skipped", "source_key": recovered.identity.source_key, "origin_extension": recovered.origin_extension, "source_key_origin": recovered.source_key_origin, "message": "缓存内容未变化，跳过 V2 入库。"}
+        written = store.add_version(recovered.identity, recovered.pages, _get_doc_type(recovered.identity.source_key))
+        return {"status": "updated" if existing else "created", "source_key": recovered.identity.source_key, "origin_extension": recovered.origin_extension, "source_key_origin": recovered.source_key_origin, "pages": written, "message": "已从缓存离线写入 V2 测试库。"}
+    finally:
+        store.close()
+
+
+def query_v2_cache(query_text: str, *, test_db: str | Path, top_n: int = 10) -> QueryResult:
+    """Run V2 retrieval with the local cache-test embedding, never DashScope."""
+    store = HybridTestStore(test_db, embedding_function=LocalHashEmbeddingFunction())
+    try:
+        primary = store.search(query_text, top_n)
+        # The cache acceptance embedding is intentionally local and coarse.  Do not
+        # present hash collisions as a relevant answer: require an explainable local
+        # text overlap unless the FTS path explicitly matched.
+        primary = [record for record in primary if _retain_cache_candidate(query_text, record)]
+        adjacent = {(record["source_key"], record["page_number"]): store.get_adjacent_pages(record["source_key"], record["page_number"], _ADJACENT_WINDOW) for record in primary}
+        primaries, supporting = select_supporting_context(primary, adjacent, query_text)
+    finally:
+        store.close()
+    hits = [_hit_from_record(record, "primary") for record in primaries]
+    hits.extend(_hit_from_record(record, "supporting") for record in supporting)
+    citations = _citations_from_hits(hits)
+    return QueryResult(query_text, [query_text], hits, "", citations, retrieval_metadata={"retrieval_mode": "hybrid_v2_cache_local", "fusion": "RRF(k=60)", "semantic_candidates": len(primary), "supporting_hit_count": len(supporting), "embedding": "local_hash"})
+
+
+def _retain_cache_candidate(query_text: str, record: dict) -> bool:
+    """Guard offline hash-vector collisions with an explainable lexical/text signal."""
+    if record.get("retrieval", {}).get("lexical"):
+        return True
+    return keyword_overlap(query_text, f"{record.get('title', '')}\n{record.get('content', '')}")[0] > 0

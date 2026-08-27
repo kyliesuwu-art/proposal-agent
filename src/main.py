@@ -6,6 +6,8 @@
     uv run python src/main.py query "需求描述" [--output <路径>] # 检索并输出 Markdown
     uv run python src/main.py ingest-v2 <文件或目录> --source-root <样例目录> --test-db <可删除目录>
     uv run python src/main.py query-v2 "精确参数问题" --test-db <可删除目录>
+    uv run python src/main.py ingest-v2-cache <缓存 ZIP 或目录> --test-db <可删除目录>
+    uv run python src/main.py query-v2-cache "精确参数问题" --test-db <可删除目录>
     uv run python src/main.py annotate <source_file> # 为源文件进行标注/打标签
     uv run python src/main.py status                 # 查看库状态
 """
@@ -85,6 +87,18 @@ def _ingest_v2_path(path_str: str, source_root: str, test_db: str) -> None:
         print(f"V2 {outcome['status']}: {outcome['source_key']} — {outcome['message']}")
 
 
+def _ingest_v2_cache_path(path_str: str, test_db: str) -> None:
+    """Offline-only bulk cache ingestion; never sends ZIPs to MinerU."""
+    path = Path(path_str)
+    if not path.exists():
+        print(f"缓存路径不存在: {path}")
+        sys.exit(1)
+    files = [path] if path.is_file() else sorted(path.glob("*.zip"))
+    for zip_path in files:
+        outcome = pipeline.ingest_v2_cache(zip_path, test_db=test_db)
+        print(f"V2 cache {outcome['status']}: {outcome['source_key']} ({outcome['origin_extension']}) — {outcome['message']}")
+
+
 def main() -> None:
     """CLI 入口：解析命令，分发到对应函数。"""
     if len(sys.argv) < 2:
@@ -110,6 +124,18 @@ def main() -> None:
             print("用法: python main.py query-v2 \"精确参数问题\" --test-db <可删除目录>")
             sys.exit(1)
         print(pipeline.render_markdown(pipeline.query_v2(sys.argv[2], test_db=sys.argv[4])))
+
+    elif command == "ingest-v2-cache":
+        if len(sys.argv) != 5 or sys.argv[3] != "--test-db":
+            print("用法: python main.py ingest-v2-cache <缓存 ZIP 或目录> --test-db <可删除目录>")
+            sys.exit(1)
+        _ingest_v2_cache_path(sys.argv[2], sys.argv[4])
+
+    elif command == "query-v2-cache":
+        if len(sys.argv) != 5 or sys.argv[3] != "--test-db":
+            print("用法: python main.py query-v2-cache \"精确参数问题\" --test-db <可删除目录>")
+            sys.exit(1)
+        print(pipeline.render_markdown(pipeline.query_v2_cache(sys.argv[2], test_db=sys.argv[4])))
 
     elif command == "query":
         if len(sys.argv) < 3:

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import sqlite3
 from pathlib import Path
 from typing import Any
 
 import chromadb
+from chromadb.utils.embedding_functions import EmbeddingFunction
 
 from src.adapters.vector_store import DashScopeEmbeddingFunction
 from src.domain import DocumentIdentity
@@ -20,6 +22,26 @@ _FTS_TOKEN = re.compile(r"[\u4e00-\u9fff]{2,}|[A-Za-z][A-Za-z0-9.-]*|\d+(?:\.\d+
 
 def page_id(identity: DocumentIdentity, page_number: int) -> str:
     return f"{identity.document_id}:{identity.version_id}:p{page_number}"
+
+
+class LocalHashEmbeddingFunction(EmbeddingFunction):
+    """Deterministic local embedding for offline cache acceptance only, not production QA."""
+
+    def __init__(self, dimensions: int = 256) -> None:
+        self.dimensions = dimensions
+
+    def __call__(self, input: list[str]) -> list[list[float]]:  # Chroma embedding protocol
+        vectors: list[list[float]] = []
+        for text in input:
+            values = [0.0] * self.dimensions
+            chinese = "".join(re.findall(r"[\u4e00-\u9fff]", text))
+            tokens = [* _FTS_TOKEN.findall(text.casefold()), *(chinese[index:index + 2] for index in range(max(0, len(chinese) - 1)))]
+            for token in tokens:
+                digest = hashlib.sha256(token.encode("utf-8")).digest()
+                values[int.from_bytes(digest[:4], "big") % self.dimensions] += 1.0
+            magnitude = sum(value * value for value in values) ** 0.5
+            vectors.append([value / magnitude for value in values] if magnitude else values)
+        return vectors
 
 
 def fuse_rrf(semantic: list[dict], lexical: list[dict], limit: int, k: int = 60) -> list[dict]:

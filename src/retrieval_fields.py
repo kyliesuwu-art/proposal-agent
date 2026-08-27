@@ -17,8 +17,10 @@ DOMAIN_SYNONYMS: dict[str, tuple[str, ...]] = {
 }
 
 _ABBREVIATION = re.compile(r"\b[A-Z][A-Z0-9-]{1,}\b")
-_VOLTAGE = re.compile(r"\b\d+(?:\.\d+)?\s*(?:kV|KV)\b", re.I)
-_PARAMETER = re.compile(r"\b\d+(?:\.\d+)?\s*(?:MW|kW|MWh|kWh|kvar|kVar)\b", re.I)
+# ``\b`` is unsafe beside Chinese text because Unicode treats Han characters as
+# word characters (for example ``10kV母线``).  Bound only ASCII identifier chars.
+_VOLTAGE = re.compile(r"(?<![A-Za-z0-9])\d+(?:\.\d+)?\s*(?:kV|KV)(?![A-Za-z0-9])", re.I)
+_PARAMETER = re.compile(r"(?<![A-Za-z0-9])\d+(?:\.\d+)?\s*(?:MW|kW|MWh|kWh|kvar|kVar)(?![A-Za-z0-9])", re.I)
 _MODEL = re.compile(r"\b(?=[A-Za-z0-9-]{4,}\b)(?=[A-Za-z0-9-]*[A-Za-z])(?=[A-Za-z0-9-]*\d)[A-Za-z0-9-]+\b")
 _PROJECT = re.compile(r"[\u4e00-\u9fffA-Za-z0-9]{2,}(?:项目|工程|电站|园区)")
 _SECTION = re.compile(r"(?:^|\n)\s*(?:第[一二三四五六七八九十\d]+[章节]|\d+(?:\.\d+){0,3})\s*([^\n]{2,80})")

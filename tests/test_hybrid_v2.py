@@ -47,10 +47,10 @@ def _page(number: int, content: str) -> dict:
 
 
 def test_extracts_explainable_technical_fields_without_llm() -> None:
-    fields = extract_retrieval_fields("35kV BESS 系统", "PCS 型号 ABC-500，容量 100MW / 200MWh，某园区项目")
+    fields = extract_retrieval_fields("35kV BESS 系统", "PCS 型号 ABC-500，容量 100MW / 200MWh，10kV母线，某园区项目")
 
-    assert fields.retrieval_text == "PCS 型号 ABC-500，容量 100MW / 200MWh，某园区项目"
-    assert {"PCS", "BESS", "35kV", "100MW", "200MWh"} <= set(fields.keywords)
+    assert fields.retrieval_text == "PCS 型号 ABC-500，容量 100MW / 200MWh，10kV母线，某园区项目"
+    assert {"PCS", "BESS", "35kV", "10kV", "100MW", "200MWh"} <= set(fields.keywords)
     assert {"PCS", "BESS", "ABC-500", "某园区项目"} <= set(fields.entities)
     assert fields.parameters == ["100MW", "200MWh"]
 

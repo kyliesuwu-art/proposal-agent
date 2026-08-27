@@ -40,6 +40,19 @@ MW/MWh/kW/kWh/kvar 参数，以及保守的型号和“项目/工程/电站/园�
 人工复核或语义检索。V2 不调用 LLM 为页面抽取关键词或实体；但解析仍需 MinerU，语义检索仍需
 DashScope embedding 配置。
 
+已有 MinerU 缓存可走完全离线的验收路径（不会重新上传原文件，也不读取旧库）：
+
+```powershell
+uv run python src/main.py ingest-v2-cache debug_zips --test-db v2_test_db
+uv run python src/main.py query-v2-cache "PCS" --test-db v2_test_db
+```
+
+该路径只读取 ZIP 内的 `_origin.<ext>` 和 `content_list.json`，以现有只读预览逻辑恢复页面。
+内部 UUID origin 名不提供原始路径，因此当 ZIP 文件名扩展名与 origin 扩展名一致时，来源为
+`cache/<ZIP 去 .zip 的文件名>`；不一致时使用 `cache/<ZIP stem>.<origin 扩展名>` 并标记
+`safe_cache_filename_fallback`。缓存验收使用本地确定性 hash embedding，以验证 Chroma V2、
+FTS5 和 RRF 的连接；它不代表 DashScope embedding 质量，也不能替代正式重入库验收。
+
 `.env` 至少需要 `MINERU_TOKEN` 与 `DASHSCOPE_API_KEY`。`DASHSCOPE_BASE_URL`、企微变量和
 运行路径变量见 `.env.example`。
 

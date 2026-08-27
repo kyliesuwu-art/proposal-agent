@@ -72,6 +72,11 @@ claude.md 中仅留索引，避免每次代码会话加载无关上下文。
 - V2 必须显式传入独立、可删除的测试库目录，内部使用独立 Chroma collection 和 SQLite 文件，
   不读取或修改旧 `chroma_db/`。同一 source_key 仅在完整新版本已分别写入两种索引后才删除旧版；
   写入失败时旧版保留。
+- MinerU debug ZIP 可作为离线验收输入：只读 `_origin.<ext>` 与 `content_list.json`，复用不提取图片的
+  `preview_debug_zip()` 恢复页面，绝不重提交流程。UUID origin 名无法恢复原始目录，因此来源身份使用
+  ZIP 文件名且要求其扩展名与 origin 一致；不一致时明确使用 `safe_cache_filename_fallback`。
+  缓存验收的 Chroma embedding 使用本地确定性 hash 向量，以保证不调用 DashScope；这只验证混合链路和
+  可解释性，不作为正式语义质量结论。
 
 ## 测算模块（光储充）价值边界的判断标准（2026-07）
 
