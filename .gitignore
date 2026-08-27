@@ -4,6 +4,7 @@
 # 向量库本地数据
 chroma_db/
 chroma_db_backup_*/
+v2_test_db/
 
 # Python
 __pycache__/
