@@ -2,6 +2,8 @@
 
 import sys
 
+import pytest
+
 from src import main, pipeline
 from src.query_result import Citation, QueryResult
 
@@ -106,7 +108,7 @@ def test_cli_output_writes_only_requested_path(monkeypatch, tmp_path, capsys) ->
         proposal_markdown="正文",
         citations=[Citation("方案A.pdf", 1)],
     )
-    monkeypatch.setattr(main.pipeline, "query", lambda _query: result)
+    monkeypatch.setattr(main.pipeline, "query_rag", lambda _query: result)
     output = tmp_path / "query-result.md"
     monkeypatch.setattr(sys, "argv", ["main.py", "query", "测试需求", "--output", str(output)])
 
@@ -120,3 +122,56 @@ def test_query_entry_points_import_without_running_services() -> None:
     assert callable(pipeline.query)
     assert callable(pipeline.render_markdown)
     assert callable(main.main)
+
+
+def test_help_returns_without_opening_services(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(sys, "argv", ["main.py", "--help"])
+
+    main.main()
+
+    assert "proposal" in capsys.readouterr().out
+
+
+def test_proposal_help_returns_without_opening_services(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(sys, "argv", ["main.py", "proposal", "--help"])
+
+    main.main()
+
+    assert "--debug" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("debug", [False, True])
+def test_proposal_cli_failure_is_nonzero_and_debug_can_print_traceback(monkeypatch, capsys, debug: bool) -> None:
+    class FailingLLM:
+        def __init__(self):
+            raise RuntimeError("safe failure")
+    monkeypatch.setattr(main, "LLMClient", FailingLLM)
+    argv = ["main.py", "proposal", "需求", "--output", "proposal.md"]
+    if debug:
+        argv.append("--debug")
+    monkeypatch.setattr(sys, "argv", argv)
+
+    with pytest.raises(SystemExit) as exited:
+        main.main()
+
+    output = capsys.readouterr()
+    assert exited.value.code == 1
+    assert "[planning]" in output.err
+    assert "safe failure" in output.err
+    assert ("Traceback" in output.err) is debug
+
+
+def test_retrieve_evidence_merges_planned_queries_without_llm(monkeypatch) -> None:
+    class FakeHybridStore:
+        queries: list[str] = []
+        def __init__(self, _db, **_kwargs) -> None: pass
+        def search(self, query, _limit):
+            self.queries.append(query)
+            return [{"page_id": f"id-{query}", "source_key": "A.pdf", "source_file": "A.pdf", "page_number": 1, "slide_number": 1, "title": "A", "content": "正文", "images": [], "retrieval": {"rrf_score": 0.1}}]
+        def get_adjacent_pages(self, *_args): return []
+        def close(self): pass
+    monkeypatch.setattr(pipeline, "HybridTestStore", FakeHybridStore)
+    result = pipeline.retrieve_evidence(["查询一", "查询二"], db="unused", top_n=3)
+    assert FakeHybridStore.queries == ["查询一", "查询二"]
+    assert result.rewritten_queries == ["查询一", "查询二"]
+    assert [(hit.source_file, hit.page_number) for hit in result.hits] == [("A.pdf", 1)]

@@ -67,24 +67,39 @@ def fuse_rrf(semantic: list[dict], lexical: list[dict], limit: int, k: int = 60)
 class HybridTestStore:
     """V2 store rooted in an explicitly supplied, disposable directory only."""
 
-    def __init__(self, test_db: str | Path, embedding_function: Any | None = None) -> None:
+    def __init__(
+        self, test_db: str | Path, embedding_function: Any | None = None, *, readonly: bool = False
+    ) -> None:
         self.root = Path(test_db).resolve()
-        self.root.mkdir(parents=True, exist_ok=True)
-        self._db = sqlite3.connect(self.root / "hybrid_lexical.sqlite3")
+        if readonly:
+            if not self.root.is_dir() or not (self.root / "hybrid_lexical.sqlite3").is_file():
+                raise FileNotFoundError(f"检索库不存在或不完整：{self.root}")
+            self._db = sqlite3.connect(
+                f"file:{(self.root / 'hybrid_lexical.sqlite3').as_posix()}?mode=ro", uri=True
+            )
+        else:
+            self.root.mkdir(parents=True, exist_ok=True)
+            self._db = sqlite3.connect(self.root / "hybrid_lexical.sqlite3")
         self._db.row_factory = sqlite3.Row
-        self._db.executescript("""
-            CREATE TABLE IF NOT EXISTS pages (
-                page_id TEXT PRIMARY KEY, document_id TEXT NOT NULL, version_id TEXT NOT NULL,
-                source_key TEXT NOT NULL, page_number INTEGER NOT NULL, payload TEXT NOT NULL);
-            CREATE INDEX IF NOT EXISTS pages_document_version ON pages(document_id, version_id);
-            CREATE VIRTUAL TABLE IF NOT EXISTS page_fts USING fts5(page_id UNINDEXED, title, section_title, keywords, entities, parameters, content);
-        """)
-        self._db.commit()
+        if not readonly:
+            self._db.executescript("""
+                CREATE TABLE IF NOT EXISTS pages (
+                    page_id TEXT PRIMARY KEY, document_id TEXT NOT NULL, version_id TEXT NOT NULL,
+                    source_key TEXT NOT NULL, page_number INTEGER NOT NULL, payload TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS pages_document_version ON pages(document_id, version_id);
+                CREATE VIRTUAL TABLE IF NOT EXISTS page_fts USING fts5(page_id UNINDEXED, title, section_title, keywords, entities, parameters, content);
+            """)
+            self._db.commit()
         client = chromadb.PersistentClient(path=str(self.root / "chroma_v2"))
-        self._collection = client.get_or_create_collection(
-            "electrical_pages_v2", metadata={"hnsw:space": "cosine"},
-            embedding_function=embedding_function or DashScopeEmbeddingFunction(),
-        )
+        if readonly:
+            self._collection = client.get_collection(
+                "electrical_pages_v2", embedding_function=embedding_function or DashScopeEmbeddingFunction()
+            )
+        else:
+            self._collection = client.get_or_create_collection(
+                "electrical_pages_v2", metadata={"hnsw:space": "cosine", "hnsw:sync_threshold": 100000},
+                embedding_function=embedding_function or DashScopeEmbeddingFunction(),
+            )
 
     def close(self) -> None:
         self._db.close()
@@ -93,14 +108,26 @@ class HybridTestStore:
         row = self._db.execute("SELECT version_id FROM pages WHERE document_id=? LIMIT 1", (document_id,)).fetchone()
         return str(row["version_id"]) if row else None
 
-    def add_version(self, identity: DocumentIdentity, pages: list[dict], document_type: str = "proposal") -> int:
+    def add_version(self, identity: DocumentIdentity, pages: list[dict], document_type: str = "proposal",
+                    *, embeddings: list[list[float]] | None = None, batch_size: int = 32) -> int:
         """Write a complete new version before deleting prior versions of this document."""
         records = [self._record(identity, page, document_type) for page in pages if page.get("indexable", True)]
         if not records:
             return 0
+        if embeddings is not None and len(embeddings) != len(records):
+            raise ValueError("预计算 embedding 数量必须与待索引页面数量一致")
         ids = [record["page_id"] for record in records]
         try:
-            self._collection.add(ids=ids, documents=[record["retrieval_text"] for record in records], metadatas=[record["identity_metadata"] for record in records])
+            for start in range(0, len(records), batch_size):
+                part = records[start:start + batch_size]
+                add_args: dict[str, Any] = {
+                    "ids": [record["page_id"] for record in part],
+                    "documents": [record["retrieval_text"] for record in part],
+                    "metadatas": [record["identity_metadata"] for record in part],
+                }
+                if embeddings is not None:
+                    add_args["embeddings"] = embeddings[start:start + batch_size]
+                self._collection.add(**add_args)
             with self._db:
                 self._db.executemany("INSERT INTO pages VALUES (?, ?, ?, ?, ?, ?)", [(r["page_id"], r["document_id"], r["version_id"], r["source_key"], r["page_number"], json.dumps(r, ensure_ascii=False)) for r in records])
                 self._db.executemany("INSERT INTO page_fts VALUES (?, ?, ?, ?, ?, ?, ?)", [(r["page_id"], r["title"], r["section_title"], " ".join(r["keywords"]), " ".join(r["entities"]), " ".join(r["parameters"]), r["content"]) for r in records])

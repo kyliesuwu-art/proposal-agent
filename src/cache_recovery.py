@@ -24,8 +24,12 @@ class CachedParse:
     source_key_origin: str
 
 
-def recover_debug_zip(zip_path: str | Path) -> CachedParse:
-    """Recover indexable page dictionaries from a cache without extracting its files."""
+def recover_debug_zip(zip_path: str | Path, *, recover_pages: bool = True) -> CachedParse:
+    """Recover cache identity and, when requested, indexable pages without extraction.
+
+    Dry-run callers can validate the exact identity/source-key rules without invoking
+    page rendering (which may emit warnings for unsupported MinerU block types).
+    """
     path = Path(zip_path)
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
@@ -53,8 +57,10 @@ def recover_debug_zip(zip_path: str | Path) -> CachedParse:
         content_hash=content_hash,
         version_id=f"ver_cache_sha256_{content_hash}",
     )
-    pages = MinerUParser.preview_debug_zip(path, source_file=source_key)
-    for page in pages:
-        page["page_number"] = page["slide_number"]
-        page["cache_source_key_origin"] = source_key_origin
+    pages: list[dict] = []
+    if recover_pages:
+        pages = MinerUParser.preview_debug_zip(path, source_file=source_key)
+        for page in pages:
+            page["page_number"] = page["slide_number"]
+            page["cache_source_key_origin"] = source_key_origin
     return CachedParse(identity, pages, extension, source_key_origin)

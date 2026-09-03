@@ -9,6 +9,8 @@ import time
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 import os
 
+from src.config import dashscope_settings
+
 # 默认使用的模型。qwen3.7-plus  是性价比和能力的均衡档，先用它跑通整条链路；
 # 如果后面发现生成质量不够，换成 qwen-max 只需要改这一个字符串。
 # qwen3.8-max-preview 当前为预览版本，预览期间模型能力会持续迭代升级。预览结束后该模型会下线或替换成正式版本。
@@ -24,6 +26,14 @@ _MAX_RETRIES = 3
 
 # 重试前的等待时间（秒）
 _RETRY_SLEEP_SECONDS = 2.0
+
+
+def _redact_secret_text(value: str) -> str:
+    """Keep diagnostic text useful without allowing an API key to escape logs."""
+    key = os.environ.get("DASHSCOPE_API_KEY", "")
+    if key:
+        value = value.replace(key, "[REDACTED]")
+    return value
 
 # 生成 slide context 摘要 + metadata 用的系统提示词。强制要求只输出 JSON，
 # 不输出别的文字，方便下游直接解析。
@@ -79,16 +89,38 @@ _IMAGE_CAPTION_SYSTEM_PROMPT = (
 class LLMClient:
     """调用 DashScope Qwen 生成文本，与 vector_store.py 共用同一套 DashScope 账号。"""
 
-    def __init__(self, model: str = _DEFAULT_MODEL, vision_model: str = _VISION_MODEL) -> None:
+    def __init__(self, model: str | None = None, vision_model: str = _VISION_MODEL) -> None:
         # DashScope 兼容 OpenAI 接口，直接用 openai 包调用，
         # 跟 vector_store.py 里的 DashScopeEmbeddingFunction 是同一种调用方式
+        settings = dashscope_settings()
+        self._base_url = settings["base_url"]
+        self._timeout_seconds = float(settings["timeout_seconds"])
         self._client = OpenAI(
-            api_key=os.environ.get("DASHSCOPE_API_KEY", ""),
-            base_url=os.environ.get("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-            timeout=120.0,
+            api_key=settings["api_key"],
+            base_url=self._base_url,
+            timeout=self._timeout_seconds,
         )
-        self._model = model
+        self._model = model or settings["model"] or _DEFAULT_MODEL
         self._vision_model = vision_model
+
+    @property
+    def connection_settings(self) -> dict[str, object]:
+        """Safe diagnostics: deliberately excludes credentials and request headers."""
+        return {
+            "endpoint": self._base_url,
+            "model": self._model,
+            "timeout_seconds": self._timeout_seconds,
+        }
+
+    @staticmethod
+    def connection_error_diagnostics(exc: BaseException) -> dict[str, object]:
+        """Preserve the exception chain while redacting accidental credential echoes."""
+        chain: list[dict[str, str]] = []
+        current: BaseException | None = exc
+        while current is not None:
+            chain.append({"type": type(current).__name__, "repr": _redact_secret_text(repr(current))})
+            current = current.__cause__ or current.__context__
+        return {"error_type": type(exc).__name__, "repr": _redact_secret_text(repr(exc)), "cause_chain": chain}
 
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         """把 prompt 发给模型，返回生成的文本。
@@ -111,6 +143,21 @@ class LLMClient:
         messages.append({"role": "user", "content": prompt})
 
         return self._call_with_retry(messages)
+
+    def generate_once(self, prompt: str, system_prompt: str = "") -> str:
+        """Issue exactly one text-generation request; no retry for metered acceptance runs."""
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        try:
+            resp = self._client.chat.completions.create(model=self._model, messages=messages)
+        except APIConnectionError as exc:
+            diagnostic = {**self.connection_settings, **self.connection_error_diagnostics(exc)}
+            # This is intentionally safe to print in a CLI acceptance run: no key or headers.
+            print(f"LLM connection diagnostic: {json.dumps(diagnostic, ensure_ascii=False)}")
+            raise
+        return resp.choices[0].message.content or ""
 
     def rewrite_query(self, need_description: str) -> dict:
         """把用户的方案需求描述改写成 1-3 个检索用 query，并尝试判断方案类型。

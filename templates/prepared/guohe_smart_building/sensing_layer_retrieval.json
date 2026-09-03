@@ -1,0 +1,633 @@
+{
+  "original_query": "智慧楼宇 感知层 传感器 智能水表 智能电表 环境监测 数据采集 RS485 Modbus 设备状态采集",
+  "rewritten_queries": [
+    "智慧楼宇 感知层 传感器 智能水表 智能电表 环境监测 数据采集 RS485 Modbus 设备状态采集"
+  ],
+  "hits": [
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 8,
+      "title": "",
+      "content": "### 2.6 带电测试规范\n### 2.6.1 带电测量\n危险\n设备中存在高电压，意外碰触可能导致致命电击危险，因此在带电测量时应：\n 做好防护工作（如戴上绝缘手套，穿绝缘鞋等）。\n 必须保证至少两名人员在现场，确保人身安全。\n### 2.6.2测量设备使用\n在对储能变流器进行电气连接、试运行等操作时，为确保电气参数符合要求，需要使用相关的电气测量设备。\n警告\n 选用量程、可使用条件等均符合现场要求的高质量测量设备。\n 确保测量设备的连接及使用正确、规范，以免引起电弧等危险。\n### 2.7 触摸屏参数设置\n触摸屏中的参数与储能变流器的运行等密切相关，必须对系统及储能变流器的运行状况进行可靠分析、评估后才可对这些参数进行修改设置。\n警告\n 不适当的参数设置有可能影响储能变流器正常的功能实现！\n 只有经过授权的专业人员才可对储能变流器的参数进行设置。\n### 2.8 维护或检修规范\n在对设备执行维护或检修操作时应注意以下几点：\n 设置好检修标志，同时确保储能变流器不会被意外重新上电。\n 储能变流器关机并断开交直流电源后，至少15分钟才可开启前门对储能变流器进行维护或检修等操作。\n 使用万用表测量储能变流器内部，确保放电完毕。\n 确保设备良好接地。\n 带电部件，必须用绝缘材料进行绝缘遮盖。\n 在维护及检修的整个过程中，需要确保逃生通道的完全畅通。",
+      "distance": null,
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_8_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_8_1.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_8_2.jpg",
+          "caption": ""
+        }
+      ],
+      "context_role": "primary",
+      "metadata": {
+        "page_id": "doc_7904ce88fba452d383223cee7262d12d:ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e:p8",
+        "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+        "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+        "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+        "page_number": 8,
+        "document_type": "proposal",
+        "section_title": "",
+        "context_summary": "",
+        "retrieval_text": "### 2.6 带电测试规范\n### 2.6.1 带电测量\n危险\n设备中存在高电压，意外碰触可能导致致命电击危险，因此在带电测量时应：\n 做好防护工作（如戴上绝缘手套，穿绝缘鞋等）。\n 必须保证至少两名人员在现场，确保人身安全。\n### 2.6.2测量设备使用\n在对储能变流器进行电气连接、试运行等操作时，为确保电气参数符合要求，需要使用相关的电气测量设备。\n警告\n 选用量程、可使用条件等均符合现场要求的高质量测量设备。\n 确保测量设备的连接及使用正确、规范，以免引起电弧等危险。\n### 2.7 触摸屏参数设置\n触摸屏中的参数与储能变流器的运行等密切相关，必须对系统及储能变流器的运行状况进行可靠分析、评估后才可对这些参数进行修改设置。\n警告\n 不适当的参数设置有可能影响储能变流器正常的功能实现！\n 只有经过授权的专业人员才可对储能变流器的参数进行设置。\n### 2.8 维护或检修规范\n在对设备执行维护或检修操作时应注意以下几点：\n 设置好检修标志，同时确保储能变流器不会被意外重新上电。\n 储能变流器关机并断开交直流电源后，至少15分钟才可开启前门对储能变流器进行维护或检修等操作。\n 使用万用表测量储能变流器内部，确保放电完毕。\n 确保设备良好接地。\n 带电部件，必须用绝缘材料进行绝缘遮盖。\n 在维护及检修的整个过程中，需要确保逃生通道的完全畅通。",
+        "keywords": [
+          "PCS"
+        ],
+        "entities": [
+          "PCS"
+        ],
+        "parameters": [],
+        "identity_metadata": {
+          "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+          "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+          "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+          "page_number": 8,
+          "document_type": "proposal"
+        },
+        "semantic_score": 0.63503244,
+        "semantic_reason": "Chroma cosine distance=0.574723, rank=1",
+        "retrieval": {
+          "mode": "hybrid",
+          "semantic": {
+            "rank": 1,
+            "score": 0.63503244,
+            "reason": "Chroma cosine distance=0.574723, rank=1"
+          },
+          "lexical": null,
+          "matched_terms": [],
+          "rrf_score": 0.01639344,
+          "fusion_reason": "RRF(k=60); contributing_modes=semantic"
+        }
+      }
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 7,
+      "title": "",
+      "content": "### 2.4 用电安全事项\n### 2.4.1 电气安全\n产品内部存在致命高电压！\n 切勿触摸与电网回路相连接的端子或导体。\n 注意所有关于和电网连接的指示或安全说明文件，并遵守产品上的警告标识。\n### 危险\n遵守本手册及本设备其他相关文件中列出的安全注意事项。\n损坏的设备或系统故障可能造成电击或起火！\n 操作前初步目视检查设备有无损坏或是否存在其他危险。\n 检查其他外部设备或电路连接是否安全。\n 确认设备处于安全状态才可以操作。\n### 2.4.2 静电防护\n电路板上或其它地方的静电敏感元件会因操作人员不当操作或接触导致损坏。\n 请操作人员避免不必要的电路板接触。\n 请操作人员遵守静电防护规范，如佩戴防静电手环等。\n### 2.4.3储能电池组注意事项\n 与储能变流器连接的储能电池组正、负极间存在致命高电压！\n 维护设备时，确保储能变流器与储能电池组之间的连接已完全断开。\n### 2.5 环境空间要求\n### 2.5.1逃生通道要求\n为确保在发生意外时，工作人员可迅速撤离现场，请遵守以下各项：\n 变流器周围切勿放置可燃、易爆的物品。\n 严禁在逃生通道堆放杂物，或以任何形式占用逃生通道。\n### 2.5.2 湿气防护\n请勿在超过规定的潮湿环境下使用变流器！\n湿气环境下极有可能会损坏储能变流器！\n注意\n为保障储能变流器各项功能的正常使用，请遵守下列项：\n 在空气湿度>95%时，请勿打开柜门。\n 避免在阴雨或潮湿的天气条件下打开柜门对储能变流器进行维护或检修等操作。",
+      "distance": null,
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_7_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_7_1.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_7_2.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_7_3.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_7_4.jpg",
+          "caption": ""
+        }
+      ],
+      "context_role": "primary",
+      "metadata": {
+        "page_id": "doc_7904ce88fba452d383223cee7262d12d:ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e:p7",
+        "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+        "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+        "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+        "page_number": 7,
+        "document_type": "proposal",
+        "section_title": "",
+        "context_summary": "",
+        "retrieval_text": "### 2.4 用电安全事项\n### 2.4.1 电气安全\n产品内部存在致命高电压！\n 切勿触摸与电网回路相连接的端子或导体。\n 注意所有关于和电网连接的指示或安全说明文件，并遵守产品上的警告标识。\n### 危险\n遵守本手册及本设备其他相关文件中列出的安全注意事项。\n损坏的设备或系统故障可能造成电击或起火！\n 操作前初步目视检查设备有无损坏或是否存在其他危险。\n 检查其他外部设备或电路连接是否安全。\n 确认设备处于安全状态才可以操作。\n### 2.4.2 静电防护\n电路板上或其它地方的静电敏感元件会因操作人员不当操作或接触导致损坏。\n 请操作人员避免不必要的电路板接触。\n 请操作人员遵守静电防护规范，如佩戴防静电手环等。\n### 2.4.3储能电池组注意事项\n 与储能变流器连接的储能电池组正、负极间存在致命高电压！\n 维护设备时，确保储能变流器与储能电池组之间的连接已完全断开。\n### 2.5 环境空间要求\n### 2.5.1逃生通道要求\n为确保在发生意外时，工作人员可迅速撤离现场，请遵守以下各项：\n 变流器周围切勿放置可燃、易爆的物品。\n 严禁在逃生通道堆放杂物，或以任何形式占用逃生通道。\n### 2.5.2 湿气防护\n请勿在超过规定的潮湿环境下使用变流器！\n湿气环境下极有可能会损坏储能变流器！\n注意\n为保障储能变流器各项功能的正常使用，请遵守下列项：\n 在空气湿度>95%时，请勿打开柜门。\n 避免在阴雨或潮湿的天气条件下打开柜门对储能变流器进行维护或检修等操作。",
+        "keywords": [
+          "PCS"
+        ],
+        "entities": [
+          "PCS"
+        ],
+        "parameters": [],
+        "identity_metadata": {
+          "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+          "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+          "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+          "page_number": 7,
+          "document_type": "proposal"
+        },
+        "semantic_score": 0.63066522,
+        "semantic_reason": "Chroma cosine distance=0.585627, rank=2",
+        "retrieval": {
+          "mode": "hybrid",
+          "semantic": {
+            "rank": 2,
+            "score": 0.63066522,
+            "reason": "Chroma cosine distance=0.585627, rank=2"
+          },
+          "lexical": null,
+          "matched_terms": [],
+          "rrf_score": 0.01612903,
+          "fusion_reason": "RRF(k=60); contributing_modes=semantic"
+        }
+      }
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 40,
+      "title": "",
+      "content": "[表格] 表8-4 各菜单展开项\n| 序号 | 菜单名称 | 菜单项目 | 参数功能 |\n| --- | --- | --- | --- |\n| 1 | 主页 | 电池 | 接入锂电池则显示电池模拟量、状态量和告警量;若接入铅酸电池则显示铅酸电池数据界面 |\n| 1 | 主页 | 光伏 | 光伏输入电压、电流 |\n| 1 | 主页 | 变流器 | 显示实时数据 |\n| 1 | 主页 | 负载 | 电压、电流、负载功率 |\n| 1 | 主页 | 电网 | 电网输入电压、电流,电表功率 |\n| 2 | 状态 | MPS数据 | 变流器数据显示 |\n| 2 | 状态 | MPS状态 | 变流器运行状态及开关状态显示 |\n| 2 | 状态 | MPS告警 | 当前系统运行信息及告警 |\n| 2 | 状态 | 电池数据 | 当前电池实时检测数据 |\n| 3 | 记录 | 数据报表 | PV、负载、电池、电网的充电量,放电量统计 |\n| 3 | 记录 | 导出数据 | 导出历史记录、操作记录、电量统计表 |\n| 3 | 记录 | 历史记录 | 显示运行过程中的状态记录和历史故障记录 |\n| 3 | 记录 | 操作日志 | 系统设置产生的一些重要的参数修改记录 |\n| 4 | 系统设置 | DC/AC参数设置 | 并网方式、操作模式、恒功率等 |\n| 4 | 系统设置 | DC/DC参数设置 | 工作模式、升/降压等 |\n| 4 | 系统设置 | 电池设置 | 电池参数设置 |\n| 4 | 系统设置 | 自动运行时间设置 | 系统自动运行时间段设置 |\n| 4 | 系统设置 | 系统信息 | 显示 PCS 版本号 |\n| 4 | 系统设置 | 高级设置 | 功能设置、系统参数、DCAC调试、DCDC调试 |\n| 5 | 开关 | 变流器开关 | DCDC变换器开机、DCDC变换器关机、待机 |\n| 5 | 开关 | 变流器开关 | DCAC变流器开机、DCAC变流器关机、待机 |\n### 8.4.2实时数据介绍\n用户可以点击主界面的图标，查看变流器，光伏端，负载端、电池端以及电网端的实时数据；用户还可以通过点击“菜单”→“状态”进入状态主界面。这个界面用户可以查询“MPS数据”、“MPS状态”、“MPS告警”、“电池数据”这四个数据，用户可通过观察这四种实时量的反馈数据来对变流器进行监控，MPS数据如图8-4所示：",
+      "distance": null,
+      "images": [],
+      "context_role": "primary",
+      "metadata": {
+        "page_id": "doc_7904ce88fba452d383223cee7262d12d:ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e:p40",
+        "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+        "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+        "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+        "page_number": 40,
+        "document_type": "proposal",
+        "section_title": "",
+        "context_summary": "",
+        "retrieval_text": "[表格] 表8-4 各菜单展开项\n| 序号 | 菜单名称 | 菜单项目 | 参数功能 |\n| --- | --- | --- | --- |\n| 1 | 主页 | 电池 | 接入锂电池则显示电池模拟量、状态量和告警量;若接入铅酸电池则显示铅酸电池数据界面 |\n| 1 | 主页 | 光伏 | 光伏输入电压、电流 |\n| 1 | 主页 | 变流器 | 显示实时数据 |\n| 1 | 主页 | 负载 | 电压、电流、负载功率 |\n| 1 | 主页 | 电网 | 电网输入电压、电流,电表功率 |\n| 2 | 状态 | MPS数据 | 变流器数据显示 |\n| 2 | 状态 | MPS状态 | 变流器运行状态及开关状态显示 |\n| 2 | 状态 | MPS告警 | 当前系统运行信息及告警 |\n| 2 | 状态 | 电池数据 | 当前电池实时检测数据 |\n| 3 | 记录 | 数据报表 | PV、负载、电池、电网的充电量,放电量统计 |\n| 3 | 记录 | 导出数据 | 导出历史记录、操作记录、电量统计表 |\n| 3 | 记录 | 历史记录 | 显示运行过程中的状态记录和历史故障记录 |\n| 3 | 记录 | 操作日志 | 系统设置产生的一些重要的参数修改记录 |\n| 4 | 系统设置 | DC/AC参数设置 | 并网方式、操作模式、恒功率等 |\n| 4 | 系统设置 | DC/DC参数设置 | 工作模式、升/降压等 |\n| 4 | 系统设置 | 电池设置 | 电池参数设置 |\n| 4 | 系统设置 | 自动运行时间设置 | 系统自动运行时间段设置 |\n| 4 | 系统设置 | 系统信息 | 显示 PCS 版本号 |\n| 4 | 系统设置 | 高级设置 | 功能设置、系统参数、DCAC调试、DCDC调试 |\n| 5 | 开关 | 变流器开关 | DCDC变换器开机、DCDC变换器关机、待机 |\n| 5 | 开关 | 变流器开关 | DCAC变流器开机、DCAC变流器关机、待机 |\n### 8.4.2实时数据介绍\n用户可以点击主界面的图标，查看变流器，光伏端，负载端、电池端以及电网端的实时数据；用户还可以通过点击“菜单”→“状态”进入状态主界面。这个界面用户可以查询“MPS数据”、“MPS状态”、“MPS告警”、“电池数据”这四个数据，用户可通过观察这四种实时量的反馈数据来对变流器进行监控，MPS数据如图8-4所示：",
+        "keywords": [
+          "PV",
+          "DC",
+          "PCS"
+        ],
+        "entities": [
+          "PCS",
+          "菜单项目"
+        ],
+        "parameters": [],
+        "identity_metadata": {
+          "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+          "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+          "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+          "page_number": 40,
+          "document_type": "proposal"
+        },
+        "semantic_score": 0.62549972,
+        "semantic_reason": "Chroma cosine distance=0.598722, rank=3",
+        "retrieval": {
+          "mode": "hybrid",
+          "semantic": {
+            "rank": 3,
+            "score": 0.62549972,
+            "reason": "Chroma cosine distance=0.598722, rank=3"
+          },
+          "lexical": null,
+          "matched_terms": [],
+          "rrf_score": 0.01587302,
+          "fusion_reason": "RRF(k=60); contributing_modes=semantic"
+        }
+      }
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 26,
+      "title": "",
+      "content": "本设备不自带外部线缆，以上线缆推荐表非变流器自带，请用户根据相关需要自备。\n所有外部电缆通过底部进出线孔进入设备后接入相应位置。\nMPS系列变流器的功率电缆接线使用的端子及固定螺钉等零件在设备交付时已经安装在对应接线端子处。\n### 6.2 接线端子\n变流器功率电缆接线使用的端子及固定螺钉等零件安装示意：\n[表格] 表 6-2 接线端子各部件名称 图6-1 接线端子\n| 序号 | 名称 |\n| --- | --- |\n| A | 铜排 |\n| B | 接线端子 |\n| C | 螺钉 |\n| D | 弹垫 |\n| E | 大平垫 |\n| F | 螺母 |\n### 6.3 布线规范\n铺设线缆时，通讯线和功率线需分开敷设。直流回路和交流回路需要分开敷设，不同线缆之间距离需大于300mm。当控制线缆必须穿过动力线缆时，要保证两种线缆之间的夹角尽量保持90°。\n平行的屏蔽数据线与功率电缆之间推荐的最小空间距离与现场对应关系。\n[表格] 表6-3 信号线与功率电缆布线间距\n| 并行线长(m) | 最小空间距离(m) |\n| --- | --- |\n| 200 | 0.3 |\n| 300 | 0.5 |\n| 500 | 1.2 |",
+      "distance": null,
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_26_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_26_1.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_26_2.jpg",
+          "caption": ""
+        }
+      ],
+      "context_role": "primary",
+      "metadata": {
+        "page_id": "doc_7904ce88fba452d383223cee7262d12d:ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e:p26",
+        "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+        "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+        "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+        "page_number": 26,
+        "document_type": "proposal",
+        "section_title": "",
+        "context_summary": "",
+        "retrieval_text": "本设备不自带外部线缆，以上线缆推荐表非变流器自带，请用户根据相关需要自备。\n所有外部电缆通过底部进出线孔进入设备后接入相应位置。\nMPS系列变流器的功率电缆接线使用的端子及固定螺钉等零件在设备交付时已经安装在对应接线端子处。\n### 6.2 接线端子\n变流器功率电缆接线使用的端子及固定螺钉等零件安装示意：\n[表格] 表 6-2 接线端子各部件名称 图6-1 接线端子\n| 序号 | 名称 |\n| --- | --- |\n| A | 铜排 |\n| B | 接线端子 |\n| C | 螺钉 |\n| D | 弹垫 |\n| E | 大平垫 |\n| F | 螺母 |\n### 6.3 布线规范\n铺设线缆时，通讯线和功率线需分开敷设。直流回路和交流回路需要分开敷设，不同线缆之间距离需大于300mm。当控制线缆必须穿过动力线缆时，要保证两种线缆之间的夹角尽量保持90°。\n平行的屏蔽数据线与功率电缆之间推荐的最小空间距离与现场对应关系。\n[表格] 表6-3 信号线与功率电缆布线间距\n| 并行线长(m) | 最小空间距离(m) |\n| --- | --- |\n| 200 | 0.3 |\n| 300 | 0.5 |\n| 500 | 1.2 |",
+        "keywords": [],
+        "entities": [],
+        "parameters": [],
+        "identity_metadata": {
+          "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+          "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+          "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+          "page_number": 26,
+          "document_type": "proposal"
+        },
+        "semantic_score": 0.61631586,
+        "semantic_reason": "Chroma cosine distance=0.622545, rank=6",
+        "retrieval": {
+          "mode": "hybrid",
+          "semantic": {
+            "rank": 6,
+            "score": 0.61631586,
+            "reason": "Chroma cosine distance=0.622545, rank=6"
+          },
+          "lexical": null,
+          "matched_terms": [],
+          "rrf_score": 0.01515152,
+          "fusion_reason": "RRF(k=60); contributing_modes=semantic"
+        }
+      }
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 20,
+      "title": "",
+      "content": "### 5.4 机器运输\n### 5.4.1 运输说明\n 为使变流器处于较好的防护状态，尽可能采用带包装运输。\n 在使用叉车或者吊车进行运输的时候需要注意变流器的重量，确保运输设备具备足够的承载能力，并合理排布支撑或起吊点。\n 变流器外包装上标有详细的产品参数及运输要求，请按照包装上各种标识的示意进行运输，变流器包装标识图示说明如表5-4、5-5所示：\n[表格] 表5-4 包装上参数说明\n| 名称 | 说明 |\n| --- | --- |\n| MODEL | 变流器型号 |\n| SIZE | 外包装尺寸 |\n| NW | 变流器净重 |\n| GW | 毛重,变流器含外包装箱 |\n[表格] 表 5-5 包装标识图示说明\n| 标志 | 描述 |\n| --- | --- |\n|  | 正面朝上,禁止变流器横放、倾斜或倒置 |\n|  | 小心轻放,避免运输环境中过于激烈的碰撞摩擦对变流器造成损坏 |\n|  | 注意防潮,避免变流器遭受雨淋或受潮 |",
+      "distance": null,
+      "images": [],
+      "context_role": "primary",
+      "metadata": {
+        "page_id": "doc_7904ce88fba452d383223cee7262d12d:ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e:p20",
+        "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+        "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+        "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+        "page_number": 20,
+        "document_type": "proposal",
+        "section_title": "",
+        "context_summary": "",
+        "retrieval_text": "### 5.4 机器运输\n### 5.4.1 运输说明\n 为使变流器处于较好的防护状态，尽可能采用带包装运输。\n 在使用叉车或者吊车进行运输的时候需要注意变流器的重量，确保运输设备具备足够的承载能力，并合理排布支撑或起吊点。\n 变流器外包装上标有详细的产品参数及运输要求，请按照包装上各种标识的示意进行运输，变流器包装标识图示说明如表5-4、5-5所示：\n[表格] 表5-4 包装上参数说明\n| 名称 | 说明 |\n| --- | --- |\n| MODEL | 变流器型号 |\n| SIZE | 外包装尺寸 |\n| NW | 变流器净重 |\n| GW | 毛重,变流器含外包装箱 |\n[表格] 表 5-5 包装标识图示说明\n| 标志 | 描述 |\n| --- | --- |\n|  | 正面朝上,禁止变流器横放、倾斜或倒置 |\n|  | 小心轻放,避免运输环境中过于激烈的碰撞摩擦对变流器造成损坏 |\n|  | 注意防潮,避免变流器遭受雨淋或受潮 |",
+        "keywords": [
+          "MODEL",
+          "SIZE",
+          "NW",
+          "GW"
+        ],
+        "entities": [],
+        "parameters": [],
+        "identity_metadata": {
+          "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+          "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+          "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+          "page_number": 20,
+          "document_type": "proposal"
+        },
+        "semantic_score": 0.61437299,
+        "semantic_reason": "Chroma cosine distance=0.627676, rank=7",
+        "retrieval": {
+          "mode": "hybrid",
+          "semantic": {
+            "rank": 7,
+            "score": 0.61437299,
+            "reason": "Chroma cosine distance=0.627676, rank=7"
+          },
+          "lexical": null,
+          "matched_terms": [],
+          "rrf_score": 0.01492537,
+          "fusion_reason": "RRF(k=60); contributing_modes=semantic"
+        }
+      }
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 29,
+      "title": "",
+      "content": "为避免人身接触设备受到伤害，接线时一定要在不带电的情况下进行。\n直流开关在断开状态。\n用万用表测量直流侧接线铜排不带电。\n警告\n直流输入电压限值。确认直流输入电压不要超过850VDC！\n 任何直流输入电压超过此限值可能导致变流器损坏。\n 在此种情况下造成的设备损坏和损失不属于质保范围。\n接线使用的固定螺钉等零件，设备交付时已经安装在对应接线端子处。需要检查外部终端连接点的材质，如果是铜和铝材质相互连接，需用专用的铜铝连接头，切勿直接连接！\n### 6.8 交流侧接线\n### 6.8.1 交流连接\nMPS系列储能变流器所有机型均有电网连接，只有带旁路的机型才需要考虑旁路连接，其对应关系分别如下表所示。接线铜排接入位置请参考6.5，6.6节。\n[表格] 表6-5 电网连接对应关系\n| A1 | 接电网 A 相 |\n| --- | --- |\n| B1 | 接电网 B 相 |\n| C1 | 接电网 C 相 |\n| N | 接电网 N 相 |\n[表格] 表6-6 负载连接对应关系\n| A2 | 接负载 A 相 |\n| --- | --- |\n| B2 | 接负载 B 相 |\n| C2 | 接负载 C 相 |\n### 6.8.2交流侧线步骤：\n步骤一：用万用表测量确认所有端子是否已经断电。\n步骤二：确认线缆相序并做好线标，交流输出三相线缆A、B、C、N应分别加黄、绿、红、黑色绝缘套管，以便区分相序。\n步骤三：根据表6-5正确的将接电网的A、B、C三相连接到电网上。根据表6-6正确的将接负载的A、B、C三相连接到负载上。\n### 6.9 通讯线接线\n触摸屏背部预留了客户外接口通讯线，请将通讯线正确连接到触摸屏背部端子，对外客户接口通讯丝印说明如图6-5所示：\n※：通讯线可根据技术协议微调",
+      "distance": null,
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_29_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_29_1.jpg",
+          "caption": "危险"
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_29_2.jpg",
+          "caption": ""
+        }
+      ],
+      "context_role": "primary",
+      "metadata": {
+        "page_id": "doc_7904ce88fba452d383223cee7262d12d:ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e:p29",
+        "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+        "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+        "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+        "page_number": 29,
+        "document_type": "proposal",
+        "section_title": "",
+        "context_summary": "",
+        "retrieval_text": "为避免人身接触设备受到伤害，接线时一定要在不带电的情况下进行。\n直流开关在断开状态。\n用万用表测量直流侧接线铜排不带电。\n警告\n直流输入电压限值。确认直流输入电压不要超过850VDC！\n 任何直流输入电压超过此限值可能导致变流器损坏。\n 在此种情况下造成的设备损坏和损失不属于质保范围。\n接线使用的固定螺钉等零件，设备交付时已经安装在对应接线端子处。需要检查外部终端连接点的材质，如果是铜和铝材质相互连接，需用专用的铜铝连接头，切勿直接连接！\n### 6.8 交流侧接线\n### 6.8.1 交流连接\nMPS系列储能变流器所有机型均有电网连接，只有带旁路的机型才需要考虑旁路连接，其对应关系分别如下表所示。接线铜排接入位置请参考6.5，6.6节。\n[表格] 表6-5 电网连接对应关系\n| A1 | 接电网 A 相 |\n| --- | --- |\n| B1 | 接电网 B 相 |\n| C1 | 接电网 C 相 |\n| N | 接电网 N 相 |\n[表格] 表6-6 负载连接对应关系\n| A2 | 接负载 A 相 |\n| --- | --- |\n| B2 | 接负载 B 相 |\n| C2 | 接负载 C 相 |\n### 6.8.2交流侧线步骤：\n步骤一：用万用表测量确认所有端子是否已经断电。\n步骤二：确认线缆相序并做好线标，交流输出三相线缆A、B、C、N应分别加黄、绿、红、黑色绝缘套管，以便区分相序。\n步骤三：根据表6-5正确的将接电网的A、B、C三相连接到电网上。根据表6-6正确的将接负载的A、B、C三相连接到负载上。\n### 6.9 通讯线接线\n触摸屏背部预留了客户外接口通讯线，请将通讯线正确连接到触摸屏背部端子，对外客户接口通讯丝印说明如图6-5所示：\n※：通讯线可根据技术协议微调",
+        "keywords": [
+          "A1",
+          "B1",
+          "C1",
+          "A2",
+          "B2",
+          "C2",
+          "PCS"
+        ],
+        "entities": [
+          "PCS"
+        ],
+        "parameters": [],
+        "identity_metadata": {
+          "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+          "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+          "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+          "page_number": 29,
+          "document_type": "proposal"
+        },
+        "semantic_score": 0.61206668,
+        "semantic_reason": "Chroma cosine distance=0.633809, rank=8",
+        "retrieval": {
+          "mode": "hybrid",
+          "semantic": {
+            "rank": 8,
+            "score": 0.61206668,
+            "reason": "Chroma cosine distance=0.633809, rank=8"
+          },
+          "lexical": null,
+          "matched_terms": [],
+          "rrf_score": 0.01470588,
+          "fusion_reason": "RRF(k=60); contributing_modes=semantic"
+        }
+      }
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 16,
+      "title": "",
+      "content": "工作模式：削峰填谷\n1.当光伏、电网、电池可用时:\nA.在充电时间段，光伏优先为电池充电。多余的能量将为负载供电，如果光伏足够给负载供电同时给电池充电，余电上网。\nB.在充电时间段，光伏优先为电池充电。多余的能量给负载提供电力。如果光伏不足以给电池充电同时给负载供电，电网和光伏给电池充电同时给负载供电。\nC.在放电时间段，光伏和电池最大功率给负载和电网发电。\nD.在不充电不放电的时间段，光伏优先给负载供电，如果光伏还有多余的能量，那么多余的电量将给电网发电。\n2.当电网，电池可用时(PV断开)：\nA.在充电时间段，电网会在给电池充电的同时给负载供电。\nB.在放电时间段，电池优先向负载供电，当电池功率 > 负载功率时，剩余电量将给电网发电。\nC.在放电时间段，当电池功率 < 负载功率时，电池和电网同时向负载供电。\n0 注意！如果设置防逆流功能使能，一旦进入自发自用、削峰填谷和电池优先这3种工作模式，系统将不向电网供电。\n### 4.2 变流器状态介绍\n储能变流器一共存在6种状态，如下表4-1所示：\n表4-1 状态与描述\n| 状态 | 描述 |\n| --- | --- |\n| 运行 | 储能变流器正常工作。 |\n| 待机 | 在停机或运行模式下,变流器接收到LCD屏或上位机的待机指令时,转为待机状态。待机状态时变流器交流和直流接触器闭合,系统处于热备用状态,当LCD屏或上位机进行相关控制时,变流器可以快速响应。 |\n| 故障停机 | 当储能系统出现故障时,变流器会停止工作,自动将交直流侧的接触器断开,主电路与电池、电网或负载脱离。故障状态下,系统一直监测故障是否消除,如果故障未消除,则保持故障状态;如果故障消除,默认30秒以后进入关机状态。若储能变流器处于正常的“运行”状态,用户可通过上位机发出停机指令来使储能变流器停止工作,或者通过LCD屏开关机页面的关机键关机。 |\n| 紧急停机 | 故障或危急时,按下紧急停机按钮(EPO)使变流器停止运行。 |\n| 关机 | 储能变流器所有断路器断开,开关复位。 |",
+      "distance": null,
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_16_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_16_1.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_16_2.jpg",
+          "caption": ""
+        }
+      ],
+      "context_role": "primary",
+      "metadata": {
+        "page_id": "doc_7904ce88fba452d383223cee7262d12d:ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e:p16",
+        "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+        "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+        "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+        "page_number": 16,
+        "document_type": "proposal",
+        "section_title": ".当光伏、电网、电池可用时:",
+        "context_summary": "",
+        "retrieval_text": "工作模式：削峰填谷\n1.当光伏、电网、电池可用时:\nA.在充电时间段，光伏优先为电池充电。多余的能量将为负载供电，如果光伏足够给负载供电同时给电池充电，余电上网。\nB.在充电时间段，光伏优先为电池充电。多余的能量给负载提供电力。如果光伏不足以给电池充电同时给负载供电，电网和光伏给电池充电同时给负载供电。\nC.在放电时间段，光伏和电池最大功率给负载和电网发电。\nD.在不充电不放电的时间段，光伏优先给负载供电，如果光伏还有多余的能量，那么多余的电量将给电网发电。\n2.当电网，电池可用时(PV断开)：\nA.在充电时间段，电网会在给电池充电的同时给负载供电。\nB.在放电时间段，电池优先向负载供电，当电池功率 > 负载功率时，剩余电量将给电网发电。\nC.在放电时间段，当电池功率 < 负载功率时，电池和电网同时向负载供电。\n0 注意！如果设置防逆流功能使能，一旦进入自发自用、削峰填谷和电池优先这3种工作模式，系统将不向电网供电。\n### 4.2 变流器状态介绍\n储能变流器一共存在6种状态，如下表4-1所示：\n表4-1 状态与描述\n| 状态 | 描述 |\n| --- | --- |\n| 运行 | 储能变流器正常工作。 |\n| 待机 | 在停机或运行模式下,变流器接收到LCD屏或上位机的待机指令时,转为待机状态。待机状态时变流器交流和直流接触器闭合,系统处于热备用状态,当LCD屏或上位机进行相关控制时,变流器可以快速响应。 |\n| 故障停机 | 当储能系统出现故障时,变流器会停止工作,自动将交直流侧的接触器断开,主电路与电池、电网或负载脱离。故障状态下,系统一直监测故障是否消除,如果故障未消除,则保持故障状态;如果故障消除,默认30秒以后进入关机状态。若储能变流器处于正常的“运行”状态,用户可通过上位机发出停机指令来使储能变流器停止工作,或者通过LCD屏开关机页面的关机键关机。 |\n| 紧急停机 | 故障或危急时,按下紧急停机按钮(EPO)使变流器停止运行。 |\n| 关机 | 储能变流器所有断路器断开,开关复位。 |",
+        "keywords": [
+          ".当光伏、电网、电池可用时:",
+          "EPO",
+          "PCS"
+        ],
+        "entities": [
+          "PCS"
+        ],
+        "parameters": [],
+        "identity_metadata": {
+          "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+          "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+          "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+          "page_number": 16,
+          "document_type": "proposal"
+        },
+        "semantic_score": 0.6095714,
+        "semantic_reason": "Chroma cosine distance=0.640497, rank=9",
+        "retrieval": {
+          "mode": "hybrid",
+          "semantic": {
+            "rank": 9,
+            "score": 0.6095714,
+            "reason": "Chroma cosine distance=0.640497, rank=9"
+          },
+          "lexical": null,
+          "matched_terms": [],
+          "rrf_score": 0.01449275,
+          "fusion_reason": "RRF(k=60); contributing_modes=semantic"
+        }
+      }
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 49,
+      "title": "",
+      "content": "若仅断开断路器，储能变流器交直流柜内部的线缆连接端子依然带电！\n在打开柜门，开始正式的维护工作之前，不仅要断开断路器，还须断开储能变流器前后所有断路开关。\n在储能变流器关机后，请至少等待15分钟，用万用表确认内部铜牌无电压的情况下，再对其进行操作。\n### 9.2.3 维护工作\n[表格] 表9-1 维护工作项目表\n| 维护项目 | 维护内容 | 推荐周期 |\n| --- | --- | --- |\n| 保存记录 | ◆ 用USB导出数据并保存备份。 | 1个月 |\n| 变流器检查 | ◆ 观察储能变流器外观是否有损坏、变形或生锈。◆ 听储能变流器运行是否有异常声音。◆ 通过LCD观察运行时候各项参数。◆ 使用热成像仪等检测系统发热情况。◆ 检查变流器周围的通风、环境温度、湿度、灰尘等环境是否满足要求。 | 半年 |\n| 风道清理 | ◆ 检查风道灰尘。◆ 听风扇运转时是否有异常振动。◆ 使用压缩空气并打开风机进行清洁。◆ 清洗或更换空气过滤网。 | 半年(环境恶劣需酌情缩短时间) |\n| 安全功能 | ◆ 检查EPO按钮是否失效◆ 检查LCD关闭变流器功能是否失效。 | 半年 |\n| 电路连接 | ◆ 检查所有电气连接处是否松动或接触不良。◆ 检查所有线缆及金属表面接触的表皮是否破损或刮花。◆ 检查所有接线端子的绝缘包扎带是否脱落◆ 检查螺钉位置是否有过热痕迹。◆ 检查接线铜排和螺钉是否存在颜色改变。 | 1年 |\n| 断路器维护 | ◆ 检查所有断路器是否失效。◆ 检查断路器或者负荷开关是否有损坏。 | 1年 |\n| 标识检查 | ◆ 检查机体警告标示及其他设备标识,◆ 发现模糊或损坏,请及时更换 | 1年 |\n由于直流母线含有电容，待储能变流器完全断电后，需要等待至少15分钟。在清除灰尘之前，请用万用表测量确认机器内部已完全不带电，以免电击。",
+      "distance": null,
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_49_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_49_1.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_49_2.jpg",
+          "caption": ""
+        }
+      ],
+      "context_role": "primary",
+      "metadata": {
+        "page_id": "doc_7904ce88fba452d383223cee7262d12d:ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e:p49",
+        "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+        "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+        "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+        "page_number": 49,
+        "document_type": "proposal",
+        "section_title": "",
+        "context_summary": "",
+        "retrieval_text": "若仅断开断路器，储能变流器交直流柜内部的线缆连接端子依然带电！\n在打开柜门，开始正式的维护工作之前，不仅要断开断路器，还须断开储能变流器前后所有断路开关。\n在储能变流器关机后，请至少等待15分钟，用万用表确认内部铜牌无电压的情况下，再对其进行操作。\n### 9.2.3 维护工作\n[表格] 表9-1 维护工作项目表\n| 维护项目 | 维护内容 | 推荐周期 |\n| --- | --- | --- |\n| 保存记录 | ◆ 用USB导出数据并保存备份。 | 1个月 |\n| 变流器检查 | ◆ 观察储能变流器外观是否有损坏、变形或生锈。◆ 听储能变流器运行是否有异常声音。◆ 通过LCD观察运行时候各项参数。◆ 使用热成像仪等检测系统发热情况。◆ 检查变流器周围的通风、环境温度、湿度、灰尘等环境是否满足要求。 | 半年 |\n| 风道清理 | ◆ 检查风道灰尘。◆ 听风扇运转时是否有异常振动。◆ 使用压缩空气并打开风机进行清洁。◆ 清洗或更换空气过滤网。 | 半年(环境恶劣需酌情缩短时间) |\n| 安全功能 | ◆ 检查EPO按钮是否失效◆ 检查LCD关闭变流器功能是否失效。 | 半年 |\n| 电路连接 | ◆ 检查所有电气连接处是否松动或接触不良。◆ 检查所有线缆及金属表面接触的表皮是否破损或刮花。◆ 检查所有接线端子的绝缘包扎带是否脱落◆ 检查螺钉位置是否有过热痕迹。◆ 检查接线铜排和螺钉是否存在颜色改变。 | 1年 |\n| 断路器维护 | ◆ 检查所有断路器是否失效。◆ 检查断路器或者负荷开关是否有损坏。 | 1年 |\n| 标识检查 | ◆ 检查机体警告标示及其他设备标识,◆ 发现模糊或损坏,请及时更换 | 1年 |\n由于直流母线含有电容，待储能变流器完全断电后，需要等待至少15分钟。在清除灰尘之前，请用万用表测量确认机器内部已完全不带电，以免电击。",
+        "keywords": [
+          "PCS"
+        ],
+        "entities": [
+          "PCS",
+          "维护工作项目",
+          "维护项目"
+        ],
+        "parameters": [],
+        "identity_metadata": {
+          "document_id": "doc_7904ce88fba452d383223cee7262d12d",
+          "version_id": "ver_cache_sha256_2a955e3390cc8c71e9fc636326849312767ff15073a45a7e594fb0de8e9e648e",
+          "source_key": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+          "page_number": 49,
+          "document_type": "proposal"
+        },
+        "semantic_score": 0.60516464,
+        "semantic_reason": "Chroma cosine distance=0.652443, rank=10",
+        "retrieval": {
+          "mode": "hybrid",
+          "semantic": {
+            "rank": 10,
+            "score": 0.60516464,
+            "reason": "Chroma cosine distance=0.652443, rank=10"
+          },
+          "lexical": null,
+          "matched_terms": [],
+          "rrf_score": 0.01428571,
+          "fusion_reason": "RRF(k=60); contributing_modes=semantic"
+        }
+      }
+    }
+  ],
+  "proposal_markdown": "",
+  "citations": [
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 8,
+      "title": "",
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_8_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_8_1.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_8_2.jpg",
+          "caption": ""
+        }
+      ]
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 7,
+      "title": "",
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_7_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_7_1.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_7_2.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_7_3.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_7_4.jpg",
+          "caption": ""
+        }
+      ]
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 40,
+      "title": "",
+      "images": []
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 26,
+      "title": "",
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_26_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_26_1.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_26_2.jpg",
+          "caption": ""
+        }
+      ]
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 20,
+      "title": "",
+      "images": []
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 29,
+      "title": "",
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_29_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_29_1.jpg",
+          "caption": "危险"
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_29_2.jpg",
+          "caption": ""
+        }
+      ]
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 16,
+      "title": "",
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_16_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_16_1.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_16_2.jpg",
+          "caption": ""
+        }
+      ]
+    },
+    {
+      "source_file": "cache/MPS系列储能变流器用户手册 V2.0.pdf",
+      "page_number": 49,
+      "title": "",
+      "images": [
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_49_0.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_49_1.jpg",
+          "caption": ""
+        },
+        {
+          "path": "images/MPS系列储能变流器用户手册 V2.0.pdf/slide_49_2.jpg",
+          "caption": ""
+        }
+      ]
+    }
+  ],
+  "warnings": [],
+  "retrieval_metadata": {
+    "retrieval_mode": "hybrid_v2_cache_local",
+    "fusion": "RRF(k=60)",
+    "semantic_candidates": 8,
+    "supporting_hit_count": 0,
+    "embedding": "local_hash"
+  }
+}

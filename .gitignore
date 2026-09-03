@@ -5,6 +5,10 @@
 chroma_db/
 chroma_db_backup_*/
 v2_test_db/
+v3_candidate_db/
+v3_candidate_db_rebuilt/
+runtime_data/
+outputs/
 
 # Python
 __pycache__/

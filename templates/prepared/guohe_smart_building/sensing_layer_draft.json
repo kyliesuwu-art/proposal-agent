@@ -1,0 +1,5 @@
+{
+  "status": "generation_failed",
+  "error_type": "APIConnectionError",
+  "error": "Connection error."
+}

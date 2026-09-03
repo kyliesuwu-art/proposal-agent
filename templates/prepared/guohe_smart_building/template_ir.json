@@ -1,0 +1,5044 @@
+{
+  "source_path": "C:\\Users\\comking\\Desktop\\方案智能体\\Core\\files\\国核智慧楼宇实施技术方案.docx",
+  "source_hash": "97fae7788a7f436679d4cfd3ce93f4c1fb074e42be2fd69636cbb0cfd7429a15",
+  "blocks": [
+    {
+      "block_id": "block-0",
+      "block_type": "paragraph",
+      "order": 0,
+      "body_index": 0,
+      "section_id": null,
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 0
+      },
+      "text": "智慧楼宇实施技术方案",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-1",
+      "block_type": "paragraph",
+      "order": 1,
+      "body_index": 1,
+      "section_id": null,
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 1
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-2",
+      "block_type": "paragraph",
+      "order": 2,
+      "body_index": 2,
+      "section_id": null,
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 2
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-3",
+      "block_type": "paragraph",
+      "order": 3,
+      "body_index": 3,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 3
+      },
+      "text": "一、系统总体架构",
+      "style_id": "Normal",
+      "heading_level": 1,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-4",
+      "block_type": "paragraph",
+      "order": 4,
+      "body_index": 4,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 4
+      },
+      "text": "智慧楼宇的系统总体架构通常包括感知层、网络层、平台层和应用层。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-5",
+      "block_type": "paragraph",
+      "order": 5,
+      "body_index": 5,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 5
+      },
+      "text": "1.1感知层：",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-6",
+      "block_type": "paragraph",
+      "order": 6,
+      "body_index": 6,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 6
+      },
+      "text": "部署各类传感器，如温度传感器、湿度传感器、烟雾传感器、门磁传感器等，对楼宇内的环境、设备、人员活动等信息进行实时采集。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-7",
+      "block_type": "paragraph",
+      "order": 7,
+      "body_index": 7,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 7
+      },
+      "text": "安装智能电表、智能水表等计量设备，精确计量能源消耗。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-8",
+      "block_type": "paragraph",
+      "order": 8,
+      "body_index": 8,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 8
+      },
+      "text": "配备视频监控摄像头，实现对公共区域的可视化监控，包括出入口、电梯、楼道、停车场等。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-9",
+      "block_type": "paragraph",
+      "order": 9,
+      "body_index": 9,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 9
+      },
+      "text": "1.2网络层：",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-10",
+      "block_type": "paragraph",
+      "order": 10,
+      "body_index": 10,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 10
+      },
+      "text": "1）构建有线网络和无线网络，将感知层的设备与平台层相连接。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-11",
+      "block_type": "paragraph",
+      "order": 11,
+      "body_index": 11,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 11
+      },
+      "text": "2）对于有线网络，可采用以太网进行数据传输，确保数据传输的稳定性和高带宽。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-12",
+      "block_type": "paragraph",
+      "order": 12,
+      "body_index": 12,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 12
+      },
+      "text": "3）无线网络可使用 Wi-Fi、LoRa等技术，为移动设备和一些分布式的传感器提供网络接入。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-13",
+      "block_type": "paragraph",
+      "order": 13,
+      "body_index": 13,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 13
+      },
+      "text": "4）考虑网络安全，设置防火墙、入侵检测系统等，防止网络攻击和数据泄露。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-14",
+      "block_type": "paragraph",
+      "order": 14,
+      "body_index": 14,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 14
+      },
+      "text": "1.3平台层：",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-15",
+      "block_type": "paragraph",
+      "order": 15,
+      "body_index": 15,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 15
+      },
+      "text": "1）采用康晋数字孪生智慧楼宇管理平台，对采集的海量状态量数据进行汇总、存储、分析和处理。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-16",
+      "block_type": "paragraph",
+      "order": 16,
+      "body_index": 16,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 16
+      },
+      "text": "2）采用康晋自主可控国产化能源时序数据库系统，满足国家对能源、企业数字化系统的国产化信息系统要求。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-17",
+      "block_type": "paragraph",
+      "order": 17,
+      "body_index": 17,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 17
+      },
+      "text": "A.国产化适配与自主可控",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-18",
+      "block_type": "paragraph",
+      "order": 18,
+      "body_index": 18,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 18
+      },
+      "text": "①底层技术自主研发：从存储引擎、索引结构到查询优化器等核心组件，均由国内平台厂家自主设计与开发，拥有完全自主知识产权，避免了对国外技术的依赖，在技术上实现自主可控。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-19",
+      "block_type": "paragraph",
+      "order": 19,
+      "body_index": 19,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 19
+      },
+      "text": "②适配国产软硬件：能与国产的操作系统、服务器硬件、芯片等良好适配，形成全栈国产化的解决方案，提高了系统的安全性和稳定性，满足关键能源领域对国产化的要求。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-20",
+      "block_type": "paragraph",
+      "order": 20,
+      "body_index": 20,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 20
+      },
+      "text": "B.能源数据针对性优化",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-21",
+      "block_type": "paragraph",
+      "order": 21,
+      "body_index": 21,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 21
+      },
+      "text": "①支持多种能源数据格式：能兼容能源、安防、应急、协同处理等不同领域的各种数据格式和通信协议，方便对多源异构的能源数据进行统一存储和管理。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-22",
+      "block_type": "paragraph",
+      "order": 22,
+      "body_index": 22,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 22
+      },
+      "text": "②精准的时间同步：能源系统中，时间的准确性对于数据的分析和决策至关重要。国产能源时序数据库系统具备高精度的时间同步机制，可与电力系统的对时系统、能源计量设备等精准同步，确保不同来源数据在时间上的一致性和准确性，误差可控制在微秒级甚至更高精度。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-23",
+      "block_type": "paragraph",
+      "order": 23,
+      "body_index": 23,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 23
+      },
+      "text": "C.高可靠性与稳定性",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-24",
+      "block_type": "paragraph",
+      "order": 24,
+      "body_index": 24,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 24
+      },
+      "text": "①冗余与容错设计：可采用异地冗余容灾设计架构部署、分布式一致性算法等技术，确保在部分节点故障或网络异常的情况下，保证数据不丢失、业务不中断。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-25",
+      "block_type": "paragraph",
+      "order": 25,
+      "body_index": 25,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 25
+      },
+      "text": "②数据安全防护：针对能源及楼宇智能化数据的敏感性，强化了数据安全防护机制，包括数据加密存储、访问控制、数据备份与恢复等功能。采用国密算法对数据进行加密，防止数据泄露和篡改；通过严格的访问控制策略，确保只有授权用户能够访问和操作能源数据。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-26",
+      "block_type": "paragraph",
+      "order": 26,
+      "body_index": 26,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 26
+      },
+      "text": "D.高效的存储与查询性能",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-27",
+      "block_type": "paragraph",
+      "order": 27,
+      "body_index": 27,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 27
+      },
+      "text": "①分布式存储架构：利用分布式存储技术，将海量的能源时序数据分散存储在多个节点上，实现数据的并行读写和水平扩展，能够轻松应对能源系统中不断增长的数据量。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-28",
+      "block_type": "paragraph",
+      "order": 28,
+      "body_index": 28,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 28
+      },
+      "text": "②智能查询优化：具备智能的查询优化器，能够根据能源数据的特点和查询语句的语义，自动选择最优的查询路径和索引策略，提高查询效率。对于能源领域常见的按时间范围、设备 ID、能源类型等多维度查询，能够快速返回结果，满足实时监控和分析的需求。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-29",
+      "block_type": "paragraph",
+      "order": 29,
+      "body_index": 29,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 29
+      },
+      "text": "③时序数据库满足每秒100万条监测数据的持久化写入，在千万级数据记录中汇总、聚合、平均、最大、最小、最新、最早数据检索耗时不得大于0.8秒的结果返回。大尺度日期汇聚数据，如3年内的数据汇总、聚合等数据计算返回耗时不大于2秒。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-30",
+      "block_type": "paragraph",
+      "order": 30,
+      "body_index": 30,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 30
+      },
+      "text": "E.实时处理与分析能力",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-31",
+      "block_type": "paragraph",
+      "order": 31,
+      "body_index": 31,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 31
+      },
+      "text": "①实时数据处理：能够实时接收和处理能源系统中源源不断产生的实时数据，对数据进行实时清洗、转换和计算，如实时计算电力系统的功率、电量、负荷等指标，实现对能源系统的实时监控和预警。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-32",
+      "block_type": "paragraph",
+      "order": 32,
+      "body_index": 32,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 32
+      },
+      "text": "②内置分析算法：针对能源领域的业务需求，内置了丰富的数据分析算法和模型，如故障诊断模型、能耗预测模型等，可对能源数据进行深度挖掘和分析，为能源调度、设备运维、节能减排等提供决策支持。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-33",
+      "block_type": "paragraph",
+      "order": 33,
+      "body_index": 33,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 33
+      },
+      "text": "F.良好的可扩展性与兼容性",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-34",
+      "block_type": "paragraph",
+      "order": 34,
+      "body_index": 34,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 34
+      },
+      "text": "①可扩展性：随着能源系统的发展和业务需求的增加，能够方便地进行扩展，包括节点数量的增加、存储容量的扩充、计算能力的提升等。系统具备良好的弹性，可根据实际需求灵活调整资源配置，满足能源企业不断变化的业务需求。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-35",
+      "block_type": "paragraph",
+      "order": 35,
+      "body_index": 35,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 35
+      },
+      "text": "②兼容性：可与能源企业现有的能源管理系统、监控系统等进行无缝集成，保护企业的信息化投资，实现能源数据的共享和协同应用。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-36",
+      "block_type": "paragraph",
+      "order": 36,
+      "body_index": 36,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 36
+      },
+      "text": "利用大数据分析和人工智能技术，对数据进行深度挖掘，为决策提供支持。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-37",
+      "block_type": "paragraph",
+      "order": 37,
+      "body_index": 37,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 37
+      },
+      "text": "1.4应用层：",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-38",
+      "block_type": "paragraph",
+      "order": 38,
+      "body_index": 38,
+      "section_id": "section-3",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 38
+      },
+      "text": "实现多种功能应用，如设备管理、能源管理、安防管理、应急管理、环境管理、人员管理、停车管理等。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-39",
+      "block_type": "paragraph",
+      "order": 39,
+      "body_index": 39,
+      "section_id": "section-39",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 39
+      },
+      "text": "二、具体功能模块的实施方案",
+      "style_id": "Normal",
+      "heading_level": 1,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-40",
+      "block_type": "paragraph",
+      "order": 40,
+      "body_index": 40,
+      "section_id": "section-39",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 40
+      },
+      "text": "1.智能水表",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-41",
+      "block_type": "paragraph",
+      "order": 41,
+      "body_index": 41,
+      "section_id": "section-39",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 41
+      },
+      "text": "1.1选型：采用带通讯功能的智能水表，通讯方式为485通讯或者无线通讯。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-42",
+      "block_type": "paragraph",
+      "order": 42,
+      "body_index": 42,
+      "section_id": "section-39",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 42
+      },
+      "text": "1.2安装：将智能水表安装在在大楼的总进水口管道上，按照安装说明书的要求，保证水表的水平或垂直安装，连接好水表的上下游管道，使用密封材料（如橡胶垫片）确保密封良好，防止漏水。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-43",
+      "block_type": "paragraph",
+      "order": 43,
+      "body_index": 43,
+      "section_id": "section-39",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 43
+      },
+      "text": "1.3测试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-44",
+      "block_type": "paragraph",
+      "order": 44,
+      "body_index": 44,
+      "section_id": "section-39",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 44
+      },
+      "text": "1.3.1本地测试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-45",
+      "block_type": "paragraph",
+      "order": 45,
+      "body_index": 45,
+      "section_id": "section-39",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 45
+      },
+      "text": "1）首先进行本地测试，检查水表的基本功能，如检查水流是否顺畅，通过水表自带的显示屏查看读数是否正常。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-46",
+      "block_type": "paragraph",
+      "order": 46,
+      "body_index": 46,
+      "section_id": "section-39",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 46
+      },
+      "text": "2）测试水表的故障报警功能，如人为模拟断流、电池低电量等情况，查看是否能正确报警",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-47",
+      "block_type": "paragraph",
+      "order": 47,
+      "body_index": 47,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 47
+      },
+      "text": "1.3.2 系统联调",
+      "style_id": "Normal",
+      "heading_level": 3,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-48",
+      "block_type": "paragraph",
+      "order": 48,
+      "body_index": 48,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 48
+      },
+      "text": "1）将智能水表接入整个系统，通过数据传输网络将数据发送到服务器。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-49",
+      "block_type": "paragraph",
+      "order": 49,
+      "body_index": 49,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 49
+      },
+      "text": "2）在服务器端检查数据是否能准确接收和存储，检查管理平台是否能正确显示水表数据，包括流量数据、水表状态、历史数据等。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-50",
+      "block_type": "paragraph",
+      "order": 50,
+      "body_index": 50,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 50
+      },
+      "text": "3）测试系统的各种功能，如远程抄表、数据统计分析等，确保系统的各个功能正常运行。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-51",
+      "block_type": "paragraph",
+      "order": 51,
+      "body_index": 51,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 51
+      },
+      "text": "2.智能电表",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-52",
+      "block_type": "paragraph",
+      "order": 52,
+      "body_index": 52,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 52
+      },
+      "text": "2.1选型",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-53",
+      "block_type": "paragraph",
+      "order": 53,
+      "body_index": 53,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 53
+      },
+      "text": "1）智能电表",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-54",
+      "block_type": "paragraph",
+      "order": 54,
+      "body_index": 54,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 54
+      },
+      "text": "选择具备通信功能、高精度计量、支持多种通信协议（如 RS485、无线通信等）的智能电表。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-55",
+      "block_type": "paragraph",
+      "order": 55,
+      "body_index": 55,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 55
+      },
+      "text": "2）电流互感器（CT）",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-56",
+      "block_type": "paragraph",
+      "order": 56,
+      "body_index": 56,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 56
+      },
+      "text": "根据实际电力系统的额定电流、短路电流等参数，选择合适变比、准确级和容量的 CT。采用穿心式或母线式 CT，便于安装与维护。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-57",
+      "block_type": "paragraph",
+      "order": 57,
+      "body_index": 57,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 57
+      },
+      "text": "2.2安装：各楼层的配电柜",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-58",
+      "block_type": "paragraph",
+      "order": 58,
+      "body_index": 58,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 58
+      },
+      "text": "1）CT安装",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-59",
+      "block_type": "paragraph",
+      "order": 59,
+      "body_index": 59,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 59
+      },
+      "text": "①根据设计方案确定 CT 的安装位置，一般选择在靠近电力线路的合适位置，确保 CT 的一次侧与被测电流线路串联。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-60",
+      "block_type": "paragraph",
+      "order": 60,
+      "body_index": 60,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 60
+      },
+      "text": "②对于穿心式 CT，将电力电缆穿过 CT 的中心孔，并确保电缆处于中心位置，以保证测量精度。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-61",
+      "block_type": "paragraph",
+      "order": 61,
+      "body_index": 61,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 61
+      },
+      "text": "③对于母线式 CT，将 CT 固定在母线排上，并确保接触良好。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-62",
+      "block_type": "paragraph",
+      "order": 62,
+      "body_index": 62,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 62
+      },
+      "text": "④连接 CT 的二次侧线路，按照接线图将二次侧绕组的两端连接到智能电表的电流输入端子上，注意极性不能接反。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-63",
+      "block_type": "paragraph",
+      "order": 63,
+      "body_index": 63,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 63
+      },
+      "text": "2）智能电表安装",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-64",
+      "block_type": "paragraph",
+      "order": 64,
+      "body_index": 64,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 64
+      },
+      "text": "①在合适的位置安装智能电表，确保电表安装牢固、水平，且便于操作和维护。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-65",
+      "block_type": "paragraph",
+      "order": 65,
+      "body_index": 65,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 65
+      },
+      "text": "②连接电表的电压输入端子，将电力系统的电压信号接入电表的相应端子，确保电压幅值和相位正确。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-66",
+      "block_type": "paragraph",
+      "order": 66,
+      "body_index": 66,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 66
+      },
+      "text": "③将 CT 二次侧连接到电表的电流输入端子，完成电气连接。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-67",
+      "block_type": "paragraph",
+      "order": 67,
+      "body_index": 67,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 67
+      },
+      "text": "④根据通信方式，连接通信线路或安装通信模块，确保电表能够与智能网关进行通信。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-68",
+      "block_type": "paragraph",
+      "order": 68,
+      "body_index": 68,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 68
+      },
+      "text": "2.3测试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-69",
+      "block_type": "paragraph",
+      "order": 69,
+      "body_index": 69,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 69
+      },
+      "text": "1）电气参数调试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-70",
+      "block_type": "paragraph",
+      "order": 70,
+      "body_index": 70,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 70
+      },
+      "text": "①使用标准电流源和电压源对 CT 和智能电表进行联合调试，检查电表的电流、电压测量精度是否符合要求。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-71",
+      "block_type": "paragraph",
+      "order": 71,
+      "body_index": 71,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 71
+      },
+      "text": "②调整 CT 的变比设置和电表的参数配置，确保两者匹配，以实现准确的电力计量。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-72",
+      "block_type": "paragraph",
+      "order": 72,
+      "body_index": 72,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 72
+      },
+      "text": "③对不同负荷下的电力参数进行测量和验证，检查电表的计量准确性和线性度。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-73",
+      "block_type": "paragraph",
+      "order": 73,
+      "body_index": 73,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 73
+      },
+      "text": "2）通信调试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-74",
+      "block_type": "paragraph",
+      "order": 74,
+      "body_index": 74,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 74
+      },
+      "text": "①检查通信线路连接是否正确，通信模块是否正常工作。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-75",
+      "block_type": "paragraph",
+      "order": 75,
+      "body_index": 75,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 75
+      },
+      "text": "②配置电表与智能网关的通信参数，包括通信协议、波特率、地址等，确保两者能够正常通信。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-76",
+      "block_type": "paragraph",
+      "order": 76,
+      "body_index": 76,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 76
+      },
+      "text": "③通过测试软件或移动终端，测试电表数据的实时采集和传输功能，检查数据的完整性和准确性。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-77",
+      "block_type": "paragraph",
+      "order": 77,
+      "body_index": 77,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 77
+      },
+      "text": "3.储能系统",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-78",
+      "block_type": "paragraph",
+      "order": 78,
+      "body_index": 78,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 78
+      },
+      "text": "3.1储能系统设计",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-79",
+      "block_type": "paragraph",
+      "order": 79,
+      "body_index": 79,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 79
+      },
+      "text": "根据负载需求以及光伏系统的发电量，选用100度电（100kWh）的储能柜。此储能柜与光伏发电系统相连接，在光照充足、发电量过剩的情况下，能将多余电能高效储存起来。储能柜内部的电池组可以稳定地储存电能，有效减少能源浪费。当光照不足或处于夜晚无阳光时段，储能柜会释放储存的电能，为负载供电，从而确保电力供应的连续性和稳定性。此外，该储能柜还可作为机房工作的备用电源，实现光储的柔性利用，提升能源利用效率。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-80",
+      "block_type": "paragraph",
+      "order": 80,
+      "body_index": 80,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 80
+      },
+      "text": "3.2功能要求",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-81",
+      "block_type": "paragraph",
+      "order": 81,
+      "body_index": 81,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 81
+      },
+      "text": "当市电正常供应时，储能设备处于充电待命状态，不断补充电量，以备不时之需。一旦市电出现故障，如遭遇突发停电、电网检修等情况，储能设备能在毫秒级的时间内做出响应，迅速切换为供电模式，无缝对接机房的电力需求，确保服务器、网络设备等关键设施持续稳定运行。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-82",
+      "block_type": "paragraph",
+      "order": 82,
+      "body_index": 82,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 82
+      },
+      "text": "3.4调试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-83",
+      "block_type": "paragraph",
+      "order": 83,
+      "body_index": 83,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 83
+      },
+      "text": "1）对安装完成的储能系统进行初步检查，确认设备连接正确、无短路等问题。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-84",
+      "block_type": "paragraph",
+      "order": 84,
+      "body_index": 84,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 84
+      },
+      "text": "2）进行系统的单体调试，分别对储能电池、BMS、PCS 进行功能测试，确保各设备正常工作。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-85",
+      "block_type": "paragraph",
+      "order": 85,
+      "body_index": 85,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 85
+      },
+      "text": "3）开展系统的联调，模拟实际运行工况，测试储能系统的充放电性能、能量转换效率、与电网的交互性能等。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-86",
+      "block_type": "paragraph",
+      "order": 86,
+      "body_index": 86,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 86
+      },
+      "text": "3.5平台接入",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-87",
+      "block_type": "paragraph",
+      "order": 87,
+      "body_index": 87,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 87
+      },
+      "text": "1）将储能柜EMS系统的数据通过有线或无线通信方式传输到智能监控平台。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-88",
+      "block_type": "paragraph",
+      "order": 88,
+      "body_index": 88,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 88
+      },
+      "text": "2）在运维平台上进行系统接入配置，添加储能系统的设备信息，包括设备名称、型号、通信地址、数据点定义等。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-89",
+      "block_type": "paragraph",
+      "order": 89,
+      "body_index": 89,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 89
+      },
+      "text": "3）配置监测平台的报警规则和通知方式，当系统出现异常情况时，能够及时发送报警信息给相关人员。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-90",
+      "block_type": "paragraph",
+      "order": 90,
+      "body_index": 90,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 90
+      },
+      "text": "4.充电桩系统",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-91",
+      "block_type": "paragraph",
+      "order": 91,
+      "body_index": 91,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 91
+      },
+      "text": "4.1设备选型",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-92",
+      "block_type": "paragraph",
+      "order": 92,
+      "body_index": 92,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 92
+      },
+      "text": "7kW 左右的单相交流充电桩，共10台",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-93",
+      "block_type": "paragraph",
+      "order": 93,
+      "body_index": 93,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 93
+      },
+      "text": "4.2选址规划",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-94",
+      "block_type": "paragraph",
+      "order": 94,
+      "body_index": 94,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 94
+      },
+      "text": "负一楼的地下停车场",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-95",
+      "block_type": "paragraph",
+      "order": 95,
+      "body_index": 95,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 95
+      },
+      "text": "4.3施工准备",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-96",
+      "block_type": "paragraph",
+      "order": 96,
+      "body_index": 96,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 96
+      },
+      "text": "办理相关施工许可证和审批手续，组织施工人员进行安全培训和技术交底。准备好施工所需的材料、设备和工具，如电缆、配电柜、接地装置、施工机械等。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-97",
+      "block_type": "paragraph",
+      "order": 97,
+      "body_index": 97,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 97
+      },
+      "text": "4.4电气安装",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-98",
+      "block_type": "paragraph",
+      "order": 98,
+      "body_index": 98,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 98
+      },
+      "text": "按照设计要求进行电缆敷设，确保电缆走向合理、整齐，做好防护措施。安装配电柜、计量装置等电气设备，连接充电桩与电源，进行接地施工，保证接地系统可靠。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-99",
+      "block_type": "paragraph",
+      "order": 99,
+      "body_index": 99,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 99
+      },
+      "text": "4.5设备安装",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-100",
+      "block_type": "paragraph",
+      "order": 100,
+      "body_index": 100,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 100
+      },
+      "text": "根据充电桩安装说明书，进行充电桩的安装固定，确保安装位置准确、牢固。连接充电桩的通信线路，实现与管理平台的通信功能。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-101",
+      "block_type": "paragraph",
+      "order": 101,
+      "body_index": 101,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 101
+      },
+      "text": "4.6系统调试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-102",
+      "block_type": "paragraph",
+      "order": 102,
+      "body_index": 102,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 102
+      },
+      "text": "安装完成的交流充电桩及相关电气系统进行调试，检查充电桩的各项功能是否正常，如充电启动、停止、计费、通信等功能。测试充电电流、电压、功率等参数是否符合要求，确保充电过程安全、稳定。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-103",
+      "block_type": "paragraph",
+      "order": 103,
+      "body_index": 103,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 103
+      },
+      "text": "4.7运营管理",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-104",
+      "block_type": "paragraph",
+      "order": 104,
+      "body_index": 104,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 104
+      },
+      "text": "1）平台搭建",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-105",
+      "block_type": "paragraph",
+      "order": 105,
+      "body_index": 105,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 105
+      },
+      "text": "建立充电桩运营管理平台，实现对充电桩的远程监控、状态监测、故障报警、计费结算、用户管理等功能。通过平台数据分析，优化充电桩布局和运营策略。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-106",
+      "block_type": "paragraph",
+      "order": 106,
+      "body_index": 106,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 106
+      },
+      "text": "2）定价策略",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-107",
+      "block_type": "paragraph",
+      "order": 107,
+      "body_index": 107,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 107
+      },
+      "text": "根据当地电价政策、运营成本、市场需求等因素，制定合理的充电价格。可采用按电量计费、按时长计费、分时段计费等多种方式。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-108",
+      "block_type": "paragraph",
+      "order": 108,
+      "body_index": 108,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 108
+      },
+      "text": "5.光伏系统接入",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-109",
+      "block_type": "paragraph",
+      "order": 109,
+      "body_index": 109,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 109
+      },
+      "text": "5.1采集设备（工程承建公司提供及安装）",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-110",
+      "block_type": "paragraph",
+      "order": 110,
+      "body_index": 110,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 110
+      },
+      "text": "光伏组件、逆变器、智能电力计量表、气象仪等智能传感器",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-111",
+      "block_type": "paragraph",
+      "order": 111,
+      "body_index": 111,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 111
+      },
+      "text": "5.2数据传输",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-112",
+      "block_type": "paragraph",
+      "order": 112,
+      "body_index": 112,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 112
+      },
+      "text": "根据现场环境和需求，可采用有线网络（如以太网）或无线网络（如 4G/5G、Wi-Fi）将数据从数据采集设备传输至监控平台。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-113",
+      "block_type": "paragraph",
+      "order": 113,
+      "body_index": 113,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 113
+      },
+      "text": "5.3接入准备",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-114",
+      "block_type": "paragraph",
+      "order": 114,
+      "body_index": 114,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 114
+      },
+      "text": "甲方提供光伏组件、逆变器、配电柜、气象仪的点表信息",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-115",
+      "block_type": "paragraph",
+      "order": 115,
+      "body_index": 115,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 115
+      },
+      "text": "5.4系统联调",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-116",
+      "block_type": "paragraph",
+      "order": 116,
+      "body_index": 116,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 116
+      },
+      "text": "1）进行系统的整体联调，从数据采集层开始，逐步检查数据的传输、处理和展示是否正常。模拟各种工况和异常情况，测试报警功能、数据分析功能等是否符合设计要求。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-117",
+      "block_type": "paragraph",
+      "order": 117,
+      "body_index": 117,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 117
+      },
+      "text": "2）对监控平台进行性能测试，包括数据采集的实时性、数据处理的速度和准确性、系统的稳定性和可靠性等。在高并发数据采集和处理的情况下，检查系统是否会出现卡顿、数据丢失等问题",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-118",
+      "block_type": "paragraph",
+      "order": 118,
+      "body_index": 118,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 118
+      },
+      "text": "6.多联空调接入",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-119",
+      "block_type": "paragraph",
+      "order": 119,
+      "body_index": 119,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 119
+      },
+      "text": "6.1设备选型（工程承建公司提供及安装）",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-120",
+      "block_type": "paragraph",
+      "order": 120,
+      "body_index": 120,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 120
+      },
+      "text": "1）空调主机、盘管风机：具备网络通讯功能，可支持远程控制以及平台集中控制，方便用户在不同场景下对设备进行操作管理。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-121",
+      "block_type": "paragraph",
+      "order": 121,
+      "body_index": 121,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 121
+      },
+      "text": "2）温 / 湿度传感器：分布安装于室内各个区域，实时监测室内温湿度，为环境调控提供精准数据支持。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-122",
+      "block_type": "paragraph",
+      "order": 122,
+      "body_index": 122,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 122
+      },
+      "text": "3）空调控制器：主要用于控制空调的运行状态，通过网络接口与空调进行通信，实现对空调运行参数的精准调控。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-123",
+      "block_type": "paragraph",
+      "order": 123,
+      "body_index": 123,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 123
+      },
+      "text": "4）通信网关：能将空调控制器、传感器等设备的数据转换为网络可传输的数据格式，从而实现与监控平台的通信，确保各设备与监控平台间数据交互的顺畅。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-124",
+      "block_type": "paragraph",
+      "order": 124,
+      "body_index": 124,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 124
+      },
+      "text": "6.2通讯技术支持",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-125",
+      "block_type": "paragraph",
+      "order": 125,
+      "body_index": 125,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 125
+      },
+      "text": "甲方需提供空调系统的通信协议，以及详细的协议文档和接口说明。同时，提供设备驱动程序或协助开发设备驱动，确保监控平台与空调系统能够正常通信和控制。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-126",
+      "block_type": "paragraph",
+      "order": 126,
+      "body_index": 126,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 126
+      },
+      "text": "6.3硬件安装与布线",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-127",
+      "block_type": "paragraph",
+      "order": 127,
+      "body_index": 127,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 127
+      },
+      "text": "1）传感器部署",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-128",
+      "block_type": "paragraph",
+      "order": 128,
+      "body_index": 128,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 128
+      },
+      "text": "在各空调区域合理位置安装温湿度、CO₂、人体感应等传感器，如会议室、办公室、走廊等区域。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-129",
+      "block_type": "paragraph",
+      "order": 129,
+      "body_index": 129,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 129
+      },
+      "text": "2）控制器安装",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-130",
+      "block_type": "paragraph",
+      "order": 130,
+      "body_index": 130,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 130
+      },
+      "text": "将空调控制器安装在靠近空调设备的位置，便于连接与控制，确保其与传感器和空调设备的通信线路连接正确。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-131",
+      "block_type": "paragraph",
+      "order": 131,
+      "body_index": 131,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 131
+      },
+      "text": "3）布线施工",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-132",
+      "block_type": "paragraph",
+      "order": 132,
+      "body_index": 132,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 132
+      },
+      "text": "进行电源线、信号线等布线工作，确保线路安全、整齐，符合电气规范，必要时采用线槽或线管进行保护。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-133",
+      "block_type": "paragraph",
+      "order": 133,
+      "body_index": 133,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 133
+      },
+      "text": "6.4系统集成与配置",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-134",
+      "block_type": "paragraph",
+      "order": 134,
+      "body_index": 134,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 134
+      },
+      "text": "1）通信设置",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-135",
+      "block_type": "paragraph",
+      "order": 135,
+      "body_index": 135,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 135
+      },
+      "text": "对传感器、控制器、网关等设备进行通信参数配置，确保它们能在同一网络中正常通信，采用Modbus 等标准通信协议。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-136",
+      "block_type": "paragraph",
+      "order": 136,
+      "body_index": 136,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 136
+      },
+      "text": "2）平台接入",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-137",
+      "block_type": "paragraph",
+      "order": 137,
+      "body_index": 137,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 137
+      },
+      "text": "将空调控制系统接入智慧楼宇管理平台，进行数据对接和功能集成，在平台上实现对空调的监控、控制、数据分析等功能。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-138",
+      "block_type": "paragraph",
+      "order": 138,
+      "body_index": 138,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 138
+      },
+      "text": "3）策略配置",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-139",
+      "block_type": "paragraph",
+      "order": 139,
+      "body_index": 139,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 139
+      },
+      "text": "根据楼宇的使用需求和节能目标，在平台上配置空调的运行策略，如温度上下限、定时开关机、根据人员活动自动调节等。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-140",
+      "block_type": "paragraph",
+      "order": 140,
+      "body_index": 140,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 140
+      },
+      "text": "6.5软件调试与测试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-141",
+      "block_type": "paragraph",
+      "order": 141,
+      "body_index": 141,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 141
+      },
+      "text": "1）功能测试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-142",
+      "block_type": "paragraph",
+      "order": 142,
+      "body_index": 142,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 142
+      },
+      "text": "对空调系统的各项控制功能进行测试，如远程开关机、温度调节、模式切换等，确保功能正常。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-143",
+      "block_type": "paragraph",
+      "order": 143,
+      "body_index": 143,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 143
+      },
+      "text": "2）数据监测",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-144",
+      "block_type": "paragraph",
+      "order": 144,
+      "body_index": 144,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 144
+      },
+      "text": "检查传感器数据是否准确上传到平台，平台对空调设备的控制指令是否能正确执行，查看数据的实时性和稳定性。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-145",
+      "block_type": "paragraph",
+      "order": 145,
+      "body_index": 145,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 145
+      },
+      "text": "3）优化调整",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-146",
+      "block_type": "paragraph",
+      "order": 146,
+      "body_index": 146,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 146
+      },
+      "text": "根据测试结果，对系统进行优化调整，如调整传感器位置、优化控制策略参数等，提高系统的性能和稳定性。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-147",
+      "block_type": "paragraph",
+      "order": 147,
+      "body_index": 147,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 147
+      },
+      "text": "7.阳光房自动控制接入",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-148",
+      "block_type": "paragraph",
+      "order": 148,
+      "body_index": 148,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 148
+      },
+      "text": "7.1设备选型（工程承建公司提供及安装）",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-149",
+      "block_type": "paragraph",
+      "order": 149,
+      "body_index": 149,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 149
+      },
+      "text": "①传感器：选择适合阳光房环境的光照传感器、温度传感器、湿度传感器、风速传感器、雨水传感器等，用于采集环境数据。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-150",
+      "block_type": "paragraph",
+      "order": 150,
+      "body_index": 150,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 150
+      },
+      "text": "②控制器：根据阳光房的控制需求，选择可编程逻辑控制器（PLC）、智能控制器等，实现对阳光房设备的自动化控制。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-151",
+      "block_type": "paragraph",
+      "order": 151,
+      "body_index": 151,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 151
+      },
+      "text": "③执行设备：如电动窗帘、遮阳百叶、通风风机、空调设备、加热设备、安防设备等，根据阳光房的功能需求进行选型。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-152",
+      "block_type": "paragraph",
+      "order": 152,
+      "body_index": 152,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 152
+      },
+      "text": "④通信设备：选择无线通信模块、网关等设备，实现传感器、控制器和智慧楼宇系统之间的数据传输。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-153",
+      "block_type": "paragraph",
+      "order": 153,
+      "body_index": 153,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 153
+      },
+      "text": "7.2施工安装",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-154",
+      "block_type": "paragraph",
+      "order": 154,
+      "body_index": 154,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 154
+      },
+      "text": "1）布线施工",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-155",
+      "block_type": "paragraph",
+      "order": 155,
+      "body_index": 155,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 155
+      },
+      "text": "根据设计方案，进行电源线、信号线等布线工作，确保线路安全、整齐，符合电气规范。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-156",
+      "block_type": "paragraph",
+      "order": 156,
+      "body_index": 156,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 156
+      },
+      "text": "2）设备安装",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-157",
+      "block_type": "paragraph",
+      "order": 157,
+      "body_index": 157,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 157
+      },
+      "text": "按照设备安装说明书，安装传感器、控制器、执行设备、通信设备等，确保设备安装牢固、位置正确。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-158",
+      "block_type": "paragraph",
+      "order": 158,
+      "body_index": 158,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 158
+      },
+      "text": "3）系统集成",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-159",
+      "block_type": "paragraph",
+      "order": 159,
+      "body_index": 159,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 159
+      },
+      "text": "将阳光房的智能设备通过通信网络接入智慧楼宇系统，实现数据共享和协同控制。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-160",
+      "block_type": "paragraph",
+      "order": 160,
+      "body_index": 160,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 160
+      },
+      "text": "7.3系统调试与测试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-161",
+      "block_type": "paragraph",
+      "order": 161,
+      "body_index": 161,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 161
+      },
+      "text": "1）设备调试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-162",
+      "block_type": "paragraph",
+      "order": 162,
+      "body_index": 162,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 162
+      },
+      "text": "对安装好的设备进行逐一调试，确保设备正常工作，采集的数据准确可靠，控制指令能够正确执行。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-163",
+      "block_type": "paragraph",
+      "order": 163,
+      "body_index": 163,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 163
+      },
+      "text": "2）功能测试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-164",
+      "block_type": "paragraph",
+      "order": 164,
+      "body_index": 164,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 164
+      },
+      "text": "对阳光房的各项智能功能进行测试，如光照自动调节、温度自动控制、通风自动调节、安防报警等，确保功能符合设计要求。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-165",
+      "block_type": "paragraph",
+      "order": 165,
+      "body_index": 165,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 165
+      },
+      "text": "3）系统联调",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-166",
+      "block_type": "paragraph",
+      "order": 166,
+      "body_index": 166,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 166
+      },
+      "text": "将阳光房系统与智慧楼宇系统进行联调，测试数据传输的稳定性、准确性，以及与其他子系统的协同工作能力。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-167",
+      "block_type": "paragraph",
+      "order": 167,
+      "body_index": 167,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 167
+      },
+      "text": "8.门禁系统接入",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-168",
+      "block_type": "paragraph",
+      "order": 168,
+      "body_index": 168,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 168
+      },
+      "text": "8.1设备选型（工程承建公司提供及安装）",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-169",
+      "block_type": "paragraph",
+      "order": 169,
+      "body_index": 169,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 169
+      },
+      "text": "1）设备采购：",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-170",
+      "block_type": "paragraph",
+      "order": 170,
+      "body_index": 170,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 170
+      },
+      "text": "按照选型方案，采购门禁系统设备及相关配件，确保设备质量和兼容性。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-171",
+      "block_type": "paragraph",
+      "order": 171,
+      "body_index": 171,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 171
+      },
+      "text": "2）布线施工：",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-172",
+      "block_type": "paragraph",
+      "order": 172,
+      "body_index": 172,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 172
+      },
+      "text": "进行电源线、信号线等布线工作，遵循相关电气规范，确保线路安全、整齐。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-173",
+      "block_type": "paragraph",
+      "order": 173,
+      "body_index": 173,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 173
+      },
+      "text": "3）设备安装：",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-174",
+      "block_type": "paragraph",
+      "order": 174,
+      "body_index": 174,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 174
+      },
+      "text": "安装门禁控制器、读卡器、电子锁、门磁、摄像头等设备，确保安装牢固、位置合理，便于使用和维护。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-175",
+      "block_type": "paragraph",
+      "order": 175,
+      "body_index": 175,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 175
+      },
+      "text": "8.2系统调试与测试",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-176",
+      "block_type": "paragraph",
+      "order": 176,
+      "body_index": 176,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 176
+      },
+      "text": "1）网络配置：",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-177",
+      "block_type": "paragraph",
+      "order": 177,
+      "body_index": 177,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 177
+      },
+      "text": "对门禁系统进行网络配置，确保其能与智慧楼宇系统的网络进行通信，设置 IP 地址、网关、子网掩码等参数。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-178",
+      "block_type": "paragraph",
+      "order": 178,
+      "body_index": 178,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 178
+      },
+      "text": "2）系统集成：",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-179",
+      "block_type": "paragraph",
+      "order": 179,
+      "body_index": 179,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 179
+      },
+      "text": "将门禁系统与智慧楼宇管理平台进行集成，实现数据共享和交互，在管理平台上实现对门禁系统的集中管理和控制。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-180",
+      "block_type": "paragraph",
+      "order": 180,
+      "body_index": 180,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 180
+      },
+      "text": "3）功能调试：",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-181",
+      "block_type": "paragraph",
+      "order": 181,
+      "body_index": 181,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 181
+      },
+      "text": "对门禁系统的各项功能进行调试，如刷卡开门、指纹识别开门、人脸识别开门、远程控制开门等，确保功能正常。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-182",
+      "block_type": "paragraph",
+      "order": 182,
+      "body_index": 182,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 182
+      },
+      "text": "4）数据测试：",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-183",
+      "block_type": "paragraph",
+      "order": 183,
+      "body_index": 183,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 183
+      },
+      "text": "检查门禁系统与智慧楼宇管理平台之间的数据传输是否正常，测试人员信息、权限信息、开门记录等数据的准确性和实时性。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-184",
+      "block_type": "paragraph",
+      "order": 184,
+      "body_index": 184,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 184
+      },
+      "text": "9.安防系统接入",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-185",
+      "block_type": "paragraph",
+      "order": 185,
+      "body_index": 185,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 185
+      },
+      "text": "9.1设备选型（工程承建公司提供及安装）",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-186",
+      "block_type": "paragraph",
+      "order": 186,
+      "body_index": 186,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 186
+      },
+      "text": "1）带通讯功能的烟雾传感器、温湿度传感器",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-187",
+      "block_type": "paragraph",
+      "order": 187,
+      "body_index": 187,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 187
+      },
+      "text": "2）电梯口装设具有客流统计功能的摄像头",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-188",
+      "block_type": "paragraph",
+      "order": 188,
+      "body_index": 188,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 188
+      },
+      "text": "9.2数据收集",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-189",
+      "block_type": "paragraph",
+      "order": 189,
+      "body_index": 189,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 189
+      },
+      "text": "1）建筑信息收集",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-190",
+      "block_type": "paragraph",
+      "order": 190,
+      "body_index": 190,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 190
+      },
+      "text": "获取办公大楼的详细建筑图纸，包括各楼层布局、房间分布、楼梯位置、通道走向、安全出口数量及位置等信息。利用 BIM 技术对大楼进行三维建模，精确获取建筑结构数据。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-191",
+      "block_type": "paragraph",
+      "order": 191,
+      "body_index": 191,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 191
+      },
+      "text": "2）人员信息统计",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-192",
+      "block_type": "paragraph",
+      "order": 192,
+      "body_index": 192,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 192
+      },
+      "text": "具有客流统计功能的智能摄像头，运用先进的图像识别技术，能够精准地对图像中的行人进行识别和定位。可以实时统计各楼层的人员数量，精确记录每个人的工作时间，还能深入分析人员的活动规律。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-193",
+      "block_type": "paragraph",
+      "order": 193,
+      "body_index": 193,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 193
+      },
+      "text": "3）消防设施数据",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-194",
+      "block_type": "paragraph",
+      "order": 194,
+      "body_index": 194,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 194
+      },
+      "text": "整理办公大楼内消防设施的位置、类型、数量和性能参数，如灭火器、消火栓、自动喷水灭火系统、火灾报警系统等。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-195",
+      "block_type": "paragraph",
+      "order": 195,
+      "body_index": 195,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 195
+      },
+      "text": "9.3建立模型",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-196",
+      "block_type": "paragraph",
+      "order": 196,
+      "body_index": 196,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 196
+      },
+      "text": "基于收集到的数据，建立办公大楼的消防撤退路线模型。在模型中设置人员行为参数、火灾蔓延参数、消防设施启动条件等，模拟不同火灾场景下的人员疏散情况。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-197",
+      "block_type": "paragraph",
+      "order": 197,
+      "body_index": 197,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 197
+      },
+      "text": "9.4自动寻优算法设计",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-198",
+      "block_type": "paragraph",
+      "order": 198,
+      "body_index": 198,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 198
+      },
+      "text": "1）目标设定",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-199",
+      "block_type": "paragraph",
+      "order": 199,
+      "body_index": 199,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 199
+      },
+      "text": "确定消防撤退路线自动寻优的目标，如最短疏散时间、最小人员拥堵、最大安全系数等。根据办公大楼的特点和实际需求，对各目标进行权重分配，形成综合优化目标函数。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-200",
+      "block_type": "paragraph",
+      "order": 200,
+      "body_index": 200,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 200
+      },
+      "text": "2）算法选择",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-201",
+      "block_type": "paragraph",
+      "order": 201,
+      "body_index": 201,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 201
+      },
+      "text": "选择适合的自动寻优算法，不断进化出更优的路线方案。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-202",
+      "block_type": "paragraph",
+      "order": 202,
+      "body_index": 202,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 202
+      },
+      "text": "3）约束条件设置",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-203",
+      "block_type": "paragraph",
+      "order": 203,
+      "body_index": 203,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 203
+      },
+      "text": "考虑建筑结构、安全出口数量、通道宽度、人员流量等因素，设置自动寻优的约束条件。确保寻优结果符合实际情况和消防安全规范。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-204",
+      "block_type": "paragraph",
+      "order": 204,
+      "body_index": 204,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 204
+      },
+      "text": "4）算法优化",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-205",
+      "block_type": "paragraph",
+      "order": 205,
+      "body_index": 205,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 205
+      },
+      "text": "对选定的算法进行参数调整和优化，提高算法的收敛速度和寻优精度。通过多次模拟实验，确定最佳的算法参数组合。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-206",
+      "block_type": "paragraph",
+      "order": 206,
+      "body_index": 206,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 206
+      },
+      "text": "9.5系统集成",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-207",
+      "block_type": "paragraph",
+      "order": 207,
+      "body_index": 207,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 207
+      },
+      "text": "1）与火灾报警系统集成",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-208",
+      "block_type": "paragraph",
+      "order": 208,
+      "body_index": 208,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 208
+      },
+      "text": "将自动寻优系统与办公大楼的火灾报警系统进行集成，实时获取火灾发生的位置、火势大小等信息。根据火灾报警信号，自动触发消防撤退路线寻优程序，为人员提供最优化的疏散路线。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-209",
+      "block_type": "paragraph",
+      "order": 209,
+      "body_index": 209,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 209
+      },
+      "text": "2）与智能标识系统联动",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-210",
+      "block_type": "paragraph",
+      "order": 210,
+      "body_index": 210,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 210
+      },
+      "text": "将寻优结果传输到办公大楼内的智能标识系统，如电子指示牌、智能应急灯等。通过动态显示疏散路线和安全出口信息，引导人员快速、准确地撤离。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-211",
+      "block_type": "paragraph",
+      "order": 211,
+      "body_index": 211,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 211
+      },
+      "text": "9.6实施应用",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-212",
+      "block_type": "paragraph",
+      "order": 212,
+      "body_index": 212,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 212
+      },
+      "text": "1）移动终端应用",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-213",
+      "block_type": "paragraph",
+      "order": 213,
+      "body_index": 213,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 213
+      },
+      "text": "开发手机应用程序，让办公人员能够通过手机实时获取自己所在位置的最优消防撤退路线。在应用程序中提供语音导航、实时路况信息等功能，提高疏散效率。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-214",
+      "block_type": "paragraph",
+      "order": 214,
+      "body_index": 214,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 214
+      },
+      "text": "2）测试优化",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-215",
+      "block_type": "paragraph",
+      "order": 215,
+      "body_index": 215,
+      "section_id": "section-47",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 215
+      },
+      "text": "在办公大楼内逐步实施自动寻优系统，进行全面的测试和调试。组织消防演练，模拟不同火灾场景，检验系统的可靠性和寻优效果。根据测试结果，对系统进行优化和改进。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-216",
+      "block_type": "paragraph",
+      "order": 216,
+      "body_index": 216,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 216
+      },
+      "text": "三、智慧楼宇管理平台",
+      "style_id": "Normal",
+      "heading_level": 1,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-217",
+      "block_type": "paragraph",
+      "order": 217,
+      "body_index": 217,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 217
+      },
+      "text": "智慧楼宇管理平台是将通信技术、计算机技术以及控制技术等多技术融合，如同一个智慧的大脑，将楼宇内各个系统连接起来，信息互联互通。实现设备管理、能源管理、安防管理、应急指挥调度、办公与运营协同，使得运营管理可视化、精细化，通过节能管控降低能耗成本，减少设备突发故障损失，助力打造绿色、宜居、智慧办公环境。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-218",
+      "block_type": "paragraph",
+      "order": 218,
+      "body_index": 218,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 218
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-219",
+      "block_type": "inline_image",
+      "order": 219,
+      "body_index": 218,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 218,
+        "image_index": 0
+      },
+      "text": "",
+      "style_id": "",
+      "heading_level": null,
+      "relationship_id": "rId2",
+      "media_part": "word/media/image1.png",
+      "description": "图片 1"
+    },
+    {
+      "block_id": "block-220",
+      "block_type": "paragraph",
+      "order": 220,
+      "body_index": 219,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 219
+      },
+      "text": "通过专业化的大数据信息的高度集成，为客户提供简单易用且直观的三维可视化监控系统，集合实时分析运行状态多角度方式呈现给用户使用。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-221",
+      "block_type": "paragraph",
+      "order": 221,
+      "body_index": 220,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 220
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-222",
+      "block_type": "inline_image",
+      "order": 222,
+      "body_index": 220,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 220,
+        "image_index": 0
+      },
+      "text": "",
+      "style_id": "",
+      "heading_level": null,
+      "relationship_id": "rId3",
+      "media_part": "word/media/image2.png",
+      "description": "图片 17"
+    },
+    {
+      "block_id": "block-223",
+      "block_type": "paragraph",
+      "order": 223,
+      "body_index": 221,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 221
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-224",
+      "block_type": "paragraph",
+      "order": 224,
+      "body_index": 222,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 222
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-225",
+      "block_type": "inline_image",
+      "order": 225,
+      "body_index": 222,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 222,
+        "image_index": 0
+      },
+      "text": "",
+      "style_id": "",
+      "heading_level": null,
+      "relationship_id": "rId4",
+      "media_part": "word/media/image3.png",
+      "description": "图像1"
+    },
+    {
+      "block_id": "block-226",
+      "block_type": "paragraph",
+      "order": 226,
+      "body_index": 223,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 223
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-227",
+      "block_type": "paragraph",
+      "order": 227,
+      "body_index": 224,
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 224
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-228",
+      "block_type": "paragraph",
+      "order": 228,
+      "body_index": 225,
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 225
+      },
+      "text": "3.1 CK-2000AI智慧边缘网关",
+      "style_id": "Normal",
+      "heading_level": 2,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-229",
+      "block_type": "paragraph",
+      "order": 229,
+      "body_index": 226,
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 226
+      },
+      "text": "CK-2000是一款支持5G连接的高性能AI能源边缘智能产品。采用工业级高可靠性设计，操作系统深度优化，将产品性能发挥到极致。基于内置的智能边缘平台CK Server Edge，为客户提供便捷的设备采集、分析、计算、视频管理、算法配置、应用升级、边云协同等功能，支持生成式AI分析及多云连接，可广泛应用于光储电站、光伏电站、智慧园区等众多边缘应用场景。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-230",
+      "block_type": "paragraph",
+      "order": 230,
+      "body_index": 227,
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 227
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-231",
+      "block_type": "paragraph",
+      "order": 231,
+      "body_index": 228,
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 228
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-232",
+      "block_type": "paragraph",
+      "order": 232,
+      "body_index": 229,
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 229
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-233",
+      "block_type": "inline_image",
+      "order": 233,
+      "body_index": 229,
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 229,
+        "image_index": 0
+      },
+      "text": "",
+      "style_id": "",
+      "heading_level": null,
+      "relationship_id": "rId5",
+      "media_part": "word/media/image4.png",
+      "description": "图像2"
+    },
+    {
+      "block_id": "block-234",
+      "block_type": "paragraph",
+      "order": 234,
+      "body_index": 230,
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 230
+      },
+      "text": "涵盖配电、充电、新能源各业态采集设备协议",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-235",
+      "block_type": "paragraph",
+      "order": 235,
+      "body_index": 231,
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 231
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-236",
+      "block_type": "paragraph",
+      "order": 236,
+      "body_index": 232,
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 232
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-237",
+      "block_type": "inline_image",
+      "order": 237,
+      "body_index": 232,
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 232,
+        "image_index": 0
+      },
+      "text": "",
+      "style_id": "",
+      "heading_level": null,
+      "relationship_id": "rId6",
+      "media_part": "word/media/image5.png",
+      "description": "图像3"
+    },
+    {
+      "block_id": "block-238",
+      "block_type": "paragraph",
+      "order": 238,
+      "body_index": 233,
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 233
+      },
+      "text": "多链路通讯规约自动转发、为管理者提供可视化监控管理",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-239",
+      "block_type": "paragraph",
+      "order": 239,
+      "body_index": 234,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 234
+      },
+      "text": "3.3 完全自主可控国产化IoT时序数据库系统",
+      "style_id": "Normal",
+      "heading_level": 2,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-240",
+      "block_type": "paragraph",
+      "order": 240,
+      "body_index": 235,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 235
+      },
+      "text": "针对智慧楼宇特点，结合云平台物联实际场景需要，原创自研了国产化IoT能源物联时序数据库系统，通过数据库内核级的流式实时计算满足监测设备海量时序数据的快速分析存储需要。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-241",
+      "block_type": "paragraph",
+      "order": 241,
+      "body_index": 236,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 236
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-242",
+      "block_type": "inline_image",
+      "order": 242,
+      "body_index": 236,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 236,
+        "image_index": 0
+      },
+      "text": "",
+      "style_id": "",
+      "heading_level": null,
+      "relationship_id": "rId7",
+      "media_part": "word/media/image6.png",
+      "description": "图像4"
+    },
+    {
+      "block_id": "block-243",
+      "block_type": "paragraph",
+      "order": 243,
+      "body_index": 237,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 237
+      },
+      "text": "康晋自研IoT时序数据库系统，满足了国家对能源领域数字化系统国产化的基本要求，实现电力领域计算机基础软件中数据库的国产化要求。通过云、边端原创自研数据库的提前规划，避免了后续历史数据的迁移困难问题。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-244",
+      "block_type": "paragraph",
+      "order": 244,
+      "body_index": 238,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 238
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-245",
+      "block_type": "inline_image",
+      "order": 245,
+      "body_index": 238,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 238,
+        "image_index": 0
+      },
+      "text": "",
+      "style_id": "",
+      "heading_level": null,
+      "relationship_id": "rId8",
+      "media_part": "word/media/image7.png",
+      "description": "图像5"
+    },
+    {
+      "block_id": "block-246",
+      "block_type": "paragraph",
+      "order": 246,
+      "body_index": 239,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 239
+      },
+      "text": "数据库系统目前实现了百万条测点数据0.2秒持久化写入，每秒1000万条测点数据并发写入的能力。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-247",
+      "block_type": "paragraph",
+      "order": 247,
+      "body_index": 240,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 240
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-248",
+      "block_type": "inline_image",
+      "order": 248,
+      "body_index": 240,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 240,
+        "image_index": 0
+      },
+      "text": "",
+      "style_id": "",
+      "heading_level": null,
+      "relationship_id": "rId9",
+      "media_part": "word/media/image8.png",
+      "description": "图像6"
+    },
+    {
+      "block_id": "block-249",
+      "block_type": "paragraph",
+      "order": 249,
+      "body_index": 241,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 241
+      },
+      "text": "同时，海量数据的查询、聚合、计算等性能参数，都满足了高效实时分析的需要，对电力行业领域设备状态数据的快速反馈及分析计算，起到了决定性的作用。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-250",
+      "block_type": "paragraph",
+      "order": 250,
+      "body_index": 242,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 242
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-251",
+      "block_type": "inline_image",
+      "order": 251,
+      "body_index": 242,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 242,
+        "image_index": 0
+      },
+      "text": "",
+      "style_id": "",
+      "heading_level": null,
+      "relationship_id": "rId10",
+      "media_part": "word/media/image9.png",
+      "description": "图像7"
+    },
+    {
+      "block_id": "block-252",
+      "block_type": "paragraph",
+      "order": 252,
+      "body_index": 243,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 243
+      },
+      "text": "依托康晋自研数据库系统的高效计算能力，创新实现局域网内多设备算力资源池均衡功能，大幅降低数据接入量大的设备计算压力。将同一局域网内分散的算力形成算力湖，自动分配计算负载，在大规模项目中，实现数据计算的负载均衡。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-253",
+      "block_type": "paragraph",
+      "order": 253,
+      "body_index": 244,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 244
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-254",
+      "block_type": "inline_image",
+      "order": 254,
+      "body_index": 244,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 244,
+        "image_index": 0
+      },
+      "text": "",
+      "style_id": "",
+      "heading_level": null,
+      "relationship_id": "rId11",
+      "media_part": "word/media/image10.png",
+      "description": "图像8"
+    },
+    {
+      "block_id": "block-255",
+      "block_type": "paragraph",
+      "order": 255,
+      "body_index": 245,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 245
+      },
+      "text": "康晋电气智慧楼宇管理系统获得多项国家发明专利，并在2024年12月工信部组织的全国电子产业创新大赛中与126家友商平台系统竞赛中荣获全国三等奖，其系统平台的先进性、可靠性及原创性得到国家能源行业专家的肯定。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-256",
+      "block_type": "paragraph",
+      "order": 256,
+      "body_index": 246,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 246
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-257",
+      "block_type": "inline_image",
+      "order": 257,
+      "body_index": 246,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 246,
+        "image_index": 0
+      },
+      "text": "",
+      "style_id": "",
+      "heading_level": null,
+      "relationship_id": "rId12",
+      "media_part": "word/media/image11.png",
+      "description": "图像9"
+    },
+    {
+      "block_id": "block-258",
+      "block_type": "paragraph",
+      "order": 258,
+      "body_index": 247,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 247
+      },
+      "text": "培训",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-259",
+      "block_type": "paragraph",
+      "order": 259,
+      "body_index": 248,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 248
+      },
+      "text": "4.1培训内容",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-260",
+      "block_type": "paragraph",
+      "order": 260,
+      "body_index": 249,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 249
+      },
+      "text": "技术原理类",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-261",
+      "block_type": "paragraph",
+      "order": 261,
+      "body_index": 250,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 250
+      },
+      "text": "涵盖智慧楼宇平台所涉及的能源管理、可再生能源利用、智能控制等技术的基本原理，如讲解如何通过智能传感器收集能耗数据，以及如何利用数据分析实现能源优化。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-262",
+      "block_type": "paragraph",
+      "order": 262,
+      "body_index": 251,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 251
+      },
+      "text": "系统操作类",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-263",
+      "block_type": "paragraph",
+      "order": 263,
+      "body_index": 252,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 252
+      },
+      "text": "包括平台的软件界面操作，如怎样在平台上设置能源监测参数、如何进行设备远程控制，以及硬件设备的操作与维护，像太阳能板、储能设备的日常操作等。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-264",
+      "block_type": "paragraph",
+      "order": 264,
+      "body_index": 253,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 253
+      },
+      "text": "4.2培训方式",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-265",
+      "block_type": "paragraph",
+      "order": 265,
+      "body_index": 254,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 254
+      },
+      "text": "线上培训",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-266",
+      "block_type": "paragraph",
+      "order": 266,
+      "body_index": 255,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 255
+      },
+      "text": "通过网络平台，如视频会议软件、在线学习平台等，提供视频课程、在线文档等学习资料，方便学员随时随地学习。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-267",
+      "block_type": "paragraph",
+      "order": 267,
+      "body_index": 256,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 256
+      },
+      "text": "现场实操培训",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-268",
+      "block_type": "paragraph",
+      "order": 268,
+      "body_index": 257,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 257
+      },
+      "text": "在项目现场，让学员直接参与设备安装、调试、系统运行维护等实际操作，增强学员的动手能力和实际解决问题的能力。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-269",
+      "block_type": "paragraph",
+      "order": 269,
+      "body_index": 258,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 258
+      },
+      "text": "售后",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-270",
+      "block_type": "paragraph",
+      "order": 270,
+      "body_index": 259,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 259
+      },
+      "text": "5.1售后服务内容",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-271",
+      "block_type": "paragraph",
+      "order": 271,
+      "body_index": 260,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 260
+      },
+      "text": "系统维护",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-272",
+      "block_type": "paragraph",
+      "order": 272,
+      "body_index": 261,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 261
+      },
+      "text": "定期对平台的软件系统进行更新升级，修复漏洞，优化性能；对硬件设备进行检查、保养、维修，确保设备正常运行。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-273",
+      "block_type": "paragraph",
+      "order": 273,
+      "body_index": 262,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 262
+      },
+      "text": "故障排除",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-274",
+      "block_type": "paragraph",
+      "order": 274,
+      "body_index": 263,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 263
+      },
+      "text": "提供 7×24 小时的技术支持热线，及时响应客户的故障反馈，通过远程诊断或现场维修的方式，快速解决平台运行中出现的问题。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-275",
+      "block_type": "paragraph",
+      "order": 275,
+      "body_index": 264,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 264
+      },
+      "text": "数据安全保障",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-276",
+      "block_type": "paragraph",
+      "order": 276,
+      "body_index": 265,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 265
+      },
+      "text": "采取数据加密、备份、容灾等措施，确保智慧楼宇平台数据的安全性和完整性，防止数据泄露和丢失。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-277",
+      "block_type": "paragraph",
+      "order": 277,
+      "body_index": 266,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 266
+      },
+      "text": "性能优化",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-278",
+      "block_type": "paragraph",
+      "order": 278,
+      "body_index": 267,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 267
+      },
+      "text": "根据客户的使用情况和需求，对平台进行性能评估和优化，如优化能源管理策略，提高系统的能源利用效率。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-279",
+      "block_type": "paragraph",
+      "order": 279,
+      "body_index": 268,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 268
+      },
+      "text": "5.2售后服务模式",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-280",
+      "block_type": "paragraph",
+      "order": 280,
+      "body_index": 269,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 269
+      },
+      "text": "远程服务",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-281",
+      "block_type": "paragraph",
+      "order": 281,
+      "body_index": 270,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 270
+      },
+      "text": "通过电话、视频、远程等方式，为客户提供技术咨询、故障诊断和解决服务。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-282",
+      "block_type": "paragraph",
+      "order": 282,
+      "body_index": 271,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 271
+      },
+      "text": "现场服务",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-283",
+      "block_type": "paragraph",
+      "order": 283,
+      "body_index": 272,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 272
+      },
+      "text": "当远程服务无法解决问题时，安排专业的技术人员到现场进行维修和维护。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-284",
+      "block_type": "paragraph",
+      "order": 284,
+      "body_index": 273,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 273
+      },
+      "text": "定期回访",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-285",
+      "block_type": "paragraph",
+      "order": 285,
+      "body_index": 274,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 274
+      },
+      "text": "售后人员定期回访客户，了解平台的使用情况和客户需求，收集客户反馈，为平台的改进和优化提供依据。",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-286",
+      "block_type": "paragraph",
+      "order": 286,
+      "body_index": 275,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 275
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-287",
+      "block_type": "paragraph",
+      "order": 287,
+      "body_index": 276,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 276
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-288",
+      "block_type": "paragraph",
+      "order": 288,
+      "body_index": 277,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 277
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-289",
+      "block_type": "paragraph",
+      "order": 289,
+      "body_index": 278,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 278
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-290",
+      "block_type": "paragraph",
+      "order": 290,
+      "body_index": 279,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 279
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    },
+    {
+      "block_id": "block-291",
+      "block_type": "paragraph",
+      "order": 291,
+      "body_index": 280,
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 280
+      },
+      "text": "",
+      "style_id": "Normal",
+      "heading_level": null,
+      "relationship_id": "",
+      "media_part": "",
+      "description": ""
+    }
+  ],
+  "sections": [
+    {
+      "section_id": "section-3",
+      "title": "系统总体架构",
+      "level": 1,
+      "start_body_index": 3,
+      "end_body_index": 38,
+      "heading_block_id": "block-3"
+    },
+    {
+      "section_id": "section-39",
+      "title": "具体功能模块的实施方案",
+      "level": 1,
+      "start_body_index": 39,
+      "end_body_index": 215,
+      "heading_block_id": "block-39"
+    },
+    {
+      "section_id": "section-47",
+      "title": "系统联调",
+      "level": 3,
+      "start_body_index": 47,
+      "end_body_index": 215,
+      "heading_block_id": "block-47"
+    },
+    {
+      "section_id": "section-216",
+      "title": "智慧楼宇管理平台",
+      "level": 1,
+      "start_body_index": 216,
+      "end_body_index": 281,
+      "heading_block_id": "block-216"
+    },
+    {
+      "section_id": "section-225",
+      "title": "CK-2000AI智慧边缘网关",
+      "level": 2,
+      "start_body_index": 225,
+      "end_body_index": 233,
+      "heading_block_id": "block-228"
+    },
+    {
+      "section_id": "section-234",
+      "title": "完全自主可控国产化IoT时序数据库系统",
+      "level": 2,
+      "start_body_index": 234,
+      "end_body_index": 281,
+      "heading_block_id": "block-239"
+    }
+  ],
+  "capabilities": {
+    "inline_images": 11,
+    "floating_images": 0,
+    "tables": 0,
+    "supported_for_edit": [
+      "paragraph",
+      "inline_image"
+    ],
+    "unsupported_for_edit": [
+      "floating_image",
+      "complex_table"
+    ]
+  }
+}

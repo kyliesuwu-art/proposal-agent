@@ -10,7 +10,7 @@ import chromadb
 from chromadb.utils.embedding_functions import EmbeddingFunction
 from openai import APIStatusError, OpenAI
 from src.adapters.parser import MinerUParser
-from src.config import CHROMA_PATH, resolve_project_path
+from src.config import RAG_DB_PATH, resolve_project_path
 
 
 class SlideDict(TypedDict):
@@ -111,7 +111,7 @@ class VectorStore:
                 绝对默认路径；相对覆盖路径也相对项目根目录解析。
         """
         # 使用 PersistentClient 保证重启后数据不丢失
-        database_path = CHROMA_PATH if persist_dir is None else resolve_project_path(persist_dir)
+        database_path = RAG_DB_PATH if persist_dir is None else resolve_project_path(persist_dir)
         self._client = chromadb.PersistentClient(path=str(database_path))
 
         # 获取或创建 collection，使用 cosine 距离适合中文语义检索

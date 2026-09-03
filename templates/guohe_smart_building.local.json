@@ -1,0 +1,345 @@
+{
+  "template_id": "guohe-smart-building",
+  "display_name": "国核智慧楼宇实施技术方案",
+  "source_path": "C:\\Users\\comking\\Desktop\\方案智能体\\Core\\files\\国核智慧楼宇实施技术方案.docx",
+  "source_hash": "97fae7788a7f436679d4cfd3ce93f4c1fb074e42be2fd69636cbb0cfd7429a15",
+  "applicability": {
+    "project_types": [],
+    "scenarios": [],
+    "match_tags": []
+  },
+  "sections": [
+    {
+      "section_id": "section-3",
+      "title": "系统总体架构",
+      "level": 1
+    },
+    {
+      "section_id": "section-39",
+      "title": "具体功能模块的实施方案",
+      "level": 1
+    },
+    {
+      "section_id": "section-47",
+      "title": "系统联调",
+      "level": 3
+    },
+    {
+      "section_id": "section-216",
+      "title": "智慧楼宇管理平台",
+      "level": 1
+    },
+    {
+      "section_id": "section-225",
+      "title": "CK-2000AI智慧边缘网关",
+      "level": 2
+    },
+    {
+      "section_id": "section-234",
+      "title": "完全自主可控国产化IoT时序数据库系统",
+      "level": 2
+    }
+  ],
+  "section_slots": [
+    {
+      "slot_id": "slot-section-3",
+      "section_id": "section-3",
+      "mode": "replace",
+      "enabled": false,
+      "body_range": [
+        3,
+        38
+      ]
+    },
+    {
+      "slot_id": "slot-section-39",
+      "section_id": "section-39",
+      "mode": "replace",
+      "enabled": false,
+      "body_range": [
+        39,
+        46
+      ]
+    },
+    {
+      "slot_id": "slot-section-47",
+      "section_id": "section-47",
+      "mode": "replace",
+      "enabled": false,
+      "body_range": [
+        47,
+        215
+      ]
+    },
+    {
+      "slot_id": "slot-section-216",
+      "section_id": "section-216",
+      "mode": "replace",
+      "enabled": false,
+      "body_range": [
+        216,
+        224
+      ]
+    },
+    {
+      "slot_id": "slot-section-225",
+      "section_id": "section-225",
+      "mode": "replace",
+      "enabled": false,
+      "body_range": [
+        225,
+        233
+      ]
+    },
+    {
+      "slot_id": "slot-section-234",
+      "section_id": "section-234",
+      "mode": "replace",
+      "enabled": false,
+      "body_range": [
+        234,
+        281
+      ]
+    },
+    {
+      "slot_id": "sensing-layer",
+      "section_id": "manual-sensing-layer",
+      "title": "1.1 感知层",
+      "mode": "replace",
+      "enabled": true,
+      "body_range": [
+        5,
+        8
+      ],
+      "source": "manual_confirmation"
+    }
+  ],
+  "project_slots": [
+    {
+      "slot_id": "project_name",
+      "old_value": "国核智慧楼宇",
+      "replacement_text": "[[PROJECT_NAME]]",
+      "locations": [],
+      "suggested_locations": []
+    },
+    {
+      "slot_id": "customer",
+      "old_value": "",
+      "replacement_text": "[[CUSTOMER]]",
+      "locations": [],
+      "suggested_locations": []
+    },
+    {
+      "slot_id": "address",
+      "old_value": "",
+      "replacement_text": "[[ADDRESS]]",
+      "locations": [],
+      "suggested_locations": []
+    },
+    {
+      "slot_id": "voltage",
+      "old_value": "",
+      "replacement_text": "[[VOLTAGE]]",
+      "locations": [],
+      "suggested_locations": []
+    },
+    {
+      "slot_id": "capacity",
+      "old_value": "",
+      "replacement_text": "[[CAPACITY]]",
+      "locations": [],
+      "suggested_locations": []
+    },
+    {
+      "slot_id": "equipment_model",
+      "old_value": "",
+      "replacement_text": "[[EQUIPMENT_MODEL]]",
+      "locations": [],
+      "suggested_locations": []
+    }
+  ],
+  "asset_slots": [
+    {
+      "asset_id": "block-219",
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 218,
+        "image_index": 0
+      },
+      "media_part": "word/media/image1.png",
+      "description": "图片 1",
+      "disposition": "needs_confirmation"
+    },
+    {
+      "asset_id": "block-222",
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 220,
+        "image_index": 0
+      },
+      "media_part": "word/media/image2.png",
+      "description": "图片 17",
+      "disposition": "needs_confirmation"
+    },
+    {
+      "asset_id": "block-225",
+      "section_id": "section-216",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 222,
+        "image_index": 0
+      },
+      "media_part": "word/media/image3.png",
+      "description": "图像1",
+      "disposition": "needs_confirmation"
+    },
+    {
+      "asset_id": "block-233",
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 229,
+        "image_index": 0
+      },
+      "media_part": "word/media/image4.png",
+      "description": "图像2",
+      "disposition": "needs_confirmation"
+    },
+    {
+      "asset_id": "block-237",
+      "section_id": "section-225",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 232,
+        "image_index": 0
+      },
+      "media_part": "word/media/image5.png",
+      "description": "图像3",
+      "disposition": "needs_confirmation"
+    },
+    {
+      "asset_id": "block-242",
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 236,
+        "image_index": 0
+      },
+      "media_part": "word/media/image6.png",
+      "description": "图像4",
+      "disposition": "needs_confirmation"
+    },
+    {
+      "asset_id": "block-245",
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 238,
+        "image_index": 0
+      },
+      "media_part": "word/media/image7.png",
+      "description": "图像5",
+      "disposition": "needs_confirmation"
+    },
+    {
+      "asset_id": "block-248",
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 240,
+        "image_index": 0
+      },
+      "media_part": "word/media/image8.png",
+      "description": "图像6",
+      "disposition": "needs_confirmation"
+    },
+    {
+      "asset_id": "block-251",
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 242,
+        "image_index": 0
+      },
+      "media_part": "word/media/image9.png",
+      "description": "图像7",
+      "disposition": "needs_confirmation"
+    },
+    {
+      "asset_id": "block-254",
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 244,
+        "image_index": 0
+      },
+      "media_part": "word/media/image10.png",
+      "description": "图像8",
+      "disposition": "needs_confirmation"
+    },
+    {
+      "asset_id": "block-257",
+      "section_id": "section-234",
+      "locator": {
+        "part": "word/document.xml",
+        "body_index": 246,
+        "image_index": 0
+      },
+      "media_part": "word/media/image11.png",
+      "description": "图像9",
+      "disposition": "needs_confirmation"
+    }
+  ],
+  "limitations": [
+    "仅支持明确配置的正文文本槽位",
+    "浮动图片不编辑",
+    "未声明图片不插入"
+  ],
+  "prepared_at": "2026-08-28T03:47:55.718349+00:00",
+  "document_slots": [
+    {
+      "slot_id": "document_title",
+      "old_value": "智慧楼宇实施技术方案",
+      "replacement_text": "[[DOCUMENT_TITLE]]",
+      "locations": [
+        {
+          "part": "word/document.xml",
+          "body_index": 0
+        }
+      ],
+      "suggested_locations": [
+        {
+          "part": "word/document.xml",
+          "body_index": 0,
+          "block_id": "block-0",
+          "text": "智慧楼宇实施技术方案",
+          "run_spans": [
+            {
+              "text_node_index": 0,
+              "start": 0,
+              "end": 10,
+              "text": "智慧楼宇实施技术方案"
+            }
+          ],
+          "replaceable": true
+        }
+      ]
+    }
+  ],
+  "technical_parameters": [
+    {
+      "body_index": 79,
+      "value": "100kWh",
+      "status": "technical_parameter_needs_confirmation",
+      "replacement": null
+    },
+    {
+      "body_index": 92,
+      "value": "7kW",
+      "status": "technical_parameter_needs_confirmation",
+      "replacement": null
+    }
+  ]
+}

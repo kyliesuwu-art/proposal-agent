@@ -1,0 +1,2077 @@
+{
+  "source_hash": "97fae7788a7f436679d4cfd3ce93f4c1fb074e42be2fd69636cbb0cfd7429a15",
+  "heading_candidates": [
+    {
+      "body_index": 3,
+      "text": "一、系统总体架构",
+      "level": 1,
+      "confidence": 0.98,
+      "status": "inferred"
+    },
+    {
+      "body_index": 5,
+      "text": "1.1感知层：",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 9,
+      "text": "1.2网络层：",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 14,
+      "text": "1.3平台层：",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 37,
+      "text": "1.4应用层：",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 39,
+      "text": "二、具体功能模块的实施方案",
+      "level": 1,
+      "confidence": 0.98,
+      "status": "inferred"
+    },
+    {
+      "body_index": 41,
+      "text": "1.1选型：采用带通讯功能的智能水表，通讯方式为485通讯或者无线通讯。",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 42,
+      "text": "1.2安装：将智能水表安装在在大楼的总进水口管道上，按照安装说明书的要求，保证水表的水平或垂直安装，连接好水表的上下游管道，使用密封材料（如橡胶垫片）确保密封良好，防止漏水。",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 43,
+      "text": "1.3测试",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 44,
+      "text": "1.3.1本地测试",
+      "level": 3,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 47,
+      "text": "1.3.2 系统联调",
+      "level": 3,
+      "confidence": 0.98,
+      "status": "inferred"
+    },
+    {
+      "body_index": 52,
+      "text": "2.1选型",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 57,
+      "text": "2.2安装：各楼层的配电柜",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 68,
+      "text": "2.3测试",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 78,
+      "text": "3.1储能系统设计",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 80,
+      "text": "3.2功能要求",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 82,
+      "text": "3.4调试",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 86,
+      "text": "3.5平台接入",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 91,
+      "text": "4.1设备选型",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 93,
+      "text": "4.2选址规划",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 95,
+      "text": "4.3施工准备",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 97,
+      "text": "4.4电气安装",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 99,
+      "text": "4.5设备安装",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 101,
+      "text": "4.6系统调试",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 103,
+      "text": "4.7运营管理",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 109,
+      "text": "5.1采集设备（工程承建公司提供及安装）",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 111,
+      "text": "5.2数据传输",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 113,
+      "text": "5.3接入准备",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 115,
+      "text": "5.4系统联调",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 119,
+      "text": "6.1设备选型（工程承建公司提供及安装）",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 124,
+      "text": "6.2通讯技术支持",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 126,
+      "text": "6.3硬件安装与布线",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 133,
+      "text": "6.4系统集成与配置",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 140,
+      "text": "6.5软件调试与测试",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 148,
+      "text": "7.1设备选型（工程承建公司提供及安装）",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 153,
+      "text": "7.2施工安装",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 160,
+      "text": "7.3系统调试与测试",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 168,
+      "text": "8.1设备选型（工程承建公司提供及安装）",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 175,
+      "text": "8.2系统调试与测试",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 185,
+      "text": "9.1设备选型（工程承建公司提供及安装）",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 188,
+      "text": "9.2数据收集",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 195,
+      "text": "9.3建立模型",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 197,
+      "text": "9.4自动寻优算法设计",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 206,
+      "text": "9.5系统集成",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 211,
+      "text": "9.6实施应用",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 216,
+      "text": "三、智慧楼宇管理平台",
+      "level": 1,
+      "confidence": 0.98,
+      "status": "inferred"
+    },
+    {
+      "body_index": 225,
+      "text": "3.1 CK-2000AI智慧边缘网关",
+      "level": 2,
+      "confidence": 0.98,
+      "status": "inferred"
+    },
+    {
+      "body_index": 234,
+      "text": "3.3 完全自主可控国产化IoT时序数据库系统",
+      "level": 2,
+      "confidence": 0.98,
+      "status": "inferred"
+    },
+    {
+      "body_index": 248,
+      "text": "4.1培训内容",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 253,
+      "text": "4.2培训方式",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 259,
+      "text": "5.1售后服务内容",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    },
+    {
+      "body_index": 268,
+      "text": "5.2售后服务模式",
+      "level": 2,
+      "confidence": 0.72,
+      "status": "candidate"
+    }
+  ],
+  "entity_candidates": {
+    "project_name": [
+      {
+        "body_index": 0,
+        "block_id": "block-0",
+        "text": "智慧楼宇实施技术方案",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 10,
+            "text": "智慧楼宇实施技术方案"
+          }
+        ],
+        "confidence": 0.95,
+        "reason": "文档标题候选"
+      },
+      {
+        "body_index": 3,
+        "block_id": "block-3",
+        "text": "一、系统总体架构",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 8,
+            "text": "一、系统总体架构"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 4,
+        "block_id": "block-4",
+        "text": "智慧楼宇的系统总体架构通常包括感知层、网络层、平台层和应用层。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 31,
+            "text": "智慧楼宇的系统总体架构通常包括感知层、网络层、平台层和应用层。"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 19,
+        "block_id": "block-19",
+        "text": "②适配国产软硬件：能与国产的操作系统、服务器硬件、芯片等良好适配，形成全栈国产化的解决方案，提高了系统的安全性和稳定性，满足关键能源领域对国产化的要求。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 1,
+            "text": "②"
+          },
+          {
+            "text_node_index": 1,
+            "start": 1,
+            "end": 76,
+            "text": "适配国产软硬件：能与国产的操作系统、服务器硬件、芯片等良好适配，形成全栈国产化的解决方案，提高了系统的安全性和稳定性，满足关键能源领域对国产化的要求。"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 39,
+        "block_id": "block-39",
+        "text": "二、具体功能模块的实施方案",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 13,
+            "text": "二、具体功能模块的实施方案"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 59,
+        "block_id": "block-59",
+        "text": "①根据设计方案确定 CT 的安装位置，一般选择在靠近电力线路的合适位置，确保 CT 的一次侧与被测电流线路串联。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 1,
+            "text": "①"
+          },
+          {
+            "text_node_index": 1,
+            "start": 1,
+            "end": 10,
+            "text": "根据设计方案确定 "
+          },
+          {
+            "text_node_index": 2,
+            "start": 10,
+            "end": 13,
+            "text": "CT "
+          },
+          {
+            "text_node_index": 3,
+            "start": 13,
+            "end": 39,
+            "text": "的安装位置，一般选择在靠近电力线路的合适位置，确保 "
+          },
+          {
+            "text_node_index": 4,
+            "start": 39,
+            "end": 42,
+            "text": "CT "
+          },
+          {
+            "text_node_index": 5,
+            "start": 42,
+            "end": 56,
+            "text": "的一次侧与被测电流线路串联。"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 109,
+        "block_id": "block-109",
+        "text": "5.1采集设备（工程承建公司提供及安装）",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 3,
+            "text": "5.1"
+          },
+          {
+            "text_node_index": 1,
+            "start": 3,
+            "end": 20,
+            "text": "采集设备（工程承建公司提供及安装）"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 119,
+        "block_id": "block-119",
+        "text": "6.1设备选型（工程承建公司提供及安装）",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 3,
+            "text": "6.1"
+          },
+          {
+            "text_node_index": 1,
+            "start": 3,
+            "end": 20,
+            "text": "设备选型（工程承建公司提供及安装）"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 148,
+        "block_id": "block-148",
+        "text": "7.1设备选型（工程承建公司提供及安装）",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 3,
+            "text": "7.1"
+          },
+          {
+            "text_node_index": 1,
+            "start": 3,
+            "end": 20,
+            "text": "设备选型（工程承建公司提供及安装）"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 155,
+        "block_id": "block-155",
+        "text": "根据设计方案，进行电源线、信号线等布线工作，确保线路安全、整齐，符合电气规范。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 39,
+            "text": "根据设计方案，进行电源线、信号线等布线工作，确保线路安全、整齐，符合电气规范。"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 168,
+        "block_id": "block-168",
+        "text": "8.1设备选型（工程承建公司提供及安装）",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 3,
+            "text": "8.1"
+          },
+          {
+            "text_node_index": 1,
+            "start": 3,
+            "end": 20,
+            "text": "设备选型（工程承建公司提供及安装）"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 170,
+        "block_id": "block-170",
+        "text": "按照选型方案，采购门禁系统设备及相关配件，确保设备质量和兼容性。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 32,
+            "text": "按照选型方案，采购门禁系统设备及相关配件，确保设备质量和兼容性。"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 185,
+        "block_id": "block-185",
+        "text": "9.1设备选型（工程承建公司提供及安装）",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 3,
+            "text": "9.1"
+          },
+          {
+            "text_node_index": 1,
+            "start": 3,
+            "end": 20,
+            "text": "设备选型（工程承建公司提供及安装）"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 201,
+        "block_id": "block-201",
+        "text": "选择适合的自动寻优算法，不断进化出更优的路线方案。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 25,
+            "text": "选择适合的自动寻优算法，不断进化出更优的路线方案。"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 243,
+        "block_id": "block-252",
+        "text": "依托康晋自研数据库系统的高效计算能力，创新实现局域网内多设备算力资源池均衡功能，大幅降低数据接入量大的设备计算压力。将同一局域网内分散的算力形成算力湖，自动分配计算负载，在大规模项目中，实现数据计算的负载均衡。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 105,
+            "text": "依托康晋自研数据库系统的高效计算能力，创新实现局域网内多设备算力资源池均衡功能，大幅降低数据接入量大的设备计算压力。将同一局域网内分散的算力形成算力湖，自动分配计算负载，在大规模项目中，实现数据计算的负载均衡。"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      },
+      {
+        "body_index": 257,
+        "block_id": "block-268",
+        "text": "在项目现场，让学员直接参与设备安装、调试、系统运行维护等实际操作，增强学员的动手能力和实际解决问题的能力。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 53,
+            "text": "在项目现场，让学员直接参与设备安装、调试、系统运行维护等实际操作，增强学员的动手能力和实际解决问题的能力。"
+          }
+        ],
+        "confidence": 0.35,
+        "reason": "包含项目/工程/方案词"
+      }
+    ],
+    "customer": [
+      {
+        "body_index": 109,
+        "block_id": "block-109",
+        "text": "5.1采集设备（工程承建公司提供及安装）",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 3,
+            "text": "5.1"
+          },
+          {
+            "text_node_index": 1,
+            "start": 3,
+            "end": 20,
+            "text": "采集设备（工程承建公司提供及安装）"
+          }
+        ],
+        "confidence": 0.25,
+        "reason": "包含客户/公司词，可能是通用表述"
+      },
+      {
+        "body_index": 114,
+        "block_id": "block-114",
+        "text": "甲方提供光伏组件、逆变器、配电柜、气象仪的点表信息",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 25,
+            "text": "甲方提供光伏组件、逆变器、配电柜、气象仪的点表信息"
+          }
+        ],
+        "confidence": 0.65,
+        "reason": "包含甲方"
+      },
+      {
+        "body_index": 119,
+        "block_id": "block-119",
+        "text": "6.1设备选型（工程承建公司提供及安装）",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 3,
+            "text": "6.1"
+          },
+          {
+            "text_node_index": 1,
+            "start": 3,
+            "end": 20,
+            "text": "设备选型（工程承建公司提供及安装）"
+          }
+        ],
+        "confidence": 0.25,
+        "reason": "包含客户/公司词，可能是通用表述"
+      },
+      {
+        "body_index": 125,
+        "block_id": "block-125",
+        "text": "甲方需提供空调系统的通信协议，以及详细的协议文档和接口说明。同时，提供设备驱动程序或协助开发设备驱动，确保监控平台与空调系统能够正常通信和控制。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 72,
+            "text": "甲方需提供空调系统的通信协议，以及详细的协议文档和接口说明。同时，提供设备驱动程序或协助开发设备驱动，确保监控平台与空调系统能够正常通信和控制。"
+          }
+        ],
+        "confidence": 0.65,
+        "reason": "包含甲方"
+      },
+      {
+        "body_index": 148,
+        "block_id": "block-148",
+        "text": "7.1设备选型（工程承建公司提供及安装）",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 3,
+            "text": "7.1"
+          },
+          {
+            "text_node_index": 1,
+            "start": 3,
+            "end": 20,
+            "text": "设备选型（工程承建公司提供及安装）"
+          }
+        ],
+        "confidence": 0.25,
+        "reason": "包含客户/公司词，可能是通用表述"
+      },
+      {
+        "body_index": 168,
+        "block_id": "block-168",
+        "text": "8.1设备选型（工程承建公司提供及安装）",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 3,
+            "text": "8.1"
+          },
+          {
+            "text_node_index": 1,
+            "start": 3,
+            "end": 20,
+            "text": "设备选型（工程承建公司提供及安装）"
+          }
+        ],
+        "confidence": 0.25,
+        "reason": "包含客户/公司词，可能是通用表述"
+      },
+      {
+        "body_index": 185,
+        "block_id": "block-185",
+        "text": "9.1设备选型（工程承建公司提供及安装）",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 3,
+            "text": "9.1"
+          },
+          {
+            "text_node_index": 1,
+            "start": 3,
+            "end": 20,
+            "text": "设备选型（工程承建公司提供及安装）"
+          }
+        ],
+        "confidence": 0.25,
+        "reason": "包含客户/公司词，可能是通用表述"
+      },
+      {
+        "body_index": 219,
+        "block_id": "block-220",
+        "text": "通过专业化的大数据信息的高度集成，为客户提供简单易用且直观的三维可视化监控系统，集合实时分析运行状态多角度方式呈现给用户使用。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 63,
+            "text": "通过专业化的大数据信息的高度集成，为客户提供简单易用且直观的三维可视化监控系统，集合实时分析运行状态多角度方式呈现给用户使用。"
+          }
+        ],
+        "confidence": 0.25,
+        "reason": "包含客户/公司词，可能是通用表述"
+      },
+      {
+        "body_index": 226,
+        "block_id": "block-229",
+        "text": "CK-2000是一款支持5G连接的高性能AI能源边缘智能产品。采用工业级高可靠性设计，操作系统深度优化，将产品性能发挥到极致。基于内置的智能边缘平台CK Server Edge，为客户提供便捷的设备采集、分析、计算、视频管理、算法配置、应用升级、边云协同等功能，支持生成式AI分析及多云连接，可广泛应用于光储电站、光伏电站、智慧园区等众多边缘应用场景。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 7,
+            "text": "CK-2000"
+          },
+          {
+            "text_node_index": 1,
+            "start": 7,
+            "end": 12,
+            "text": "是一款支持"
+          },
+          {
+            "text_node_index": 2,
+            "start": 12,
+            "end": 14,
+            "text": "5G"
+          },
+          {
+            "text_node_index": 3,
+            "start": 14,
+            "end": 20,
+            "text": "连接的高性能"
+          },
+          {
+            "text_node_index": 4,
+            "start": 20,
+            "end": 22,
+            "text": "AI"
+          },
+          {
+            "text_node_index": 5,
+            "start": 22,
+            "end": 74,
+            "text": "能源边缘智能产品。采用工业级高可靠性设计，操作系统深度优化，将产品性能发挥到极致。基于内置的智能边缘平台"
+          },
+          {
+            "text_node_index": 6,
+            "start": 74,
+            "end": 88,
+            "text": "CK Server Edge"
+          },
+          {
+            "text_node_index": 7,
+            "start": 88,
+            "end": 136,
+            "text": "，为客户提供便捷的设备采集、分析、计算、视频管理、算法配置、应用升级、边云协同等功能，支持生成式"
+          },
+          {
+            "text_node_index": 8,
+            "start": 136,
+            "end": 138,
+            "text": "AI"
+          },
+          {
+            "text_node_index": 9,
+            "start": 138,
+            "end": 176,
+            "text": "分析及多云连接，可广泛应用于光储电站、光伏电站、智慧园区等众多边缘应用场景。"
+          }
+        ],
+        "confidence": 0.25,
+        "reason": "包含客户/公司词，可能是通用表述"
+      },
+      {
+        "body_index": 263,
+        "block_id": "block-274",
+        "text": "提供 7×24 小时的技术支持热线，及时响应客户的故障反馈，通过远程诊断或现场维修的方式，快速解决平台运行中出现的问题。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 3,
+            "text": "提供 "
+          },
+          {
+            "text_node_index": 1,
+            "start": 3,
+            "end": 8,
+            "text": "7×24 "
+          },
+          {
+            "text_node_index": 2,
+            "start": 8,
+            "end": 60,
+            "text": "小时的技术支持热线，及时响应客户的故障反馈，通过远程诊断或现场维修的方式，快速解决平台运行中出现的问题。"
+          }
+        ],
+        "confidence": 0.25,
+        "reason": "包含客户/公司词，可能是通用表述"
+      },
+      {
+        "body_index": 267,
+        "block_id": "block-278",
+        "text": "根据客户的使用情况和需求，对平台进行性能评估和优化，如优化能源管理策略，提高系统的能源利用效率。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 48,
+            "text": "根据客户的使用情况和需求，对平台进行性能评估和优化，如优化能源管理策略，提高系统的能源利用效率。"
+          }
+        ],
+        "confidence": 0.25,
+        "reason": "包含客户/公司词，可能是通用表述"
+      },
+      {
+        "body_index": 270,
+        "block_id": "block-281",
+        "text": "通过电话、视频、远程等方式，为客户提供技术咨询、故障诊断和解决服务。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 5,
+            "text": "通过电话、"
+          },
+          {
+            "text_node_index": 1,
+            "start": 5,
+            "end": 7,
+            "text": "视频"
+          },
+          {
+            "text_node_index": 2,
+            "start": 7,
+            "end": 34,
+            "text": "、远程等方式，为客户提供技术咨询、故障诊断和解决服务。"
+          }
+        ],
+        "confidence": 0.25,
+        "reason": "包含客户/公司词，可能是通用表述"
+      },
+      {
+        "body_index": 274,
+        "block_id": "block-285",
+        "text": "售后人员定期回访客户，了解平台的使用情况和客户需求，收集客户反馈，为平台的改进和优化提供依据。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 47,
+            "text": "售后人员定期回访客户，了解平台的使用情况和客户需求，收集客户反馈，为平台的改进和优化提供依据。"
+          }
+        ],
+        "confidence": 0.25,
+        "reason": "包含客户/公司词，可能是通用表述"
+      }
+    ],
+    "address": [
+      {
+        "body_index": 75,
+        "block_id": "block-75",
+        "text": "②配置电表与智能网关的通信参数，包括通信协议、波特率、地址等，确保两者能够正常通信。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 1,
+            "text": "②"
+          },
+          {
+            "text_node_index": 1,
+            "start": 1,
+            "end": 42,
+            "text": "配置电表与智能网关的通信参数，包括通信协议、波特率、地址等，确保两者能够正常通信。"
+          }
+        ],
+        "confidence": 0.15,
+        "reason": "仅匹配技术通信地址"
+      },
+      {
+        "body_index": 88,
+        "block_id": "block-88",
+        "text": "2）在运维平台上进行系统接入配置，添加储能系统的设备信息，包括设备名称、型号、通信地址、数据点定义等。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 1,
+            "text": "2"
+          },
+          {
+            "text_node_index": 1,
+            "start": 1,
+            "end": 51,
+            "text": "）在运维平台上进行系统接入配置，添加储能系统的设备信息，包括设备名称、型号、通信地址、数据点定义等。"
+          }
+        ],
+        "confidence": 0.15,
+        "reason": "仅匹配技术通信地址"
+      },
+      {
+        "body_index": 177,
+        "block_id": "block-177",
+        "text": "对门禁系统进行网络配置，确保其能与智慧楼宇系统的网络进行通信，设置 IP 地址、网关、子网掩码等参数。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 34,
+            "text": "对门禁系统进行网络配置，确保其能与智慧楼宇系统的网络进行通信，设置 "
+          },
+          {
+            "text_node_index": 1,
+            "start": 34,
+            "end": 37,
+            "text": "IP "
+          },
+          {
+            "text_node_index": 2,
+            "start": 37,
+            "end": 51,
+            "text": "地址、网关、子网掩码等参数。"
+          }
+        ],
+        "confidence": 0.15,
+        "reason": "仅匹配技术通信地址"
+      }
+    ],
+    "voltage": [],
+    "capacity": [
+      {
+        "body_index": 79,
+        "block_id": "block-79",
+        "text": "根据负载需求以及光伏系统的发电量，选用100度电（100kWh）的储能柜。此储能柜与光伏发电系统相连接，在光照充足、发电量过剩的情况下，能将多余电能高效储存起来。储能柜内部的电池组可以稳定地储存电能，有效减少能源浪费。当光照不足或处于夜晚无阳光时段，储能柜会释放储存的电能，为负载供电，从而确保电力供应的连续性和稳定性。此外，该储能柜还可作为机房工作的备用电源，实现光储的柔性利用，提升能源利用效率。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 19,
+            "text": "根据负载需求以及光伏系统的发电量，选用"
+          },
+          {
+            "text_node_index": 1,
+            "start": 19,
+            "end": 22,
+            "text": "100"
+          },
+          {
+            "text_node_index": 2,
+            "start": 22,
+            "end": 25,
+            "text": "度电（"
+          },
+          {
+            "text_node_index": 3,
+            "start": 25,
+            "end": 31,
+            "text": "100kWh"
+          },
+          {
+            "text_node_index": 4,
+            "start": 31,
+            "end": 200,
+            "text": "）的储能柜。此储能柜与光伏发电系统相连接，在光照充足、发电量过剩的情况下，能将多余电能高效储存起来。储能柜内部的电池组可以稳定地储存电能，有效减少能源浪费。当光照不足或处于夜晚无阳光时段，储能柜会释放储存的电能，为负载供电，从而确保电力供应的连续性和稳定性。此外，该储能柜还可作为机房工作的备用电源，实现光储的柔性利用，提升能源利用效率。"
+          }
+        ],
+        "value": "100kWh",
+        "confidence": 0.98,
+        "reason": "容量/功率单位匹配"
+      },
+      {
+        "body_index": 92,
+        "block_id": "block-92",
+        "text": "7kW 左右的单相交流充电桩，共10台",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 4,
+            "text": "7kW "
+          },
+          {
+            "text_node_index": 1,
+            "start": 4,
+            "end": 16,
+            "text": "左右的单相交流充电桩，共"
+          },
+          {
+            "text_node_index": 2,
+            "start": 16,
+            "end": 18,
+            "text": "10"
+          },
+          {
+            "text_node_index": 3,
+            "start": 18,
+            "end": 19,
+            "text": "台"
+          }
+        ],
+        "value": "7kW",
+        "confidence": 0.98,
+        "reason": "容量/功率单位匹配"
+      }
+    ],
+    "equipment_model": [
+      {
+        "body_index": 54,
+        "block_id": "block-54",
+        "text": "选择具备通信功能、高精度计量、支持多种通信协议（如 RS485、无线通信等）的智能电表。",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 26,
+            "text": "选择具备通信功能、高精度计量、支持多种通信协议（如 "
+          },
+          {
+            "text_node_index": 1,
+            "start": 26,
+            "end": 31,
+            "text": "RS485"
+          },
+          {
+            "text_node_index": 2,
+            "start": 31,
+            "end": 44,
+            "text": "、无线通信等）的智能电表。"
+          }
+        ],
+        "value": "RS485",
+        "confidence": 0.35,
+        "reason": "字母数字技术标识，需人工区分型号与协议"
+      }
+    ]
+  },
+  "technical_parameter_needs_confirmation": [
+    {
+      "body_index": 79,
+      "block_id": "block-79",
+      "text": "根据负载需求以及光伏系统的发电量，选用100度电（100kWh）的储能柜。此储能柜与光伏发电系统相连接，在光照充足、发电量过剩的情况下，能将多余电能高效储存起来。储能柜内部的电池组可以稳定地储存电能，有效减少能源浪费。当光照不足或处于夜晚无阳光时段，储能柜会释放储存的电能，为负载供电，从而确保电力供应的连续性和稳定性。此外，该储能柜还可作为机房工作的备用电源，实现光储的柔性利用，提升能源利用效率。",
+      "run_spans": [
+        {
+          "text_node_index": 0,
+          "start": 0,
+          "end": 19,
+          "text": "根据负载需求以及光伏系统的发电量，选用"
+        },
+        {
+          "text_node_index": 1,
+          "start": 19,
+          "end": 22,
+          "text": "100"
+        },
+        {
+          "text_node_index": 2,
+          "start": 22,
+          "end": 25,
+          "text": "度电（"
+        },
+        {
+          "text_node_index": 3,
+          "start": 25,
+          "end": 31,
+          "text": "100kWh"
+        },
+        {
+          "text_node_index": 4,
+          "start": 31,
+          "end": 200,
+          "text": "）的储能柜。此储能柜与光伏发电系统相连接，在光照充足、发电量过剩的情况下，能将多余电能高效储存起来。储能柜内部的电池组可以稳定地储存电能，有效减少能源浪费。当光照不足或处于夜晚无阳光时段，储能柜会释放储存的电能，为负载供电，从而确保电力供应的连续性和稳定性。此外，该储能柜还可作为机房工作的备用电源，实现光储的柔性利用，提升能源利用效率。"
+        }
+      ],
+      "value": "100kWh",
+      "confidence": 0.98,
+      "reason": "容量/功率单位匹配",
+      "status": "technical_parameter_needs_confirmation",
+      "candidate_section": {
+        "body_index": 78,
+        "text": "3.1储能系统设计",
+        "level": 2,
+        "confidence": 0.72,
+        "status": "candidate"
+      }
+    },
+    {
+      "body_index": 92,
+      "block_id": "block-92",
+      "text": "7kW 左右的单相交流充电桩，共10台",
+      "run_spans": [
+        {
+          "text_node_index": 0,
+          "start": 0,
+          "end": 4,
+          "text": "7kW "
+        },
+        {
+          "text_node_index": 1,
+          "start": 4,
+          "end": 16,
+          "text": "左右的单相交流充电桩，共"
+        },
+        {
+          "text_node_index": 2,
+          "start": 16,
+          "end": 18,
+          "text": "10"
+        },
+        {
+          "text_node_index": 3,
+          "start": 18,
+          "end": 19,
+          "text": "台"
+        }
+      ],
+      "value": "7kW",
+      "confidence": 0.98,
+      "reason": "容量/功率单位匹配",
+      "status": "technical_parameter_needs_confirmation",
+      "candidate_section": {
+        "body_index": 91,
+        "text": "4.1设备选型",
+        "level": 2,
+        "confidence": 0.72,
+        "status": "candidate"
+      }
+    }
+  ],
+  "image_candidates": [
+    {
+      "number": 1,
+      "asset_id": "block-219",
+      "section_id": "section-216",
+      "media_part": "word/media/image1.png",
+      "description": "图片 1",
+      "section_title": "智慧楼宇管理平台",
+      "original_dimensions": [
+        3821,
+        1847
+      ],
+      "previous_paragraph": "智慧楼宇管理平台是将通信技术、计算机技术以及控制技术等多技术融合，如同一个智慧的大脑，将楼宇内各个系统连接起来，信息互联互通。实现设备管理、能源管理、安防管理、应急指挥调度、办公与运营协同，使得运营管理可视化、精细化，通过节能管控降低能耗成本，减少设备突发故障损失，助力打造绿色、宜居、智慧办公环境。",
+      "next_paragraph": "通过专业化的大数据信息的高度集成，为客户提供简单易用且直观的三维可视化监控系统，集合实时分析运行状态多角度方式呈现给用户使用。",
+      "default_disposition": "needs_confirmation"
+    },
+    {
+      "number": 2,
+      "asset_id": "block-222",
+      "section_id": "section-216",
+      "media_part": "word/media/image2.png",
+      "description": "图片 17",
+      "section_title": "智慧楼宇管理平台",
+      "original_dimensions": [
+        872,
+        214
+      ],
+      "previous_paragraph": "通过专业化的大数据信息的高度集成，为客户提供简单易用且直观的三维可视化监控系统，集合实时分析运行状态多角度方式呈现给用户使用。",
+      "next_paragraph": "3.1 CK-2000AI智慧边缘网关",
+      "default_disposition": "needs_confirmation"
+    },
+    {
+      "number": 3,
+      "asset_id": "block-225",
+      "section_id": "section-216",
+      "media_part": "word/media/image3.png",
+      "description": "图像1",
+      "section_title": "智慧楼宇管理平台",
+      "original_dimensions": [
+        3821,
+        1846
+      ],
+      "previous_paragraph": "通过专业化的大数据信息的高度集成，为客户提供简单易用且直观的三维可视化监控系统，集合实时分析运行状态多角度方式呈现给用户使用。",
+      "next_paragraph": "3.1 CK-2000AI智慧边缘网关",
+      "default_disposition": "needs_confirmation"
+    },
+    {
+      "number": 4,
+      "asset_id": "block-233",
+      "section_id": "section-225",
+      "media_part": "word/media/image4.png",
+      "description": "图像2",
+      "section_title": "CK-2000AI智慧边缘网关",
+      "original_dimensions": [
+        1230,
+        308
+      ],
+      "previous_paragraph": "CK-2000是一款支持5G连接的高性能AI能源边缘智能产品。采用工业级高可靠性设计，操作系统深度优化，将产品性能发挥到极致。基于内置的智能边缘平台CK Server Edge，为客户提供便捷的设备采集、分析、计算、视频管理、算法配置、应用升级、边云协同等功能，支持生成式AI分析及多云连接，可广泛应用于光储电站、光伏电",
+      "next_paragraph": "涵盖配电、充电、新能源各业态采集设备协议",
+      "default_disposition": "needs_confirmation"
+    },
+    {
+      "number": 5,
+      "asset_id": "block-237",
+      "section_id": "section-225",
+      "media_part": "word/media/image5.png",
+      "description": "图像3",
+      "section_title": "CK-2000AI智慧边缘网关",
+      "original_dimensions": [
+        2329,
+        684
+      ],
+      "previous_paragraph": "涵盖配电、充电、新能源各业态采集设备协议",
+      "next_paragraph": "多链路通讯规约自动转发、为管理者提供可视化监控管理",
+      "default_disposition": "needs_confirmation"
+    },
+    {
+      "number": 6,
+      "asset_id": "block-242",
+      "section_id": "section-234",
+      "media_part": "word/media/image6.png",
+      "description": "图像4",
+      "section_title": "完全自主可控国产化IoT时序数据库系统",
+      "original_dimensions": [
+        2070,
+        376
+      ],
+      "previous_paragraph": "针对智慧楼宇特点，结合云平台物联实际场景需要，原创自研了国产化IoT能源物联时序数据库系统，通过数据库内核级的流式实时计算满足监测设备海量时序数据的快速分析存储需要。",
+      "next_paragraph": "康晋自研IoT时序数据库系统，满足了国家对能源领域数字化系统国产化的基本要求，实现电力领域计算机基础软件中数据库的国产化要求。通过云、边端原创自研数据库的提前规划，避免了后续历史数据的迁移困难问题。",
+      "default_disposition": "needs_confirmation"
+    },
+    {
+      "number": 7,
+      "asset_id": "block-245",
+      "section_id": "section-234",
+      "media_part": "word/media/image7.png",
+      "description": "图像5",
+      "section_title": "完全自主可控国产化IoT时序数据库系统",
+      "original_dimensions": [
+        2244,
+        1004
+      ],
+      "previous_paragraph": "康晋自研IoT时序数据库系统，满足了国家对能源领域数字化系统国产化的基本要求，实现电力领域计算机基础软件中数据库的国产化要求。通过云、边端原创自研数据库的提前规划，避免了后续历史数据的迁移困难问题。",
+      "next_paragraph": "数据库系统目前实现了百万条测点数据0.2秒持久化写入，每秒1000万条测点数据并发写入的能力。",
+      "default_disposition": "needs_confirmation"
+    },
+    {
+      "number": 8,
+      "asset_id": "block-248",
+      "section_id": "section-234",
+      "media_part": "word/media/image8.png",
+      "description": "图像6",
+      "section_title": "完全自主可控国产化IoT时序数据库系统",
+      "original_dimensions": [
+        1268,
+        619
+      ],
+      "previous_paragraph": "数据库系统目前实现了百万条测点数据0.2秒持久化写入，每秒1000万条测点数据并发写入的能力。",
+      "next_paragraph": "同时，海量数据的查询、聚合、计算等性能参数，都满足了高效实时分析的需要，对电力行业领域设备状态数据的快速反馈及分析计算，起到了决定性的作用。",
+      "default_disposition": "needs_confirmation"
+    },
+    {
+      "number": 9,
+      "asset_id": "block-251",
+      "section_id": "section-234",
+      "media_part": "word/media/image9.png",
+      "description": "图像7",
+      "section_title": "完全自主可控国产化IoT时序数据库系统",
+      "original_dimensions": [
+        2270,
+        1094
+      ],
+      "previous_paragraph": "同时，海量数据的查询、聚合、计算等性能参数，都满足了高效实时分析的需要，对电力行业领域设备状态数据的快速反馈及分析计算，起到了决定性的作用。",
+      "next_paragraph": "依托康晋自研数据库系统的高效计算能力，创新实现局域网内多设备算力资源池均衡功能，大幅降低数据接入量大的设备计算压力。将同一局域网内分散的算力形成算力湖，自动分配计算负载，在大规模项目中，实现数据计算的负载均衡。",
+      "default_disposition": "needs_confirmation"
+    },
+    {
+      "number": 10,
+      "asset_id": "block-254",
+      "section_id": "section-234",
+      "media_part": "word/media/image10.png",
+      "description": "图像8",
+      "section_title": "完全自主可控国产化IoT时序数据库系统",
+      "original_dimensions": [
+        2270,
+        899
+      ],
+      "previous_paragraph": "依托康晋自研数据库系统的高效计算能力，创新实现局域网内多设备算力资源池均衡功能，大幅降低数据接入量大的设备计算压力。将同一局域网内分散的算力形成算力湖，自动分配计算负载，在大规模项目中，实现数据计算的负载均衡。",
+      "next_paragraph": "康晋电气智慧楼宇管理系统获得多项国家发明专利，并在2024年12月工信部组织的全国电子产业创新大赛中与126家友商平台系统竞赛中荣获全国三等奖，其系统平台的先进性、可靠性及原创性得到国家能源行业专家的肯定。",
+      "default_disposition": "needs_confirmation"
+    },
+    {
+      "number": 11,
+      "asset_id": "block-257",
+      "section_id": "section-234",
+      "media_part": "word/media/image11.png",
+      "description": "图像9",
+      "section_title": "完全自主可控国产化IoT时序数据库系统",
+      "original_dimensions": [
+        1268,
+        700
+      ],
+      "previous_paragraph": "康晋电气智慧楼宇管理系统获得多项国家发明专利，并在2024年12月工信部组织的全国电子产业创新大赛中与126家友商平台系统竞赛中荣获全国三等奖，其系统平台的先进性、可靠性及原创性得到国家能源行业专家的肯定。",
+      "next_paragraph": "培训",
+      "default_disposition": "needs_confirmation"
+    }
+  ],
+  "section_boundary_diagnostics": [
+    {
+      "section_id": "section-3",
+      "title": "系统总体架构",
+      "level": 1,
+      "body_range": [
+        3,
+        38
+      ],
+      "unaccepted_heading_candidates_inside": [
+        {
+          "body_index": 5,
+          "text": "1.1感知层：",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 9,
+          "text": "1.2网络层：",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 14,
+          "text": "1.3平台层：",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 37,
+          "text": "1.4应用层：",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "section_id": "section-39",
+      "title": "具体功能模块的实施方案",
+      "level": 1,
+      "body_range": [
+        39,
+        215
+      ],
+      "unaccepted_heading_candidates_inside": [
+        {
+          "body_index": 41,
+          "text": "1.1选型：采用带通讯功能的智能水表，通讯方式为485通讯或者无线通讯。",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 42,
+          "text": "1.2安装：将智能水表安装在在大楼的总进水口管道上，按照安装说明书的要求，保证水表的水平或垂直安装，连接好水表的上下游管道，使用密封材料（如橡胶垫片）确保密封良好，防止漏水。",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 43,
+          "text": "1.3测试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 44,
+          "text": "1.3.1本地测试",
+          "level": 3,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 52,
+          "text": "2.1选型",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 57,
+          "text": "2.2安装：各楼层的配电柜",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 68,
+          "text": "2.3测试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 78,
+          "text": "3.1储能系统设计",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 80,
+          "text": "3.2功能要求",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 82,
+          "text": "3.4调试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 86,
+          "text": "3.5平台接入",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 91,
+          "text": "4.1设备选型",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 93,
+          "text": "4.2选址规划",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 95,
+          "text": "4.3施工准备",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 97,
+          "text": "4.4电气安装",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 99,
+          "text": "4.5设备安装",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 101,
+          "text": "4.6系统调试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 103,
+          "text": "4.7运营管理",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 109,
+          "text": "5.1采集设备（工程承建公司提供及安装）",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 111,
+          "text": "5.2数据传输",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 113,
+          "text": "5.3接入准备",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 115,
+          "text": "5.4系统联调",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 119,
+          "text": "6.1设备选型（工程承建公司提供及安装）",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 124,
+          "text": "6.2通讯技术支持",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 126,
+          "text": "6.3硬件安装与布线",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 133,
+          "text": "6.4系统集成与配置",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 140,
+          "text": "6.5软件调试与测试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 148,
+          "text": "7.1设备选型（工程承建公司提供及安装）",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 153,
+          "text": "7.2施工安装",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 160,
+          "text": "7.3系统调试与测试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 168,
+          "text": "8.1设备选型（工程承建公司提供及安装）",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 175,
+          "text": "8.2系统调试与测试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 185,
+          "text": "9.1设备选型（工程承建公司提供及安装）",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 188,
+          "text": "9.2数据收集",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 195,
+          "text": "9.3建立模型",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 197,
+          "text": "9.4自动寻优算法设计",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 206,
+          "text": "9.5系统集成",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 211,
+          "text": "9.6实施应用",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "section_id": "section-47",
+      "title": "系统联调",
+      "level": 3,
+      "body_range": [
+        47,
+        215
+      ],
+      "unaccepted_heading_candidates_inside": [
+        {
+          "body_index": 52,
+          "text": "2.1选型",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 57,
+          "text": "2.2安装：各楼层的配电柜",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 68,
+          "text": "2.3测试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 78,
+          "text": "3.1储能系统设计",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 80,
+          "text": "3.2功能要求",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 82,
+          "text": "3.4调试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 86,
+          "text": "3.5平台接入",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 91,
+          "text": "4.1设备选型",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 93,
+          "text": "4.2选址规划",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 95,
+          "text": "4.3施工准备",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 97,
+          "text": "4.4电气安装",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 99,
+          "text": "4.5设备安装",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 101,
+          "text": "4.6系统调试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 103,
+          "text": "4.7运营管理",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 109,
+          "text": "5.1采集设备（工程承建公司提供及安装）",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 111,
+          "text": "5.2数据传输",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 113,
+          "text": "5.3接入准备",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 115,
+          "text": "5.4系统联调",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 119,
+          "text": "6.1设备选型（工程承建公司提供及安装）",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 124,
+          "text": "6.2通讯技术支持",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 126,
+          "text": "6.3硬件安装与布线",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 133,
+          "text": "6.4系统集成与配置",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 140,
+          "text": "6.5软件调试与测试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 148,
+          "text": "7.1设备选型（工程承建公司提供及安装）",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 153,
+          "text": "7.2施工安装",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 160,
+          "text": "7.3系统调试与测试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 168,
+          "text": "8.1设备选型（工程承建公司提供及安装）",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 175,
+          "text": "8.2系统调试与测试",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 185,
+          "text": "9.1设备选型（工程承建公司提供及安装）",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 188,
+          "text": "9.2数据收集",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 195,
+          "text": "9.3建立模型",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 197,
+          "text": "9.4自动寻优算法设计",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 206,
+          "text": "9.5系统集成",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 211,
+          "text": "9.6实施应用",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "section_id": "section-216",
+      "title": "智慧楼宇管理平台",
+      "level": 1,
+      "body_range": [
+        216,
+        281
+      ],
+      "unaccepted_heading_candidates_inside": [
+        {
+          "body_index": 248,
+          "text": "4.1培训内容",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 253,
+          "text": "4.2培训方式",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 259,
+          "text": "5.1售后服务内容",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 268,
+          "text": "5.2售后服务模式",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "section_id": "section-225",
+      "title": "CK-2000AI智慧边缘网关",
+      "level": 2,
+      "body_range": [
+        225,
+        233
+      ],
+      "unaccepted_heading_candidates_inside": []
+    },
+    {
+      "section_id": "section-234",
+      "title": "完全自主可控国产化IoT时序数据库系统",
+      "level": 2,
+      "body_range": [
+        234,
+        281
+      ],
+      "unaccepted_heading_candidates_inside": [
+        {
+          "body_index": 248,
+          "text": "4.1培训内容",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 253,
+          "text": "4.2培训方式",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 259,
+          "text": "5.1售后服务内容",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        },
+        {
+          "body_index": 268,
+          "text": "5.2售后服务模式",
+          "level": 2,
+          "confidence": 0.72,
+          "status": "candidate"
+        }
+      ]
+    }
+  ],
+  "note": "候选仅供人工确认；不会自动写回 Manifest 或修改母版。"
+}

@@ -1,0 +1,12 @@
+{
+  "source": "files\\国核智慧楼宇实施技术方案.docx",
+  "source_hash": "97fae7788a7f436679d4cfd3ce93f4c1fb074e42be2fd69636cbb0cfd7429a15",
+  "format_template": "templates\\format_template\\format_template.docx",
+  "placeholders": [
+    "[[DOCUMENT_TITLE]]",
+    "[[PROPOSAL_BODY]]",
+    "[[SOURCES]]"
+  ],
+  "removed_body_images": 11,
+  "source_unchanged": true
+}

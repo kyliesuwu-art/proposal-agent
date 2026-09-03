@@ -2,31 +2,30 @@
 """方案知识库 CLI 入口：解析命令行参数，分发到 pipeline.py 里的业务逻辑。
 
 用法：
-    uv run python src/main.py ingest <文件或目录路径> # 解析并入库（单个文件或整个目录批量）
-    uv run python src/main.py query "需求描述" [--output <路径>] # 检索并输出 Markdown
-    uv run python src/main.py ingest-v2 <文件或目录> --source-root <样例目录> --test-db <可删除目录>
-    uv run python src/main.py query-v2 "精确参数问题" --test-db <可删除目录>
-    uv run python src/main.py ingest-v2-cache <缓存 ZIP 或目录> --test-db <可删除目录>
-    uv run python src/main.py query-v2-cache "精确参数问题" --test-db <可删除目录>
+    uv run python src/main.py ingest-cache-dir <缓存目录> [--db runtime_data/word_test_db] --dry-run
+    uv run python src/main.py ingest-cache-dir <缓存目录> [--db runtime_data/word_test_db] --resume --limit 10 --batch-size 32
+    uv run python src/main.py proposal "需求描述" --output outputs/proposal.md
     uv run python src/main.py annotate <source_file> # 为源文件进行标注/打标签
     uv run python src/main.py status                 # 查看库状态
 """
 
 import sys
+import traceback
 from pathlib import Path
 
 # 加载 .env 环境变量（MINERU_TOKEN 等）
-from dotenv import load_dotenv
-load_dotenv()
-
 # 确保以脚本方式执行时也能 import src 下的模块。
 _BOOTSTRAP_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_BOOTSTRAP_PROJECT_ROOT))
 
-from src.config import PROJECT_ROOT
+from src.config import load_project_environment
+
+load_project_environment()
 
 from src import pipeline
 from src.adapters.parser import SUPPORTED_EXTENSIONS
+from src.adapters.llm_client import LLMClient
+from src.markdown_proposal import ProposalGenerationError, generate_markdown_proposal
 
 
 def _ingest_path(path_str: str) -> None:
@@ -72,31 +71,28 @@ def _ingest_path(path_str: str) -> None:
         pipeline.ingest(str(path))
 
 
-def _ingest_v2_path(path_str: str, source_root: str, test_db: str) -> None:
-    """V2 batch helper: its source root and disposable store are always explicit."""
-    path = Path(path_str)
-    if not path.exists():
-        print(f"路径不存在: {path}")
+def _ingest_cache_dir_dry_run(path_str: str, target_db: str) -> None:
+    """Read-only directory inspection; deliberately does not open the target DB."""
+    from src.cache_batch import inspect_cache_directory
+    import json
+
+    try:
+        report = inspect_cache_directory(path_str, target_db=target_db)
+    except ValueError as exc:
+        print(str(exc))
         sys.exit(1)
-    files = [path] if path.is_file() else sorted(p for p in path.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS)
-    if not files:
-        print("指定的 V2 样例目录中没有支持的文件")
-        return
-    for file_path in files:
-        outcome = pipeline.ingest_v2(file_path, source_root=source_root, test_db=test_db)
-        print(f"V2 {outcome['status']}: {outcome['source_key']} — {outcome['message']}")
+    print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
-def _ingest_v2_cache_path(path_str: str, test_db: str) -> None:
-    """Offline-only bulk cache ingestion; never sends ZIPs to MinerU."""
-    path = Path(path_str)
-    if not path.exists():
-        print(f"缓存路径不存在: {path}")
-        sys.exit(1)
-    files = [path] if path.is_file() else sorted(path.glob("*.zip"))
-    for zip_path in files:
-        outcome = pipeline.ingest_v2_cache(zip_path, test_db=test_db)
-        print(f"V2 cache {outcome['status']}: {outcome['source_key']} ({outcome['origin_extension']}) — {outcome['message']}")
+def _ingest_cache_dir_resume(path_str: str, target_db: str, limit: int, batch_size: int) -> None:
+    from src.cache_batch import CacheBatchIngestor
+    import json
+
+    ingestor = CacheBatchIngestor(path_str, target_db)
+    try:
+        print(json.dumps(ingestor.ingest(limit=limit, batch_size=batch_size), ensure_ascii=False, indent=2))
+    finally:
+        ingestor.close()
 
 
 def main() -> None:
@@ -107,35 +103,18 @@ def main() -> None:
 
     command = sys.argv[1].lower()
 
-    if command == "ingest":
-        if len(sys.argv) < 3:
-            print("用法: python main.py ingest <文件或目录路径>")
-            sys.exit(1)
-        _ingest_path(sys.argv[2])
+    if command in {"-h", "--help"}:
+        print(__doc__)
+        return
 
-    elif command == "ingest-v2":
-        if len(sys.argv) != 7 or sys.argv[3] != "--source-root" or sys.argv[5] != "--test-db":
-            print("用法: python main.py ingest-v2 <文件或目录> --source-root <样例目录> --test-db <可删除目录>")
+    if command == "ingest-cache-dir":
+        if len(sys.argv) == 6 and sys.argv[3] == "--db" and sys.argv[5] == "--dry-run":
+            _ingest_cache_dir_dry_run(sys.argv[2], sys.argv[4])
+        elif len(sys.argv) == 10 and sys.argv[3] == "--db" and sys.argv[5] == "--resume" and sys.argv[6] == "--limit" and sys.argv[8] == "--batch-size":
+            _ingest_cache_dir_resume(sys.argv[2], sys.argv[4], int(sys.argv[7]), int(sys.argv[9]))
+        else:
+            print("用法: python main.py ingest-cache-dir <缓存目录> --db <候选库目录> --dry-run | --resume --limit <数量> --batch-size <数量>")
             sys.exit(1)
-        _ingest_v2_path(sys.argv[2], sys.argv[4], sys.argv[6])
-
-    elif command == "query-v2":
-        if len(sys.argv) != 5 or sys.argv[3] != "--test-db":
-            print("用法: python main.py query-v2 \"精确参数问题\" --test-db <可删除目录>")
-            sys.exit(1)
-        print(pipeline.render_markdown(pipeline.query_v2(sys.argv[2], test_db=sys.argv[4])))
-
-    elif command == "ingest-v2-cache":
-        if len(sys.argv) != 5 or sys.argv[3] != "--test-db":
-            print("用法: python main.py ingest-v2-cache <缓存 ZIP 或目录> --test-db <可删除目录>")
-            sys.exit(1)
-        _ingest_v2_cache_path(sys.argv[2], sys.argv[4])
-
-    elif command == "query-v2-cache":
-        if len(sys.argv) != 5 or sys.argv[3] != "--test-db":
-            print("用法: python main.py query-v2-cache \"精确参数问题\" --test-db <可删除目录>")
-            sys.exit(1)
-        print(pipeline.render_markdown(pipeline.query_v2_cache(sys.argv[2], test_db=sys.argv[4])))
 
     elif command == "query":
         if len(sys.argv) < 3:
@@ -149,7 +128,7 @@ def main() -> None:
                 sys.exit(1)
             output_path = Path(extra_args[1])
 
-        result = pipeline.query(sys.argv[2])
+        result = pipeline.query_rag(sys.argv[2])
         markdown = pipeline.render_markdown(result)
         if output_path is not None:
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -157,14 +136,31 @@ def main() -> None:
             print(f"已写入 Markdown：{output_path.resolve()}")
         print(markdown)
 
-    elif command == "annotate":
-        if len(sys.argv) < 3:
-            print("用法: python main.py annotate <source_file>")
+    elif command == "proposal":
+        if len(sys.argv) == 3 and sys.argv[2] in {"-h", "--help"}:
+            print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug]')
+            return
+        if len(sys.argv) not in {5, 6} or sys.argv[3] != "--output" or (len(sys.argv) == 6 and sys.argv[5] != "--debug"):
+            print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug]', file=sys.stderr)
             sys.exit(1)
-        pipeline.annotate(sys.argv[2])
-
-    elif command == "status":
-        pipeline.status()
+        output_path = Path(sys.argv[4])
+        debug = len(sys.argv) == 6
+        try:
+            try:
+                llm = LLMClient()
+            except Exception as exc:  # noqa: BLE001
+                raise ProposalGenerationError("planning", exc) from exc
+            generated = generate_markdown_proposal(
+                sys.argv[2], output_path, llm=llm,
+                retriever=lambda queries: pipeline.retrieve_evidence(queries),
+            )
+        except Exception as exc:  # CLI boundary: preserve a clear configuration/service error.
+            stage = exc.stage if isinstance(exc, ProposalGenerationError) else "unknown"
+            print(f"方案生成失败 [{stage}] {type(exc).__name__}: {exc}", file=sys.stderr)
+            if debug:
+                traceback.print_exception(exc, file=sys.stderr)
+            sys.exit(1)
+        print(f"已写入 Markdown：{generated.resolve()}")
 
     else:
         print(f"未知命令: {command}")

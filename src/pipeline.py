@@ -13,7 +13,7 @@ from pathlib import Path
 from src.adapters.parser import MinerUParser
 from src.adapters.vector_store import VectorStore
 from src.adapters.llm_client import LLMClient
-from src.config import CHROMA_PATH, INGEST_MANIFEST_PATH
+from src.config import RAG_DB_PATH, INGEST_MANIFEST_PATH
 from src.domain import build_document_identity
 from src.hybrid_v2 import HybridTestStore
 from src.hybrid_v2 import LocalHashEmbeddingFunction
@@ -632,86 +632,55 @@ def query(need_description: str, top_n: int = 10) -> QueryResult:
     )
 
 
-def ingest_v2(source_path: str | Path, *, source_root: str | Path, test_db: str | Path) -> dict:
-    """Parse into the explicitly selected disposable V2 library; never opens old Chroma."""
-    source = Path(source_path)
-    root = Path(source_root)
-    if not source.is_file():
-        raise ValueError(f"V2 入库只接受文件: {source}")
-    if not root.is_dir():
-        raise ValueError(f"V2 必须显式指定存在的 --source-root: {root}")
-    if Path(test_db).resolve() == CHROMA_PATH.resolve():
-        raise ValueError("--test-db 不能指向旧 CHROMA_PATH；请指定独立、可删除的 V2 测试目录")
-    identity = build_document_identity(source, root)
-    store = HybridTestStore(test_db)
-    try:
-        existing = store.existing_version(identity.document_id)
-        if existing == identity.version_id:
-            return {"status": "skipped", "source_key": identity.source_key, "version_id": identity.version_id, "message": "内容未变化，跳过 V2 入库。"}
-        parsed = MinerUParser().parse_document(source)
-        pages = []
-        for page in parsed.to_legacy_pages():
-            copied = dict(page)
-            copied["page_number"] = copied.get("page_number", copied.get("slide_number"))
-            pages.append(copied)
-        written = store.add_version(identity, pages, _get_doc_type(identity.source_key))
-        return {"status": "updated" if existing else "created", "source_key": identity.source_key, "version_id": identity.version_id, "pages": written, "message": "新版本已成功写入；旧版本随后删除。" if existing else "已写入独立 V2 测试库。"}
-    finally:
-        store.close()
+def retrieve_evidence(
+    queries: list[str], *, db: str | Path = RAG_DB_PATH, top_n: int = 10
+) -> QueryResult:
+    """Retrieve evidence for already-planned queries without calling an LLM.
 
-
-def query_v2(query_text: str, *, test_db: str | Path, top_n: int = 10) -> QueryResult:
-    """Return V2 hybrid retrieval results without query rewriting or LLM generation."""
-    store = HybridTestStore(test_db)
+    The V3 store performs Chroma semantic retrieval, SQLite FTS5 retrieval and RRF
+    fusion for each query.  This function only merges those structured candidates
+    and selects supporting pages; it never writes a database or generates prose.
+    """
+    cleaned_queries = list(dict.fromkeys(query.strip() for query in queries if query.strip()))
+    if not cleaned_queries:
+        raise ValueError("至少需要一个非空检索查询")
+    store = HybridTestStore(db, readonly=True)
     try:
-        primary = store.search(query_text, top_n)
+        merged: dict[tuple[str, int], dict] = {}
+        for query_text in cleaned_queries:
+            for record in store.search(query_text, top_n):
+                identity = (record["source_key"], record["page_number"])
+                previous = merged.get(identity)
+                score = record.get("retrieval", {}).get("rrf_score", 0.0)
+                if previous is None or score > previous.get("retrieval", {}).get("rrf_score", 0.0):
+                    merged[identity] = record
+        primary = sorted(
+            merged.values(),
+            key=lambda record: (-record.get("retrieval", {}).get("rrf_score", 0.0), record["page_id"]),
+        )[:top_n]
+        context_query = "\n".join(cleaned_queries)
         adjacent = {(record["source_key"], record["page_number"]): store.get_adjacent_pages(record["source_key"], record["page_number"], _ADJACENT_WINDOW) for record in primary}
-        primaries, supporting = select_supporting_context(primary, adjacent, query_text)
+        primaries, supporting = select_supporting_context(primary, adjacent, context_query)
     finally:
         store.close()
     hits = [_hit_from_record(record, "primary") for record in primaries]
     hits.extend(_hit_from_record(record, "supporting") for record in supporting)
     citations = _citations_from_hits(hits)
-    return QueryResult(query_text, [query_text], hits, "", citations, retrieval_metadata={"retrieval_mode": "hybrid_v2", "fusion": "RRF(k=60)", "semantic_candidates": len(primary), "supporting_hit_count": len(supporting)})
+    return QueryResult(
+        context_query,
+        cleaned_queries,
+        hits,
+        "",
+        citations,
+        retrieval_metadata={
+            "retrieval_mode": "hybrid",
+            "fusion": "RRF(k=60)",
+            "semantic_candidates": len(primary),
+            "supporting_hit_count": len(supporting),
+        },
+    )
 
 
-def ingest_v2_cache(zip_path: str | Path, *, test_db: str | Path) -> dict:
-    """Offline-only V2 ingestion from a MinerU debug ZIP; never opens original files."""
-    if Path(test_db).resolve() == CHROMA_PATH.resolve():
-        raise ValueError("--test-db 不能指向旧 CHROMA_PATH；请指定独立、可删除的 V2 测试目录")
-    recovered = recover_debug_zip(zip_path)
-    store = HybridTestStore(test_db, embedding_function=LocalHashEmbeddingFunction())
-    try:
-        existing = store.existing_version(recovered.identity.document_id)
-        if existing == recovered.identity.version_id:
-            return {"status": "skipped", "source_key": recovered.identity.source_key, "origin_extension": recovered.origin_extension, "source_key_origin": recovered.source_key_origin, "message": "缓存内容未变化，跳过 V2 入库。"}
-        written = store.add_version(recovered.identity, recovered.pages, _get_doc_type(recovered.identity.source_key))
-        return {"status": "updated" if existing else "created", "source_key": recovered.identity.source_key, "origin_extension": recovered.origin_extension, "source_key_origin": recovered.source_key_origin, "pages": written, "message": "已从缓存离线写入 V2 测试库。"}
-    finally:
-        store.close()
-
-
-def query_v2_cache(query_text: str, *, test_db: str | Path, top_n: int = 10) -> QueryResult:
-    """Run V2 retrieval with the local cache-test embedding, never DashScope."""
-    store = HybridTestStore(test_db, embedding_function=LocalHashEmbeddingFunction())
-    try:
-        primary = store.search(query_text, top_n)
-        # The cache acceptance embedding is intentionally local and coarse.  Do not
-        # present hash collisions as a relevant answer: require an explainable local
-        # text overlap unless the FTS path explicitly matched.
-        primary = [record for record in primary if _retain_cache_candidate(query_text, record)]
-        adjacent = {(record["source_key"], record["page_number"]): store.get_adjacent_pages(record["source_key"], record["page_number"], _ADJACENT_WINDOW) for record in primary}
-        primaries, supporting = select_supporting_context(primary, adjacent, query_text)
-    finally:
-        store.close()
-    hits = [_hit_from_record(record, "primary") for record in primaries]
-    hits.extend(_hit_from_record(record, "supporting") for record in supporting)
-    citations = _citations_from_hits(hits)
-    return QueryResult(query_text, [query_text], hits, "", citations, retrieval_metadata={"retrieval_mode": "hybrid_v2_cache_local", "fusion": "RRF(k=60)", "semantic_candidates": len(primary), "supporting_hit_count": len(supporting), "embedding": "local_hash"})
-
-
-def _retain_cache_candidate(query_text: str, record: dict) -> bool:
-    """Guard offline hash-vector collisions with an explainable lexical/text signal."""
-    if record.get("retrieval", {}).get("lexical"):
-        return True
-    return keyword_overlap(query_text, f"{record.get('title', '')}\n{record.get('content', '')}")[0] > 0
+def query_rag(query_text: str, *, db: str | Path = RAG_DB_PATH, top_n: int = 10) -> QueryResult:
+    """Compatibility wrapper for one V3 hybrid retrieval query."""
+    return retrieve_evidence([query_text], db=db, top_n=top_n)

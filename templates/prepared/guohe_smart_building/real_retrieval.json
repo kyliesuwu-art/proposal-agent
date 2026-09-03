@@ -1,0 +1,324 @@
+{
+  "query": "???? ???? ???? ???? ?????? PCS BESS EMS",
+  "retrieval_metadata": {
+    "retrieval_mode": "hybrid_v2_cache_local",
+    "fusion": "RRF(k=60)",
+    "semantic_candidates": 1,
+    "supporting_hit_count": 2,
+    "embedding": "local_hash"
+  },
+  "hits": [
+    {
+      "source_file": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+      "page_number": 28,
+      "title": "",
+      "content": "• 运行模式编程（调度程序、SOC、功率限制、电力调度、可再生能源平滑化、T-EMS控制等）需在能源管理系统中完成（见第7.1节）\n• 触发PCS对电池储能系统进行充放电（参见第7.2、7.3小节）\n能源管理系统(EMS)的所有编程操作必须通过人机界面(HMI)或基于网页的软件完成。\n社区储能系统(CESS)必须配备基于网页的软件。\n9.2 <u>能源管理系统(EMS)的访问与编程</u>\nTNB操作员可通过基于网页的软件（本地或远程）访问EMS实施直接运行控制。\n也可通过人机界面(HMI)面板手动访问能源管理系统(EMS)。\n9.2.1 <u>基于网页的软件</u>\nTNB操作员可使用个人电脑或笔记本电脑，通过任意品牌网页浏览器输入EMS的IP地址，经RJ45端口直接登录系统。\n该软件需配备多项功能，使用户可配置第9.1节所述功能，并对社区储能系统(CESS)执行维护模式。\n该软件支持用户以CSV等格式下载所有数据。",
+      "context_role": "primary",
+      "metadata": {
+        "page_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f:ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74:p28",
+        "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+        "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+        "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+        "page_number": 28,
+        "document_type": "proposal",
+        "section_title": "<u>能源管理系统(EMS)的访问与编程</u>",
+        "context_summary": "",
+        "retrieval_text": "• 运行模式编程（调度程序、SOC、功率限制、电力调度、可再生能源平滑化、T-EMS控制等）需在能源管理系统中完成（见第7.1节）\n• 触发PCS对电池储能系统进行充放电（参见第7.2、7.3小节）\n能源管理系统(EMS)的所有编程操作必须通过人机界面(HMI)或基于网页的软件完成。\n社区储能系统(CESS)必须配备基于网页的软件。\n9.2 <u>能源管理系统(EMS)的访问与编程</u>\nTNB操作员可通过基于网页的软件（本地或远程）访问EMS实施直接运行控制。\n也可通过人机界面(HMI)面板手动访问能源管理系统(EMS)。\n9.2.1 <u>基于网页的软件</u>\nTNB操作员可使用个人电脑或笔记本电脑，通过任意品牌网页浏览器输入EMS的IP地址，经RJ45端口直接登录系统。\n该软件需配备多项功能，使用户可配置第9.1节所述功能，并对社区储能系统(CESS)执行维护模式。\n该软件支持用户以CSV等格式下载所有数据。",
+        "keywords": [
+          "<u>能源管理系统(EMS)的访问与编程</u>",
+          "SOC",
+          "T-",
+          "EMS",
+          "HMI",
+          "CESS",
+          "PCS",
+          "BESS"
+        ],
+        "entities": [
+          "PCS",
+          "BESS",
+          "EMS"
+        ],
+        "parameters": [],
+        "identity_metadata": {
+          "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+          "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+          "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+          "page_number": 28,
+          "document_type": "proposal"
+        },
+        "lexical_score": 7.45238337,
+        "matched_terms": [
+          "PCS",
+          "BESS",
+          "EMS"
+        ],
+        "lexical_reason": "SQLite FTS5 exact token match: PCS, BESS, EMS",
+        "retrieval": {
+          "mode": "hybrid",
+          "semantic": null,
+          "lexical": {
+            "rank": 1,
+            "score": 7.45238337,
+            "reason": "SQLite FTS5 exact token match: PCS, BESS, EMS"
+          },
+          "matched_terms": [
+            "PCS",
+            "BESS",
+            "EMS"
+          ],
+          "rrf_score": 0.01639344,
+          "fusion_reason": "RRF(k=60); contributing_modes=lexical"
+        }
+      }
+    },
+    {
+      "source_file": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+      "page_number": 27,
+      "title": "",
+      "content": "**能源管理**\n**系统**\n**9.0**\n9.1 <u>能源管理系统(EMS)功能</u>\n能源管理系统(EMS)是社区储能系统(CESS)的主控系统，具备以下功能：\n• 协调系统关机（发生断电、严重电压暂降或过电压时）（见第4.4节）\n• 协调系统重启（断电、严重电压暂降或过电压后电力系统恢复时）（见第4.5节）\n• 支持通信箱(Com Box)及外部通信系统的通信方案选择/集成（见第6.2节）",
+      "context_role": "supporting",
+      "metadata": {
+        "page_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f:ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74:p27",
+        "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+        "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+        "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+        "page_number": 27,
+        "document_type": "proposal",
+        "section_title": "<u>能源管理系统(EMS)功能</u>",
+        "context_summary": "",
+        "retrieval_text": "**能源管理**\n**系统**\n**9.0**\n9.1 <u>能源管理系统(EMS)功能</u>\n能源管理系统(EMS)是社区储能系统(CESS)的主控系统，具备以下功能：\n• 协调系统关机（发生断电、严重电压暂降或过电压时）（见第4.4节）\n• 协调系统重启（断电、严重电压暂降或过电压后电力系统恢复时）（见第4.5节）\n• 支持通信箱(Com Box)及外部通信系统的通信方案选择/集成（见第6.2节）",
+        "keywords": [
+          "<u>能源管理系统(EMS)功能</u>",
+          "EMS",
+          "CESS"
+        ],
+        "entities": [
+          "EMS"
+        ],
+        "parameters": [],
+        "identity_metadata": {
+          "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+          "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+          "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+          "page_number": 27,
+          "document_type": "proposal"
+        },
+        "supporting_reason": "shared_keywords:cess,ems,储能,功能,区储",
+        "supporting_keyword_overlap": 0.085427
+      }
+    },
+    {
+      "source_file": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+      "page_number": 29,
+      "title": "",
+      "content": "<a href=\"9.2.1.1\">9.2.1.1</a> <u>社区储能系统的远程访问</u>\n该软件应支持用户通过远程桌面访问/SSH（安全外壳协议）连接能源管理系统(EMS)。\n远程访问连接需通过分布式智能系统（DIS，见图2）建立。\n原始设备制造商还须提供通过外部网络访问社区储能系统的远程桌面接入方案。\n9.2.2<u>人机界面(HMI)</u>\n人机界面须具备多项功能，使用户可配置9.1节所述功能，并对社区储能系统执行维护模式操作。\n人机界面还应能显示仪表盘、实时数据及曲线图等信息。\n最低要求如下：\n•单线图(SLD)——人机界面显示屏须完整呈现单线图，展示社区储能系统与TNB 400V电网公共连接点(PCC)的接线拓扑，并实时显示所有电力系统数据。\n• 配置页面 – 人机界面(HMI)应提供菜单以实现第9.2小节所述功能。\n• 仪表盘 – 显示社区储能系统(CESS)关键参数概览，例如告警信息、荷电状态(SOC%)、健康状态(SOH%)及每日充放电次数图表。当前充电能量值与放电能量值。\n• 本地手动控制模式下，通过按压\"运行\"/\"停止\"按钮启停CESS系统，通过选择电力调度模式（第7.0节）实现充放电操作。",
+      "context_role": "supporting",
+      "metadata": {
+        "page_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f:ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74:p29",
+        "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+        "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+        "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+        "page_number": 29,
+        "document_type": "proposal",
+        "section_title": "<u>人机界面(HMI)</u>",
+        "context_summary": "",
+        "retrieval_text": "<a href=\"9.2.1.1\">9.2.1.1</a> <u>社区储能系统的远程访问</u>\n该软件应支持用户通过远程桌面访问/SSH（安全外壳协议）连接能源管理系统(EMS)。\n远程访问连接需通过分布式智能系统（DIS，见图2）建立。\n原始设备制造商还须提供通过外部网络访问社区储能系统的远程桌面接入方案。\n9.2.2<u>人机界面(HMI)</u>\n人机界面须具备多项功能，使用户可配置9.1节所述功能，并对社区储能系统执行维护模式操作。\n人机界面还应能显示仪表盘、实时数据及曲线图等信息。\n最低要求如下：\n•单线图(SLD)——人机界面显示屏须完整呈现单线图，展示社区储能系统与TNB 400V电网公共连接点(PCC)的接线拓扑，并实时显示所有电力系统数据。\n• 配置页面 – 人机界面(HMI)应提供菜单以实现第9.2小节所述功能。\n• 仪表盘 – 显示社区储能系统(CESS)关键参数概览，例如告警信息、荷电状态(SOC%)、健康状态(SOH%)及每日充放电次数图表。当前充电能量值与放电能量值。\n• 本地手动控制模式下，通过按压\"运行\"/\"停止\"按钮启停CESS系统，通过选择电力调度模式（第7.0节）实现充放电操作。",
+        "keywords": [
+          "<u>人机界面(HMI)</u>",
+          "SSH",
+          "EMS",
+          "DIS",
+          "HMI",
+          "SLD",
+          "PCC",
+          "CESS",
+          "SOC",
+          "SOH"
+        ],
+        "entities": [
+          "EMS"
+        ],
+        "parameters": [],
+        "identity_metadata": {
+          "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+          "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+          "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+          "page_number": 29,
+          "document_type": "proposal"
+        },
+        "supporting_reason": "shared_keywords:cess,ems,hmi,soc,人机",
+        "supporting_keyword_overlap": 0.311558
+      }
+    }
+  ],
+  "evidence_sources": [
+    {
+      "source_id": "S1",
+      "source_file": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+      "page_number": 28,
+      "supporting_summary": "• 运行模式编程（调度程序、SOC、功率限制、电力调度、可再生能源平滑化、T-EMS控制等）需在能源管理系统中完成（见第7.1节） • 触发PCS对电池储能系统进行充放电（参见第7.2、7.3小节） 能源管理系统(EMS)的所有编程操作必须通过人机界面(HMI)或基于网页的软件完成。 社区储能系统(CESS)必须配备基于网页的软件。 9.2 <u>能源管理系统(EMS)的访问与编程</u> TNB操作员可通过基于网页的软件（本地或远程）访问EMS实施直接运行控制。 也可通过人机界面(HMI)面板手动访问能源管理系统",
+      "search_hit": {
+        "source_file": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+        "page_number": 28,
+        "title": "",
+        "content": "• 运行模式编程（调度程序、SOC、功率限制、电力调度、可再生能源平滑化、T-EMS控制等）需在能源管理系统中完成（见第7.1节）\n• 触发PCS对电池储能系统进行充放电（参见第7.2、7.3小节）\n能源管理系统(EMS)的所有编程操作必须通过人机界面(HMI)或基于网页的软件完成。\n社区储能系统(CESS)必须配备基于网页的软件。\n9.2 <u>能源管理系统(EMS)的访问与编程</u>\nTNB操作员可通过基于网页的软件（本地或远程）访问EMS实施直接运行控制。\n也可通过人机界面(HMI)面板手动访问能源管理系统(EMS)。\n9.2.1 <u>基于网页的软件</u>\nTNB操作员可使用个人电脑或笔记本电脑，通过任意品牌网页浏览器输入EMS的IP地址，经RJ45端口直接登录系统。\n该软件需配备多项功能，使用户可配置第9.1节所述功能，并对社区储能系统(CESS)执行维护模式。\n该软件支持用户以CSV等格式下载所有数据。",
+        "distance": null,
+        "images": [],
+        "context_role": "primary",
+        "metadata": {
+          "page_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f:ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74:p28",
+          "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+          "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+          "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+          "page_number": 28,
+          "document_type": "proposal",
+          "section_title": "<u>能源管理系统(EMS)的访问与编程</u>",
+          "context_summary": "",
+          "retrieval_text": "• 运行模式编程（调度程序、SOC、功率限制、电力调度、可再生能源平滑化、T-EMS控制等）需在能源管理系统中完成（见第7.1节）\n• 触发PCS对电池储能系统进行充放电（参见第7.2、7.3小节）\n能源管理系统(EMS)的所有编程操作必须通过人机界面(HMI)或基于网页的软件完成。\n社区储能系统(CESS)必须配备基于网页的软件。\n9.2 <u>能源管理系统(EMS)的访问与编程</u>\nTNB操作员可通过基于网页的软件（本地或远程）访问EMS实施直接运行控制。\n也可通过人机界面(HMI)面板手动访问能源管理系统(EMS)。\n9.2.1 <u>基于网页的软件</u>\nTNB操作员可使用个人电脑或笔记本电脑，通过任意品牌网页浏览器输入EMS的IP地址，经RJ45端口直接登录系统。\n该软件需配备多项功能，使用户可配置第9.1节所述功能，并对社区储能系统(CESS)执行维护模式。\n该软件支持用户以CSV等格式下载所有数据。",
+          "keywords": [
+            "<u>能源管理系统(EMS)的访问与编程</u>",
+            "SOC",
+            "T-",
+            "EMS",
+            "HMI",
+            "CESS",
+            "PCS",
+            "BESS"
+          ],
+          "entities": [
+            "PCS",
+            "BESS",
+            "EMS"
+          ],
+          "parameters": [],
+          "identity_metadata": {
+            "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+            "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+            "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+            "page_number": 28,
+            "document_type": "proposal"
+          },
+          "lexical_score": 7.45238337,
+          "matched_terms": [
+            "PCS",
+            "BESS",
+            "EMS"
+          ],
+          "lexical_reason": "SQLite FTS5 exact token match: PCS, BESS, EMS",
+          "retrieval": {
+            "mode": "hybrid",
+            "semantic": null,
+            "lexical": {
+              "rank": 1,
+              "score": 7.45238337,
+              "reason": "SQLite FTS5 exact token match: PCS, BESS, EMS"
+            },
+            "matched_terms": [
+              "PCS",
+              "BESS",
+              "EMS"
+            ],
+            "rrf_score": 0.01639344,
+            "fusion_reason": "RRF(k=60); contributing_modes=lexical"
+          }
+        }
+      }
+    },
+    {
+      "source_id": "S2",
+      "source_file": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+      "page_number": 27,
+      "supporting_summary": "**能源管理** **系统** **9.0** 9.1 <u>能源管理系统(EMS)功能</u> 能源管理系统(EMS)是社区储能系统(CESS)的主控系统，具备以下功能： • 协调系统关机（发生断电、严重电压暂降或过电压时）（见第4.4节） • 协调系统重启（断电、严重电压暂降或过电压后电力系统恢复时）（见第4.5节） • 支持通信箱(Com Box)及外部通信系统的通信方案选择/集成（见第6.2节）",
+      "search_hit": {
+        "source_file": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+        "page_number": 27,
+        "title": "",
+        "content": "**能源管理**\n**系统**\n**9.0**\n9.1 <u>能源管理系统(EMS)功能</u>\n能源管理系统(EMS)是社区储能系统(CESS)的主控系统，具备以下功能：\n• 协调系统关机（发生断电、严重电压暂降或过电压时）（见第4.4节）\n• 协调系统重启（断电、严重电压暂降或过电压后电力系统恢复时）（见第4.5节）\n• 支持通信箱(Com Box)及外部通信系统的通信方案选择/集成（见第6.2节）",
+        "distance": null,
+        "images": [],
+        "context_role": "supporting",
+        "metadata": {
+          "page_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f:ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74:p27",
+          "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+          "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+          "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+          "page_number": 27,
+          "document_type": "proposal",
+          "section_title": "<u>能源管理系统(EMS)功能</u>",
+          "context_summary": "",
+          "retrieval_text": "**能源管理**\n**系统**\n**9.0**\n9.1 <u>能源管理系统(EMS)功能</u>\n能源管理系统(EMS)是社区储能系统(CESS)的主控系统，具备以下功能：\n• 协调系统关机（发生断电、严重电压暂降或过电压时）（见第4.4节）\n• 协调系统重启（断电、严重电压暂降或过电压后电力系统恢复时）（见第4.5节）\n• 支持通信箱(Com Box)及外部通信系统的通信方案选择/集成（见第6.2节）",
+          "keywords": [
+            "<u>能源管理系统(EMS)功能</u>",
+            "EMS",
+            "CESS"
+          ],
+          "entities": [
+            "EMS"
+          ],
+          "parameters": [],
+          "identity_metadata": {
+            "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+            "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+            "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+            "page_number": 27,
+            "document_type": "proposal"
+          },
+          "supporting_reason": "shared_keywords:cess,ems,储能,功能,区储",
+          "supporting_keyword_overlap": 0.085427
+        }
+      }
+    },
+    {
+      "source_id": "S3",
+      "source_file": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+      "page_number": 29,
+      "supporting_summary": "<a href=\"9.2.1.1\">9.2.1.1</a> <u>社区储能系统的远程访问</u> 该软件应支持用户通过远程桌面访问/SSH（安全外壳协议）连接能源管理系统(EMS)。 远程访问连接需通过分布式智能系统（DIS，见图2）建立。 原始设备制造商还须提供通过外部网络访问社区储能系统的远程桌面接入方案。 9.2.2<u>人机界面(HMI)</u> 人机界面须具备多项功能，使用户可配置9.1节所述功能，并对社区储能系统执行维护模式操作。 人机界面还应能显示仪表盘、实时数据及曲线图等信息。 最低要求如下： •单",
+      "search_hit": {
+        "source_file": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+        "page_number": 29,
+        "title": "",
+        "content": "<a href=\"9.2.1.1\">9.2.1.1</a> <u>社区储能系统的远程访问</u>\n该软件应支持用户通过远程桌面访问/SSH（安全外壳协议）连接能源管理系统(EMS)。\n远程访问连接需通过分布式智能系统（DIS，见图2）建立。\n原始设备制造商还须提供通过外部网络访问社区储能系统的远程桌面接入方案。\n9.2.2<u>人机界面(HMI)</u>\n人机界面须具备多项功能，使用户可配置9.1节所述功能，并对社区储能系统执行维护模式操作。\n人机界面还应能显示仪表盘、实时数据及曲线图等信息。\n最低要求如下：\n•单线图(SLD)——人机界面显示屏须完整呈现单线图，展示社区储能系统与TNB 400V电网公共连接点(PCC)的接线拓扑，并实时显示所有电力系统数据。\n• 配置页面 – 人机界面(HMI)应提供菜单以实现第9.2小节所述功能。\n• 仪表盘 – 显示社区储能系统(CESS)关键参数概览，例如告警信息、荷电状态(SOC%)、健康状态(SOH%)及每日充放电次数图表。当前充电能量值与放电能量值。\n• 本地手动控制模式下，通过按压\"运行\"/\"停止\"按钮启停CESS系统，通过选择电力调度模式（第7.0节）实现充放电操作。",
+        "distance": null,
+        "images": [],
+        "context_role": "supporting",
+        "metadata": {
+          "page_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f:ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74:p29",
+          "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+          "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+          "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+          "page_number": 29,
+          "document_type": "proposal",
+          "section_title": "<u>人机界面(HMI)</u>",
+          "context_summary": "",
+          "retrieval_text": "<a href=\"9.2.1.1\">9.2.1.1</a> <u>社区储能系统的远程访问</u>\n该软件应支持用户通过远程桌面访问/SSH（安全外壳协议）连接能源管理系统(EMS)。\n远程访问连接需通过分布式智能系统（DIS，见图2）建立。\n原始设备制造商还须提供通过外部网络访问社区储能系统的远程桌面接入方案。\n9.2.2<u>人机界面(HMI)</u>\n人机界面须具备多项功能，使用户可配置9.1节所述功能，并对社区储能系统执行维护模式操作。\n人机界面还应能显示仪表盘、实时数据及曲线图等信息。\n最低要求如下：\n•单线图(SLD)——人机界面显示屏须完整呈现单线图，展示社区储能系统与TNB 400V电网公共连接点(PCC)的接线拓扑，并实时显示所有电力系统数据。\n• 配置页面 – 人机界面(HMI)应提供菜单以实现第9.2小节所述功能。\n• 仪表盘 – 显示社区储能系统(CESS)关键参数概览，例如告警信息、荷电状态(SOC%)、健康状态(SOH%)及每日充放电次数图表。当前充电能量值与放电能量值。\n• 本地手动控制模式下，通过按压\"运行\"/\"停止\"按钮启停CESS系统，通过选择电力调度模式（第7.0节）实现充放电操作。",
+          "keywords": [
+            "<u>人机界面(HMI)</u>",
+            "SSH",
+            "EMS",
+            "DIS",
+            "HMI",
+            "SLD",
+            "PCC",
+            "CESS",
+            "SOC",
+            "SOH"
+          ],
+          "entities": [
+            "EMS"
+          ],
+          "parameters": [],
+          "identity_metadata": {
+            "document_id": "doc_abb7c2e25fb0509cac2b3f83daef0c5f",
+            "version_id": "ver_cache_sha256_488189bba326fd6138c66cc9b4091bf4306bf956faa81d34948d48617b1f8f74",
+            "source_key": "cache/150kW 430kWh 400 Volt COMMUNITY ENERGY STORAGE SYSTEM (CESS).中文.docx",
+            "page_number": 29,
+            "document_type": "proposal"
+          },
+          "supporting_reason": "shared_keywords:cess,ems,hmi,soc,人机",
+          "supporting_keyword_overlap": 0.311558
+        }
+      }
+    }
+  ]
+}

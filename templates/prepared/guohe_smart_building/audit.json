@@ -1,0 +1,96 @@
+{
+  "source_hash": "97fae7788a7f436679d4cfd3ce93f4c1fb074e42be2fd69636cbb0cfd7429a15",
+  "findings": [
+    {
+      "slot_id": "document_title",
+      "old_value": "智慧楼宇实施技术方案",
+      "matches": [
+        {
+          "part": "word/document.xml",
+          "body_index": 0,
+          "block_id": "block-0",
+          "text": "智慧楼宇实施技术方案",
+          "run_spans": [
+            {
+              "text_node_index": 0,
+              "start": 0,
+              "end": 10,
+              "text": "智慧楼宇实施技术方案"
+            }
+          ],
+          "replaceable": true
+        }
+      ],
+      "note": "仅扫描 Manifest 声明的旧实体；不声称自动发现全部旧项目信息。"
+    },
+    {
+      "slot_id": "project_name",
+      "old_value": "国核智慧楼宇",
+      "matches": [],
+      "note": "仅扫描 Manifest 声明的旧实体；不声称自动发现全部旧项目信息。"
+    },
+    {
+      "slot_id": "customer",
+      "old_value": "",
+      "matches": [],
+      "note": "仅扫描 Manifest 声明的旧实体；不声称自动发现全部旧项目信息。"
+    },
+    {
+      "slot_id": "address",
+      "old_value": "",
+      "matches": [],
+      "note": "仅扫描 Manifest 声明的旧实体；不声称自动发现全部旧项目信息。"
+    },
+    {
+      "slot_id": "voltage",
+      "old_value": "",
+      "matches": [],
+      "note": "仅扫描 Manifest 声明的旧实体；不声称自动发现全部旧项目信息。"
+    },
+    {
+      "slot_id": "capacity",
+      "old_value": "",
+      "matches": [],
+      "note": "仅扫描 Manifest 声明的旧实体；不声称自动发现全部旧项目信息。"
+    },
+    {
+      "slot_id": "equipment_model",
+      "old_value": "",
+      "matches": [],
+      "note": "仅扫描 Manifest 声明的旧实体；不声称自动发现全部旧项目信息。"
+    }
+  ],
+  "suggested_locations": {
+    "document_title": [
+      {
+        "part": "word/document.xml",
+        "body_index": 0,
+        "block_id": "block-0",
+        "text": "智慧楼宇实施技术方案",
+        "run_spans": [
+          {
+            "text_node_index": 0,
+            "start": 0,
+            "end": 10,
+            "text": "智慧楼宇实施技术方案"
+          }
+        ],
+        "replaceable": true
+      }
+    ],
+    "project_name": [],
+    "customer": [],
+    "address": [],
+    "voltage": [],
+    "capacity": [],
+    "equipment_model": []
+  },
+  "applied_changes": [
+    {
+      "slot_id": "document_title",
+      "body_index": 0,
+      "old_value": "智慧楼宇实施技术方案",
+      "replacement_text": "[[DOCUMENT_TITLE]]"
+    }
+  ]
+}

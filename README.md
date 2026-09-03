@@ -1,66 +1,37 @@
 # 方案知识库
 
-这是一个面向电气工程历史方案的内部知识库 Demo。它使用 MinerU 解析文档、Chroma 保存
-页级检索数据，并通过 DashScope Qwen 生成带来源提示的方案初稿。
+内部电气工程方案知识库实验项目。系统基于本地混合检索库和用户需求，生成带页码来源的单一 Markdown 方案；当前目标是验证内容、引用和审查质量，DOCX 渲染留待后续独立阶段。
 
-主入口是 `src/main.py`：
+## 当前状态
+
+- 当前唯一有效测试库：`runtime_data/word_test_db`。
+- 该库包含 10 份来源文档、214 条索引页、SQLite FTS5 和 Chroma collection `electrical_pages_v2`。
+- `v2_test_db`、`v3_candidate_db`、`v3_candidate_db_rebuilt` 已删除，不能作为默认路径。
+- 单 Markdown proposal V1 已有离线实现和测试；尚未进行真实外部服务生成验收。
+
+## 架构概览
+
+```text
+用户需求 → LLM 规划大纲 → retrieve_evidence（Chroma + FTS5 + RRF）
+→ LLM 逐章写作 → 同一个 proposal.md → 全文审查 → 定向修订
+```
+
+`proposal.md` 是唯一内容源。大纲、证据映射和审查意见只保存在内存；不会创建 `plan.json`、`audit.json`、章节文件或 draft/final 双文件。引用、来源页和图片路径由代码映射，不能由 LLM 编造。
+
+## 常用离线验证
 
 ```powershell
 uv sync --group dev
-Copy-Item .env.example .env
-uv run python src/main.py status
-uv run python src/main.py ingest "<文件或目录>"
-uv run python src/main.py annotate "<已入库源文件名>"
-uv run python src/main.py query "<需求描述>"
-uv run python src/main.py query "<需求描述>" --output outputs/query-result.md
-uv run python -m pytest tests
+uv run python -m pytest tests -q
+uv run python src/main.py --help
 ```
 
-## V2 独立测试库与混合检索
+以下命令可能调用外部服务或读取真实库，必须获得明确授权后才能运行：`proposal`、`query`、`ingest`、`ingest-cache-dir`、`annotate` 以及外部评测命令。
 
-旧 `ingest`、`query` 与 `chroma_db/` 保持原样。V2 只能通过名称明确的命令使用，并且
-强制指定样例来源根目录和一个可删除的测试库目录。例如：
+真实 proposal 的形式为：
 
 ```powershell
-uv run python src/main.py ingest-v2 "samples/项目A/方案.pdf" --source-root samples --test-db v2_test_db
-uv run python src/main.py query-v2 "PCS 35kV 100MW 参数" --test-db v2_test_db
+uv run python src/main.py proposal "需求描述" --output outputs/proposal.md
 ```
 
-`v2_test_db/` 内包含独立的 `chroma_v2/` 语义索引和 `hybrid_lexical.sqlite3` 词法索引；
-确认不再需要时可直接删除整个该目录。它绝不会读取、写入或删除旧 `chroma_db/`。
-
-V2 的 embedding 使用干净正文 `retrieval_text`；页面存储则分开保存标题/章节、正文、
-context 摘要、keywords、entities、parameters 与文档身份。关键词和实体完全由本地规则提取：
-标题术语、PCS/BESS/SVG/STATCOM/EMS/SCADA 等小型可维护同义词表、电压等级、
-MW/MWh/kW/kWh/kvar 参数，以及保守的型号和“项目/工程/电站/园区”名称。未知词保留原文。
-
-检索同时取得 Chroma 语义候选和 SQLite FTS5 的精确词法候选，再使用 `RRF(k=60)` 合并。
-命中会在 `SearchHit.metadata.retrieval` 中保留语义距离/分数、词法命中词、各自原因和最终
-融合原因。词法路径对精确设备、型号、电压和容量问题更强；它不是行业知识理解，也不替代
-人工复核或语义检索。V2 不调用 LLM 为页面抽取关键词或实体；但解析仍需 MinerU，语义检索仍需
-DashScope embedding 配置。
-
-已有 MinerU 缓存可走完全离线的验收路径（不会重新上传原文件，也不读取旧库）：
-
-```powershell
-uv run python src/main.py ingest-v2-cache debug_zips --test-db v2_test_db
-uv run python src/main.py query-v2-cache "PCS" --test-db v2_test_db
-```
-
-该路径只读取 ZIP 内的 `_origin.<ext>` 和 `content_list.json`，以现有只读预览逻辑恢复页面。
-内部 UUID origin 名不提供原始路径，因此当 ZIP 文件名扩展名与 origin 扩展名一致时，来源为
-`cache/<ZIP 去 .zip 的文件名>`；不一致时使用 `cache/<ZIP stem>.<origin 扩展名>` 并标记
-`safe_cache_filename_fallback`。缓存验收使用本地确定性 hash embedding，以验证 Chroma V2、
-FTS5 和 RRF 的连接；它不代表 DashScope embedding 质量，也不能替代正式重入库验收。
-
-`.env` 至少需要 `MINERU_TOKEN` 与 `DASHSCOPE_API_KEY`。`DASHSCOPE_BASE_URL`、企微变量和
-运行路径变量见 `.env.example`。
-
-运行数据默认位于项目根目录：`chroma_db/`、`files/`、`images/`、`debug_zips/`。它们包含
-本地数据库或客户资料，不应提交 Git。路径可通过环境变量覆盖，且默认不依赖启动目录。
-
-当前仍不稳定或未完成的部分包括：方案类型精确过滤、真实入库的事务性替换、图片描述质量、
-以及企微业务接入。`query` 会在终端渲染 Markdown，并返回可供其他交付渠道复用的结构化结果；
-指定 `--output <路径>` 时才写入 Markdown 文件。引用格式为 `[来源: 文件名, 第 页码 页]`，
-以文件名和页码共同区分来源。不要把 `src/test.py` 当作自动化测试；它是联网的
-RAGAS 候选评测集生成脚本。
+详细操作规则见 [AGENTS.md](AGENTS.md)，架构决策和变更记录见 [DECISIONS.md](DECISIONS.md)。

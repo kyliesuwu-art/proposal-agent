@@ -15,7 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 PATH_ENV_NAMES = (
-    "CHROMA_PATH",
+    "RAG_DB_PATH",
     "IMAGES_DIR",
     "DEBUG_ZIPS_DIR",
     "DEBUG_MINERU_RESULT_DIR",
@@ -28,9 +28,9 @@ def _config_paths_from(cwd: Path) -> dict[str, str]:
     script = (
         "import json, sys; "
         f"sys.path.insert(0, {str(PROJECT_ROOT)!r}); "
-        "from src.config import CHROMA_PATH, IMAGES_DIR, DEBUG_ZIPS_DIR, "
+        "from src.config import RAG_DB_PATH, IMAGES_DIR, DEBUG_ZIPS_DIR, "
         "DEBUG_MINERU_RESULT_DIR, INGEST_MANIFEST_PATH; "
-        "print(json.dumps({\"chroma\": str(CHROMA_PATH), \"images\": str(IMAGES_DIR), "
+        "print(json.dumps({\"rag_db\": str(RAG_DB_PATH), \"images\": str(IMAGES_DIR), "
         "\"debug_zips\": str(DEBUG_ZIPS_DIR), \"debug_mineru\": str(DEBUG_MINERU_RESULT_DIR), "
         "\"manifest\": str(INGEST_MANIFEST_PATH)}))"
     )
@@ -55,7 +55,7 @@ def test_default_paths_are_identical_from_root_and_src_cwd() -> None:
 
     assert from_root == from_src
     assert from_root == {
-        "chroma": str(PROJECT_ROOT / "chroma_db"),
+        "rag_db": str(PROJECT_ROOT / "runtime_data" / "word_test_db"),
         "images": str(PROJECT_ROOT / "images"),
         "debug_zips": str(PROJECT_ROOT / "debug_zips"),
         "debug_mineru": str(PROJECT_ROOT / "debug_mineru_result"),
@@ -69,14 +69,14 @@ def test_path_environment_variables_override_defaults_from_pytest_tmpdir(
     """环境变量可覆盖路径，且相对覆盖仍固定相对项目根目录。"""
     import src.config as config
 
-    monkeypatch.setenv("CHROMA_PATH", str(tmp_path / "isolated-chroma"))
+    monkeypatch.setenv("RAG_DB_PATH", str(tmp_path / "isolated-rag"))
     monkeypatch.setenv("IMAGES_DIR", "test-runtime/images")
     monkeypatch.setenv("DEBUG_ZIPS_DIR", str(tmp_path / "zips"))
     monkeypatch.setenv("DEBUG_MINERU_RESULT_DIR", "test-runtime/mineru")
     monkeypatch.setenv("INGEST_MANIFEST_PATH", str(tmp_path / "manifest.csv"))
     config = importlib.reload(config)
 
-    assert config.CHROMA_PATH == (tmp_path / "isolated-chroma").resolve()
+    assert config.RAG_DB_PATH == (tmp_path / "isolated-rag").resolve()
     assert config.IMAGES_DIR == (PROJECT_ROOT / "test-runtime/images").resolve()
     assert config.DEBUG_ZIPS_DIR == (tmp_path / "zips").resolve()
     assert config.DEBUG_MINERU_RESULT_DIR == (PROJECT_ROOT / "test-runtime/mineru").resolve()

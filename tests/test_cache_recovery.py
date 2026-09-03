@@ -9,7 +9,6 @@ import pytest
 
 from src.cache_recovery import recover_debug_zip
 from src.hybrid_v2 import LocalHashEmbeddingFunction
-from src.pipeline import _retain_cache_candidate
 
 
 def _cache(path, *, origin: str = "job_origin.pdf") -> None:
@@ -57,8 +56,3 @@ def test_local_embedding_is_deterministic_and_nonempty_for_technical_query() -> 
     first = embedding(["PCS 35kV 100MW"])[0].tolist()
     assert first == embedding(["PCS 35kV 100MW"])[0].tolist()
     assert any(first)
-
-
-def test_cache_query_rejects_unexplained_hash_vector_collision() -> None:
-    assert not _retain_cache_candidate("不存在型号XYZ999", {"title": "PCS 参数", "content": "接入 35kV"})
-    assert _retain_cache_candidate("不存在型号XYZ999", {"retrieval": {"lexical": {"reason": "FTS"}}})
