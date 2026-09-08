@@ -4,6 +4,13 @@
 
 本项目基于本地知识库和用户需求，通过多次 LLM 调用生成并修订一份带证据引用的 `proposal.md`；后续再由独立、稳定的渲染器转换为 DOCX。当前是内部验证项目，不建设多用户系统、高并发服务或复杂编排平台。
 
+## 1.1 项目仓库与本地路径
+
+- GitHub 仓库：`https://github.com/kyliesuwu-art/proposal-agent.git`
+- 本地项目实际路径：`C:\Users\comking\Desktop\方案智能体\Core`
+- 后续 Codex 在本地完成代码修改并通过必要测试后，应立即提交本次相关改动并推送到 GitHub 当前分支 `origin`。
+- 自动提交和推送时只包含本次 Codex 修改的文件；必须保留并避开用户已有的工作树修改。推送失败时必须报告原因，不能假装已同步。
+
 ## 2. 当前架构
 
 - `src/markdown_proposal.py`：单 Markdown proposal V1 编排。

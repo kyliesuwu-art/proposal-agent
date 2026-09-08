@@ -140,13 +140,25 @@ def test_proposal_help_returns_without_opening_services(monkeypatch, capsys) -> 
     assert "--debug" in capsys.readouterr().out
 
 
+def test_real_cache_image_shape_survives_hit_conversion_without_database_access() -> None:
+    record = {
+        "source_key": "资料.pdf", "source_file": "资料.pdf", "page_number": 3, "slide_number": 3,
+        "title": "", "content": "### 源网荷储总体架构\n正文", "distance": 0.1,
+        "images": [{"path": "assets/doc/version/page_3_0.png", "caption": ""}],
+        "retrieval": {"rrf_score": 0.1},
+    }
+    hit = pipeline._hit_from_record(record, "primary")
+    assert hit.images == record["images"]
+    assert hit.images[0]["path"].startswith("assets/")
+
+
 @pytest.mark.parametrize("debug", [False, True])
-def test_proposal_cli_failure_is_nonzero_and_debug_can_print_traceback(monkeypatch, capsys, debug: bool) -> None:
+def test_proposal_cli_failure_is_nonzero_and_debug_can_print_traceback(monkeypatch, capsys, debug: bool, tmp_path) -> None:
     class FailingLLM:
         def __init__(self):
             raise RuntimeError("safe failure")
     monkeypatch.setattr(main, "LLMClient", FailingLLM)
-    argv = ["main.py", "proposal", "需求", "--output", "proposal.md"]
+    argv = ["main.py", "proposal", "需求", "--output", str(tmp_path / "proposal.md")]
     if debug:
         argv.append("--debug")
     monkeypatch.setattr(sys, "argv", argv)

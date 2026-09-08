@@ -5,12 +5,14 @@
     uv run python src/main.py ingest-cache-dir <缓存目录> [--db runtime_data/word_test_db] --dry-run
     uv run python src/main.py ingest-cache-dir <缓存目录> [--db runtime_data/word_test_db] --resume --limit 10 --batch-size 32
     uv run python src/main.py proposal "需求描述" --output outputs/proposal.md
+    uv run python src/main.py proposal-diagnose outputs/proposal.md
     uv run python src/main.py annotate <source_file> # 为源文件进行标注/打标签
     uv run python src/main.py status                 # 查看库状态
 """
 
 import sys
 import traceback
+import json
 from pathlib import Path
 
 # 加载 .env 环境变量（MINERU_TOKEN 等）
@@ -25,7 +27,9 @@ load_project_environment()
 from src import pipeline
 from src.adapters.parser import SUPPORTED_EXTENSIONS
 from src.adapters.llm_client import LLMClient
-from src.markdown_proposal import ProposalGenerationError, generate_markdown_proposal
+from src.markdown_proposal import ProposalGenerationError, diagnose_markdown_proposal, generate_markdown_proposal
+from src.render_word import RenderWordError, render_word
+from src.render_pptx import RenderPptxError, render_pptx
 
 
 def _ingest_path(path_str: str) -> None:
@@ -136,31 +140,83 @@ def main() -> None:
             print(f"已写入 Markdown：{output_path.resolve()}")
         print(markdown)
 
+    elif command == "proposal-diagnose":
+        if len(sys.argv) not in {3, 5} or (len(sys.argv) == 5 and sys.argv[3] != "--output"):
+            print('用法: python main.py proposal-diagnose <proposal.md> [--output <proposal.diagnosis.md>]', file=sys.stderr)
+            sys.exit(1)
+        try:
+            output = diagnose_markdown_proposal(Path(sys.argv[2]), Path(sys.argv[4]) if len(sys.argv) == 5 else None)
+        except Exception as exc:  # noqa: BLE001
+            print(f"方案诊断失败：{type(exc).__name__}: {exc}", file=sys.stderr)
+            sys.exit(1)
+        print(f"已写入诊断：{output.resolve()}")
+
+    elif command == "render-word":
+        if len(sys.argv) != 6 or sys.argv[2] != "--input" or sys.argv[4] != "--output":
+            print("用法: python src/main.py render-word --input <proposal.md> --output <proposal.docx>", file=sys.stderr); sys.exit(1)
+        try: report = render_word(sys.argv[3], sys.argv[5])
+        except RenderWordError as exc: print(f"Word 渲染失败: {exc}", file=sys.stderr); sys.exit(1)
+        print(f"已写入 DOCX: {Path(sys.argv[5]).resolve()}\n报告: {report}")
+    elif command == "render-pptx":
+        import argparse
+        parser = argparse.ArgumentParser(prog="python src/main.py render-pptx")
+        parser.add_argument("--input", required=True)
+        parser.add_argument("--output", required=True)
+        parser.add_argument("--mode", choices=("faithful", "presentation"), default="presentation")
+        parser.add_argument("--max-slides", type=int, default=15)
+        parser.add_argument("--sources")
+        try:
+            args = parser.parse_args(sys.argv[2:])
+            report = render_pptx(args.input, args.output, mode=args.mode, max_slides=args.max_slides, sources_path=args.sources)
+        except RenderPptxError as exc:
+            print(f"PPTX render failed: {exc}", file=sys.stderr)
+            sys.exit(1)
+        print(f"PPTX: {Path(args.output).resolve()}\nSlide plan: {Path(args.output).with_suffix('.slide-plan.json')}\nReport: {report}")
     elif command == "proposal":
         if len(sys.argv) == 3 and sys.argv[2] in {"-h", "--help"}:
             print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug]')
             return
-        if len(sys.argv) not in {5, 6} or sys.argv[3] != "--output" or (len(sys.argv) == 6 and sys.argv[5] != "--debug"):
-            print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug]', file=sys.stderr)
+        if len(sys.argv) < 5 or sys.argv[3] != "--output":
+            print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug] [--run-log <proposal.run.log>]', file=sys.stderr)
             sys.exit(1)
         output_path = Path(sys.argv[4])
-        debug = len(sys.argv) == 6
+        extras = sys.argv[5:]
+        debug = "--debug" in extras
+        if extras.count("--debug") > 1 or any(value not in {"--debug", "--run-log"} and (index == 0 or extras[index - 1] != "--run-log") for index, value in enumerate(extras)) or extras.count("--run-log") > 1:
+            print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug] [--run-log <proposal.run.log>]', file=sys.stderr)
+            sys.exit(1)
+        run_log = output_path.with_name("proposal.run.log")
+        if "--run-log" in extras:
+            index = extras.index("--run-log")
+            if index + 1 >= len(extras):
+                print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug] [--run-log <proposal.run.log>]', file=sys.stderr)
+                sys.exit(1)
+            run_log = Path(extras[index + 1])
         try:
             try:
                 llm = LLMClient()
             except Exception as exc:  # noqa: BLE001
                 raise ProposalGenerationError("planning", exc) from exc
-            generated = generate_markdown_proposal(
+            result = generate_markdown_proposal(
                 sys.argv[2], output_path, llm=llm,
                 retriever=lambda queries: pipeline.retrieve_evidence(queries),
+                return_result=True,
             )
         except Exception as exc:  # CLI boundary: preserve a clear configuration/service error.
             stage = exc.stage if isinstance(exc, ProposalGenerationError) else "unknown"
+            run_log.parent.mkdir(parents=True, exist_ok=True)
+            run_log.write_text(json.dumps({"quality_status": "FATAL", "stage": stage, "error": f"{type(exc).__name__}: {exc}"}, ensure_ascii=False, indent=2), encoding="utf-8")
             print(f"方案生成失败 [{stage}] {type(exc).__name__}: {exc}", file=sys.stderr)
             if debug:
                 traceback.print_exception(exc, file=sys.stderr)
             sys.exit(1)
-        print(f"已写入 Markdown：{generated.resolve()}")
+        print(f"已写入 Markdown：{result.path.resolve()}")
+        print(f"质量状态：{result.quality_status}；通过项：{result.metrics['quality_passed_checks']}；warning：{len(result.warnings)}；DOCX：未生成")
+        for warning in result.warnings[:5]:
+            print(f"  - {warning}")
+        run_log.parent.mkdir(parents=True, exist_ok=True)
+        run_log.write_text(json.dumps({"quality_status": result.quality_status, "warnings": result.warnings,
+                                       "metrics": result.metrics}, ensure_ascii=False, indent=2), encoding="utf-8")
 
     else:
         print(f"未知命令: {command}")
