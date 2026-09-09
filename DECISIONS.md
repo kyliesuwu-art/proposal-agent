@@ -147,6 +147,7 @@
 | 2026-09 | proposal 图片与交付质量 | 图片按全文 3～5 张目标、主题优先和来源页去重选择；候选、选择、复制和移除原因进入运行日志。Markdown 与 assets 在临时目录验证后原子发布；待确认项按固定业务类别归并；角色、范围与重复问题纳入三级质量状态和只读诊断 | 离线 proposal 回归测试 | 未提交 |
 | 2026-09 | proposal 真实图片兼容 | 已确认测试库图片为 `assets/.../page_<页>_<序号>.<ext>` 相对路径；无图注且无 page title 时从页面正文标题保守生成一条候选说明。最终状态按暂存 Markdown、相对资产与计数一致性判定，候选≥3但零图为 `image_pipeline_failure` | 真实库只读字段核对与离线回归测试 | 未提交 |
 | 2026-09 | proposal 图片章节归属 | 图片候选、选择、资产、复制、分章渲染和最终回查统一使用规划产生的 `section_id`；优先覆盖有候选的 preferred 章节，代码补选贴近同来源同页证据段落。最终 Markdown 若图片落在非所属 H2，按 `image_placement_mismatch` 失败；仅标准 `![alt](assets/...)` 计入图片链路 | fake 图片离线回归测试 | 未提交 |
+| 2026-09 | proposal 引用交付 | 在单一 `proposal.md` 发布时同步原子写出 `proposal.sources.json`；按最终可读来源首次出现顺序分配稳定 `S#`，并记录图片的 `figure_id/source_id/source_file/page/section_id/asset_path`，供本地 Word/PPTX 渲染器消费 | proposal 侧车专项测试与全量离线测试 | 未提交 |
 
 | 2026-09 | 外部服务配置 | 新增 `scripts/ark_quickstart.py`（纯标准库，不依赖 curl/jq）用于验证火山方舟 Managed Agents 连通性；`.env` 与 `.env.example` 增加 `ARK_API_KEY` 与可选 `ARK_BASE_URL`。该脚本只做外部连通性验证，不参与方案生成链路，生成侧仍使用 DashScope | 编译检查与缺 Key 报错路径离线验证 | 未提交 |
 

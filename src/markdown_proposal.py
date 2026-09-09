@@ -135,6 +135,7 @@ _CONFIRM_RE = re.compile(r"[^\n。！？；]*【待确认】[^\n。！？；]*[�
 _CONFIRMATION_PSEUDO_LABEL_RE = re.compile(
     r"(?m)^\s*(?:[-*+]\s+)?\*\*(?:待确认|待明确)(?:内容|事项)\*\*\s*[:：]?\s*"
 )
+_VISIBLE_SOURCE_RE = re.compile(r"\[来源:\s*([^,\]]+?),\s*第\s*(\d+)\s*页\]")
 
 
 def _json(raw: str) -> dict:
@@ -786,6 +787,37 @@ def _strict_image_links(markdown: str) -> list[str]:
     return [match.group(1) for match in _FINAL_IMAGE_RE.finditer(markdown)]
 
 
+def _source_manifest(markdown: str, assets: dict[tuple[str, str], _ImageAsset]) -> dict:
+    """Build a portable stable source/page and figure provenance sidecar."""
+    source_keys: list[tuple[str, int]] = []
+    for filename, page in _VISIBLE_SOURCE_RE.findall(markdown):
+        key = (_display_name(filename.strip()), int(page))
+        if key not in source_keys:
+            source_keys.append(key)
+    images: list[dict] = []
+    for asset in assets.values():
+        key = (_display_name(asset.evidence.file_name), asset.evidence.page_number)
+        if key not in source_keys:
+            source_keys.append(key)
+        images.append({
+            "figure_id": asset.image_id,
+            "image_id": asset.image_id,
+            "source_id": f"S{source_keys.index(key) + 1}",
+            "source_file": key[0],
+            "page": key[1],
+            "section_id": asset.section_id,
+            "caption": asset.caption,
+            "asset_path": asset.relative_path,
+            "selected_by": asset.selected_by,
+        })
+    return {
+        "schema_version": 1,
+        "sources": [{"source_id": f"S{i + 1}", "filename": name, "pages": [page]}
+                    for i, (name, page) in enumerate(source_keys)],
+        "images": images,
+    }
+
+
 def _image_placement_report(markdown: str, plan: ProposalPlan,
                             assets: dict[tuple[str, str], _ImageAsset]) -> dict:
     """Re-read rendered Markdown and verify each asset remains under its own H2.
@@ -982,6 +1014,9 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
             errors.append("最终暂存 Markdown 图片链接、复制图片与 assets 文件数量不一致")
         if errors:
             raise ProposalQualityError("；".join(errors))
+        sources_manifest = _source_manifest(rendered, assets)
+        staged_sources = stage / "proposal.sources.json"
+        staged_sources.write_text(json.dumps(sources_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         for asset in assets.values():
             if not (stage / asset.relative_path).is_file():
                 raise ProposalQualityError(f"图片相对路径无法解析：{asset.relative_path}")
@@ -1002,6 +1037,7 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
             staged_assets.rename(published_assets)
         try:
             os.replace(staged_markdown, path)
+            os.replace(staged_sources, path.with_name("proposal.sources.json"))
         except Exception:
             if published_assets.exists() and backup is not None:
                 shutil.rmtree(published_assets, ignore_errors=True)
@@ -1009,7 +1045,9 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
             raise
         if backup is not None:
             shutil.rmtree(backup)
-        return {"copied_images": copied, "final_markdown_images": image_links, "final_asset_files": staged_files}
+        return {"copied_images": copied, "final_markdown_images": image_links, "final_asset_files": staged_files,
+                "sources_path": "proposal.sources.json", "sources": sources_manifest["sources"],
+                "image_sources": sources_manifest["images"]}
     finally:
         if backup is not None and backup.exists() and not (path.parent / "assets").exists():
             backup.rename(path.parent / "assets")
@@ -1146,7 +1184,10 @@ def generate_markdown_proposal(
         raise ProposalGenerationError("markdown_write", exc) from exc
     try:
         metrics["images"]["removal_reasons"] = [item["reason"] for item in metrics["images"]["removed_images"]]
-        metrics["images"].update(_write(output_path, markdown, assets))
+        published = _write(output_path, markdown, assets)
+        metrics["images"].update(published)
+        metrics["sources_path"] = published["sources_path"]
+        metrics["sources"] = published["sources"]
     except Exception as exc:  # noqa: BLE001
         raise ProposalGenerationError("markdown_write", exc) from exc
     metrics["total_generation_llm_calls"] = sum(metrics[key] for key in ("planning_llm_calls", "planning_repair_calls", "section_writing_calls", "section_reference_repair_calls", "review_calls", "section_revision_calls"))

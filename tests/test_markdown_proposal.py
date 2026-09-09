@@ -334,7 +334,7 @@ def test_nested_missing_output_parents_create_single_markdown(tmp_path: Path) ->
     calls: list[list[str]] = []
     generate_markdown_proposal("需求", output, llm=NoImageLLM(), retriever=_retriever(calls), image_root=_image_root(tmp_path))
     assert output.is_file()
-    assert sorted(path.name for path in output.parent.iterdir()) == ["proposal.md"]
+    assert sorted(path.name for path in output.parent.iterdir()) == ["proposal.md", "proposal.sources.json"]
 
 
 @pytest.mark.parametrize(
@@ -646,6 +646,35 @@ def test_final_markdown_structure_uses_raw_standard_tokens_only(tmp_path: Path) 
     markdown = "# 标题\n\n## 章节\n\n### 小节\n\n- 项\n\n![图](assets/image-001.png)\n"
     assert _quality_gate(markdown, tmp_path / "proposal.md", {}, "") == []
     assert markdown_proposal._strict_image_links(markdown) == ["assets/image-001.png"]
+
+
+def test_proposal_publishes_stable_sources_sidecar_with_image_provenance(tmp_path: Path) -> None:
+    root = _image_root(tmp_path)
+    image = root / "images" / "architecture.png"
+    image.write_bytes(b"png")
+    plan = {"title": "侧车", "sections": [{"section_id": f"s{i}", "heading": heading, "level": 2,
+            "writing_goal": heading, "retrieval_queries": ["q"], "image_intent": "preferred"}
+            for i, heading in enumerate(("架构", "调度", "实施"), 1)]}
+
+    class Sidecar(FakeLLM):
+        def generate(self, prompt, system_prompt=""):
+            if "规划助手" in system_prompt: return json.dumps(plan, ensure_ascii=False)
+            if "审查完整" in system_prompt: return '{"issues":[]}'
+            return "架构依据。[S1] [IMG1]"
+
+    def retrieve(queries):
+        return QueryResult("", queries, [SearchHit("手册.pdf", 10, "架构", "正文", 0.1,
+            [{"path": "images/architecture.png", "caption": "系统架构"}])], "", [])
+
+    result = generate_markdown_proposal("需求", tmp_path / "proposal.md", llm=Sidecar(), retriever=retrieve,
+                                       image_root=root, return_result=True)
+    sidecar = json.loads((tmp_path / "proposal.sources.json").read_text(encoding="utf-8"))
+    assert result.quality_status in {"PASS", "DRAFT_WITH_WARNINGS"}
+    assert sidecar["sources"] == [{"source_id": "S1", "filename": "手册.pdf", "pages": [10]}]
+    assert sidecar["images"][0]["source_id"] == "S1"
+    assert sidecar["images"][0]["figure_id"] == "IMG1"
+    assert sidecar["images"][0]["section_id"] == "s1"
+    assert result.metrics["sources_path"] == "proposal.sources.json"
 
 
 def test_three_images_under_one_h2_cannot_pass_image_quality(tmp_path: Path) -> None:
