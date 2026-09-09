@@ -21,6 +21,7 @@ from src.cache_recovery import SUPPORTED_CACHE_EXTENSIONS, recover_debug_zip
 from src.hybrid_v2 import HybridTestStore
 from src.retrieval_fields import extract_retrieval_fields
 from src.adapters.vector_store import DashScopeEmbeddingFunction
+from src.adapters.parser import INDEX_SCHEMA_VERSION, PARSER_VERSION
 from src.config import RAG_DB_PATH, PROJECT_ROOT
 
 
@@ -273,8 +274,13 @@ class CacheBatchIngestor:
         self.state.execute("""CREATE TABLE IF NOT EXISTS cache_documents (
             zip_path TEXT PRIMARY KEY, zip_hash TEXT NOT NULL, source_key TEXT, document_id TEXT,
             version_id TEXT, status TEXT NOT NULL, stage TEXT, page_count INTEGER, duplicate_of TEXT,
-            error TEXT, embedding_calls INTEGER NOT NULL DEFAULT 0
+            error TEXT, embedding_calls INTEGER NOT NULL DEFAULT 0,
+            parser_version TEXT, index_schema_version TEXT
         )""")
+        columns = {row[1] for row in self.state.execute("PRAGMA table_info(cache_documents)")}
+        for column in ("parser_version", "index_schema_version"):
+            if column not in columns:
+                self.state.execute(f"ALTER TABLE cache_documents ADD COLUMN {column} TEXT")
         self.state.commit()
         self.cache = EmbeddingCache(self.root)
         self.store = HybridTestStore(self.root, embedding_function=self.embedding_function)
@@ -287,13 +293,15 @@ class CacheBatchIngestor:
     def _state(self, record: CacheInspection, *, status: str, stage: str | None, error: str | None = None,
                duplicate_of: str | None = None, embedding_calls: int = 0) -> None:
         with self.state:
-            self.state.execute("""INSERT INTO cache_documents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            self.state.execute("""INSERT INTO cache_documents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(zip_path) DO UPDATE SET zip_hash=excluded.zip_hash, source_key=excluded.source_key,
                 document_id=excluded.document_id, version_id=excluded.version_id, status=excluded.status,
                 stage=excluded.stage, page_count=excluded.page_count, duplicate_of=excluded.duplicate_of,
-                error=excluded.error, embedding_calls=excluded.embedding_calls""", (
+                error=excluded.error, embedding_calls=excluded.embedding_calls,
+                parser_version=excluded.parser_version, index_schema_version=excluded.index_schema_version""", (
                 record.zip_path, record.zip_hash, record.source_key, record.document_id, record.version_id,
                 status, stage, record.page_count, duplicate_of, error, embedding_calls,
+                PARSER_VERSION, INDEX_SCHEMA_VERSION,
             ))
 
     def _prior(self, record: CacheInspection) -> sqlite3.Row | None:
@@ -317,12 +325,14 @@ class CacheBatchIngestor:
                 index[member] = destination.relative_to(self.root).as_posix()
             (sidecar_root / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
             for page in pages:
-                image_blocks = [block for block in page.get("raw_blocks", []) if block.get("type") == "image" and block.get("img_path")]
+                image_blocks = [block for block in page.get("raw_blocks", [])
+                                if block.get("type") in {"image", "chart", "equation"}
+                                and (block.get("img_path") or block.get("image_path"))]
                 updated: list[dict] = []
                 for index_no, image in enumerate(page.get("images", [])):
                     if index_no >= len(image_blocks):
                         continue
-                    member = str(image_blocks[index_no]["img_path"])
+                    member = str(image_blocks[index_no].get("img_path") or image_blocks[index_no].get("image_path"))
                     safe = _safe_member_path(member)
                     if member not in names:
                         raise ValueError(f"ZIP 图片成员缺失: {member}")

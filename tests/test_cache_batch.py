@@ -99,6 +99,9 @@ def test_resume_deduplicates_assets_paths_and_embedding_cache(tmp_path: Path) ->
     assert second["outcomes"][0]["status"] == "skipped"
     assert second_fake.calls == []
     state = sqlite3.connect(tmp_path / "candidate" / "cache_ingest_manifest.sqlite3")
+    columns = {row[1] for row in state.execute("PRAGMA table_info(cache_documents)")}
+    assert {"parser_version", "index_schema_version"} <= columns
+    assert state.execute("SELECT parser_version FROM cache_documents WHERE status='completed'").fetchone()[0] == "mineru-blocks-v2"
     aliases = state.execute("SELECT duplicate_of FROM cache_documents WHERE status='duplicate'").fetchall()
     assert aliases and aliases[0][0]
     payload = json.loads(sqlite3.connect(tmp_path / "candidate" / "hybrid_lexical.sqlite3").execute("SELECT payload FROM pages").fetchone()[0])

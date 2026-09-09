@@ -41,6 +41,8 @@ _PENDING_TIMEOUT = 300
 # 入库时忽略的 block 类型（页脚等噪音内容）
 # PDF/DOC 解析会额外产出 header/footer/page_number 等 block，PPTX 里通常没有
 _IGNORED_TYPES = {"page_footnote", "header", "footer", "page_number"}
+PARSER_VERSION = "mineru-blocks-v2"
+INDEX_SCHEMA_VERSION = "proposal-index-v2"
 
 # 支持解析的文件格式
 SUPPORTED_EXTENSIONS = {".pptx", ".pdf",  ".docx",  ".doc"}
@@ -595,6 +597,36 @@ class MinerUParser:
         parts: list[str] = []
         images: list[dict] = []
         image_idx = 0
+        unknown: dict[str, int] = {}
+
+        def text_value(value) -> str:
+            if isinstance(value, list):
+                value = "".join(str(item) for item in value)
+            return str(value or "").strip()
+
+        def nested_text(value) -> str:
+            if isinstance(value, dict):
+                return " ".join(filter(None, (nested_text(item) for item in value.values())))
+            if isinstance(value, list):
+                return " ".join(filter(None, (nested_text(item) for item in value)))
+            return text_value(value)
+
+        seen_assets: set[str] = set()
+        def add_image(block: dict, *, kind: str, caption: str = "") -> None:
+            nonlocal image_idx
+            raw_path = text_value(block.get("img_path") or block.get("image_path"))
+            if not raw_path or raw_path in seen_assets:
+                return
+            seen_assets.add(raw_path)
+            local_path = image_resolver(raw_path, image_idx)
+            image_idx += 1
+            if local_path is not None:
+                item = {"path": str(local_path), "caption": caption}
+                if kind != "image":
+                    item.update({"block_type": kind,
+                                 "footnote": text_value(block.get("chart_footnote") or block.get("footnote")),
+                                 "bbox": block.get("bbox")})
+                images.append(item)
 
         for block in blocks:
             block_type = block.get("type")
@@ -665,18 +697,45 @@ class MinerUParser:
                     caption = " ".join(str(x).strip() for x in caption_raw if str(x).strip())
                 else:
                     caption = (caption_raw or "").strip()
-                img_path_in_zip = block.get("img_path", "")
+                add_image(block, kind="image", caption=caption)
 
-                if img_path_in_zip:
-                    local_path = image_resolver(img_path_in_zip, image_idx)
-                    if local_path is not None:
-                        images.append({"path": str(local_path), "caption": caption})
-                        image_idx += 1
+            elif block_type == "aside_text":
+                text = text_value(block.get("text")) or nested_text(block.get("lines") or block.get("spans") or block.get("blocks"))
+                if text and text not in parts:
+                    parts.append(f"[附注] {text}")
+
+            elif block_type == "equation":
+                formula = text_value(block.get("latex") or block.get("equation_latex") or block.get("text"))
+                formula = formula or nested_text(block.get("spans") or block.get("lines"))
+                if formula:
+                    parts.append(f"$$\n{formula}\n$$")
+                else:
+                    add_image(block, kind="equation", caption=text_value(block.get("caption") or block.get("equation_caption")))
+
+            elif block_type == "chart":
+                caption = text_value(block.get("chart_caption") or block.get("caption") or block.get("image_caption"))
+                footnote = text_value(block.get("chart_footnote") or block.get("footnote"))
+                nearby = text_value(block.get("content") or block.get("text")) or nested_text(block.get("lines") or block.get("spans"))
+                if caption:
+                    parts.append(f"[图表] {caption}")
+                if footnote and footnote != caption:
+                    parts.append(f"[图表注] {footnote}")
+                if nearby and nearby not in {caption, footnote}:
+                    parts.append(nearby)
+                add_image(block, kind="chart", caption=caption or footnote)
+
+            elif block_type == "index":
+                value = text_value(block.get("text")) or nested_text(block.get("list_items") or block.get("items") or block.get("lines"))
+                toc_like = "目录" in value or len(re.findall(r"(?:\.{2,}|…{2,})\s*\d+", value)) >= 2
+                if value and not toc_like:
+                    parts.append(f"[索引] {value}")
 
             else:
-                print(
-                    f"  警告: 未处理的 block 类型 '{block_type}'，该 block 内容已跳过"
-                )
+                unknown[str(block_type)] = unknown.get(str(block_type), 0) + 1
+
+        if unknown:
+            summary = ", ".join(f"{name}={count}" for name, count in sorted(unknown.items()))
+            print(f"  警告: 未处理 block 类型（本页聚合）：{summary}")
 
         return title, "\n".join(parts).strip(), images
 

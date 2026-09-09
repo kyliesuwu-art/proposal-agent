@@ -136,6 +136,34 @@ def test_multiple_toc_anchors_are_a_toc_page() -> None:
     assert MinerUParser._is_toc_page(blocks, "普通标题", "普通正文") is True
 
 
+def test_aside_equation_chart_and_index_blocks_are_preserved_or_filtered() -> None:
+    blocks = [
+        {"type": "aside_text", "text": "附注说明"},
+        {"type": "equation", "latex": "P=UI"},
+        {"type": "chart", "img_path": "chart.png", "chart_caption": "负荷曲线", "chart_footnote": "注释", "content": "相邻说明", "bbox": [1, 2, 3, 4]},
+        {"type": "image", "img_path": "chart.png", "image_caption": "重复图"},
+        {"type": "index", "list_items": ["术语：削峰填谷"]},
+        {"type": "index", "list_items": ["目录……1", "方案……3", "附录……8"]},
+    ]
+    title, content, images = MinerUParser._render_page_with_image_resolver(blocks, lambda path, i: f"assets/{i}-{path}")
+    assert title == ""
+    assert "[附注] 附注说明" in content and "$$\nP=UI\n$$" in content
+    assert "[图表] 负荷曲线" in content and "[图表注] 注释" in content and "相邻说明" in content
+    assert "[索引] 术语：削峰填谷" in content and "目录……1" not in content
+    assert images == [{"path": "assets/0-chart.png", "caption": "负荷曲线", "block_type": "chart", "footnote": "注释", "bbox": [1, 2, 3, 4]}]
+
+
+def test_equation_spans_and_image_fallback_and_unknown_warning(capsys) -> None:
+    _, content, images = MinerUParser._render_page_with_image_resolver(
+        [{"type": "equation", "spans": [{"text": "x²"}]}, {"type": "equation", "img_path": "formula.png"},
+         {"type": "mystery", "payload": 1}, {"type": "mystery", "payload": 2}],
+        lambda path, i: f"assets/{i}-{path}",
+    )
+    assert "$$\nx²\n$$" in content
+    assert images[0]["block_type"] == "equation"
+    assert "mystery=2" in capsys.readouterr().out
+
+
 class _FakeCollection:
     def __init__(self) -> None:
         self.add_calls: list[dict] = []
