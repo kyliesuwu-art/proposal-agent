@@ -26,6 +26,7 @@ debug_mineru_result.zip
 # IDE 配置
 .vscode/
 .idea/
+.claude/settings.local.json
 
 # Windows 缩略图缓存
 Thumbs.db
