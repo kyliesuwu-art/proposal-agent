@@ -120,6 +120,28 @@ def main() -> None:
             print("用法: python main.py ingest-cache-dir <缓存目录> --db <候选库目录> --dry-run | --resume --limit <数量> --batch-size <数量>")
             sys.exit(1)
 
+    elif command == "reindex-affected":
+        import argparse
+        parser = argparse.ArgumentParser(prog="python src/main.py reindex-affected")
+        parser.add_argument("--cache-dir", required=True)
+        parser.add_argument("--source-db", required=True)
+        parser.add_argument("--target-db", required=True)
+        parser.add_argument("--plan", required=True)
+        parser.add_argument("--dry-run", action="store_true")
+        parser.add_argument("--resume", action="store_true")
+        parser.add_argument("--limit", type=int)
+        parser.add_argument("--batch-size", type=int, default=32)
+        args = parser.parse_args(sys.argv[2:])
+        if args.dry_run == args.resume:
+            parser.error("必须且只能指定 --dry-run 或 --resume")
+        from src.targeted_reindex import dry_run
+        if args.resume:
+            parser.error("实际定向重处理需要单独授权；本版本只提供不会创建候选库的 --dry-run")
+        try:
+            print(json.dumps(dry_run(args.plan, args.source_db, args.target_db, limit=args.limit), ensure_ascii=False, indent=2))
+        except ValueError as exc:
+            parser.error(str(exc))
+
     elif command == "query":
         if len(sys.argv) < 3:
             print("用法: python main.py query \"需求描述\" [--output <路径>]")

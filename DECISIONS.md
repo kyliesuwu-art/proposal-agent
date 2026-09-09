@@ -149,6 +149,7 @@
 | 2026-09 | proposal 图片章节归属 | 图片候选、选择、资产、复制、分章渲染和最终回查统一使用规划产生的 `section_id`；优先覆盖有候选的 preferred 章节，代码补选贴近同来源同页证据段落。最终 Markdown 若图片落在非所属 H2，按 `image_placement_mismatch` 失败；仅标准 `![alt](assets/...)` 计入图片链路 | fake 图片离线回归测试 | 未提交 |
 | 2026-09 | proposal 引用交付 | 在单一 `proposal.md` 发布时同步原子写出 `proposal.sources.json`；按最终可读来源首次出现顺序分配稳定 `S#`，并记录图片的 `figure_id/source_id/source_file/page/section_id/asset_path`，供本地 Word/PPTX 渲染器消费 | proposal 侧车专项测试与全量离线测试 | 未提交 |
 | 2026-09 | MinerU block 兼容 | 解析器版本升级为 `mineru-blocks-v2`：同页保留 aside、公式和 chart 图元/图注/脚注/bbox；目录型 index 过滤而有价值索引保留，未知 block 按页聚合告警。未来仅以文档级新版本解析、embedding 与验证成功后原子替换旧版本；本轮只读审计，不重处理数据库 | 366 ZIP 脱敏审计、P2 专项测试与全量离线测试 | 未提交 |
+| 2026-09 | 定向升级准备 | P3 以 ZIP SHA-256 与稳定 document ID 生成 legacy/failed/duplicate 互斥计划；`reindex-affected --dry-run` 禁止源目标同路径和已存在目标，且保证零数据库/网络/embedding 调用。实际候选库创建与 `--resume` 需独立授权 | 86/5/9 真实计划与 dry-run、离线测试 | 未提交 |
 
 | 2026-09 | 外部服务配置 | 新增 `scripts/ark_quickstart.py`（纯标准库，不依赖 curl/jq）用于验证火山方舟 Managed Agents 连通性；`.env` 与 `.env.example` 增加 `ARK_API_KEY` 与可选 `ARK_BASE_URL`。该脚本只做外部连通性验证，不参与方案生成链路，生成侧仍使用 DashScope | 编译检查与缺 Key 报错路径离线验证 | 未提交 |
 
