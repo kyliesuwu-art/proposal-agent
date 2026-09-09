@@ -164,6 +164,15 @@ def test_equation_spans_and_image_fallback_and_unknown_warning(capsys) -> None:
     assert "mystery=2" in capsys.readouterr().out
 
 
+def test_empty_aside_and_malformed_block_do_not_create_content(capsys) -> None:
+    _, content, images = MinerUParser._render_page_with_image_resolver(
+        [{"type": "aside_text", "text": ""}, {"type": None}, {"type": "chart", "content": ""}],
+        lambda path, i: f"assets/{i}-{path}",
+    )
+    assert content == "" and images == []
+    assert "None=1" in capsys.readouterr().out
+
+
 class _FakeCollection:
     def __init__(self) -> None:
         self.add_calls: list[dict] = []
