@@ -219,9 +219,9 @@ def _briefing_slides(title: str, sections: list[dict], figures: OrderedDict[str,
         for section in group:
             selected = _briefing_bullets(section["items"])
             status = "merged" if len(group) > 1 else "covered"
+            coverage.append({"source_heading": section["title"], "status": status, "slide_ids": [slides[-1]["slide_id"]], "reason": "section represented in briefing"})
             if len(selected) < len(section["items"]):
-                status = "omitted_supporting_detail" if not selected else status
-            coverage.append({"source_heading": section["title"], "status": status, "slide_ids": [slides[-1]["slide_id"]], "reason": "briefing mode selected high-priority evidence; remaining explanatory detail omitted" if len(selected) < len(section["items"]) else "section represented in briefing"})
+                coverage.append({"source_heading": section["title"], "status": "omitted_supporting_detail", "slide_ids": [], "reason": "briefing mode omitted repetitive or explanatory detail after selecting high-priority evidence"})
     visible_all = list(dict.fromkeys(source for section in sections for source in section["visible_sources"]))
     slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "sources", "title": "参考资料", "bullets": [], "figure_ids": [], "source_ids": list(sources), "visible_sources": visible_all})
     if len(slides) > max_slides:
