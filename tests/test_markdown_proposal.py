@@ -448,6 +448,50 @@ def test_five_section_call_metrics_and_cross_section_revision(tmp_path: Path) ->
     assert revised.metrics["embedding_api_calls"] == "unknown"
 
 
+def test_review_skips_only_explicitly_advisory_malformed_items() -> None:
+    result = markdown_proposal._review_from(json.dumps({"issues": [
+        {"severity": "advisory", "issue_type": "clarity"},
+        {"section_id": "s1", "issue_type": "clarity", "instruction": "补充依据"},
+    ]}, ensure_ascii=False), {"s1"})
+    assert result.items_received == 2
+    assert result.items_skipped_advisory == 1
+    assert len(result.issues) == 1
+    assert result.warnings and "fields=" in result.warnings[0]
+
+
+def test_review_rejects_malformed_critical_item_without_silent_skip() -> None:
+    raw = json.dumps({"issues": [{"severity": "critical", "issue_type": "contradiction"}]}, ensure_ascii=False)
+    with pytest.raises(markdown_proposal.ReviewSchemaError, match="审查问题字段不符合要求") as exc_info:
+        markdown_proposal._review_from(raw, {"s1"})
+    assert exc_info.value.repairable is False
+
+
+def test_review_json_gets_one_format_repair_and_records_metrics(tmp_path: Path) -> None:
+    class RepairingReview(FakeLLM):
+        def __init__(self) -> None:
+            super().__init__()
+            self.review_calls = 0
+
+        def generate(self, prompt, system_prompt=""):
+            if "审查完整" in system_prompt:
+                self.review_calls += 1
+                if self.review_calls == 1:
+                    return "not json"
+                return '{"issues":[]}'
+            if "只输出当前章节正文" in system_prompt:
+                return "资料不足【待确认】。"
+            return super().generate(prompt, system_prompt)
+
+    result = generate_markdown_proposal(
+        "需求", tmp_path / "repaired-review.md", llm=RepairingReview(),
+        retriever=lambda queries: QueryResult("", queries, [], "", []),
+        image_root=_image_root(tmp_path), return_result=True,
+    )
+    assert result.metrics["review_repair_attempted"] is True
+    assert result.metrics["review_repair_calls"] == 1
+    assert result.metrics["review_items_received"] == 0
+
+
 def test_nonfatal_quality_warning_keeps_markdown_and_pass_has_no_notice(tmp_path: Path) -> None:
     class NoEvidence(FakeLLM):
         def generate(self, prompt, system_prompt=""):

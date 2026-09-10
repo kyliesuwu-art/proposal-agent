@@ -6,6 +6,7 @@ from pathlib import Path
 import json
 import time
 
+import httpx
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 import os
 
@@ -22,7 +23,8 @@ _DEFAULT_MODEL = "qwen3.7-plus"
 _VISION_MODEL = "qwen3-vl-plus"
 
 # 单次请求失败时的最大重试次数，兜底偶发的网络抖动 / 限流
-_MAX_RETRIES = 3
+_MAX_RETRIES = 2
+_CONNECT_TIMEOUT_SECONDS = 15.0
 
 # 重试前的等待时间（秒）
 _RETRY_SLEEP_SECONDS = 2.0
@@ -98,7 +100,8 @@ class LLMClient:
         self._client = OpenAI(
             api_key=settings["api_key"],
             base_url=self._base_url,
-            timeout=self._timeout_seconds,
+            timeout=httpx.Timeout(self._timeout_seconds, connect=_CONNECT_TIMEOUT_SECONDS),
+            max_retries=0,
         )
         self._model = model or settings["model"] or _DEFAULT_MODEL
         self._vision_model = vision_model

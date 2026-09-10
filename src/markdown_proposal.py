@@ -84,6 +84,24 @@ class ReviewIssue:
 
 
 @dataclass(frozen=True)
+class ReviewParseResult:
+    """Validated review feedback plus safe telemetry for advisory omissions."""
+
+    issues: list[ReviewIssue]
+    items_received: int
+    items_skipped_advisory: int
+    warnings: list[str]
+
+
+class ReviewSchemaError(ValueError):
+    """A schema error whose repairability is explicit to the review workflow."""
+
+    def __init__(self, message: str, *, repairable: bool) -> None:
+        self.repairable = repairable
+        super().__init__(message)
+
+
+@dataclass(frozen=True)
 class _SectionDraft:
     """One independently rendered section; image ownership is always canonical."""
 
@@ -177,25 +195,43 @@ def _plan_from(raw: str) -> ProposalPlan:
     return ProposalPlan(title.strip(), planned)
 
 
-def _review_from(raw: str, valid_sections: set[str]) -> list[ReviewIssue]:
-    issues = _json(raw).get("issues")
+def _review_from(raw: str, valid_sections: set[str]) -> ReviewParseResult:
+    try:
+        issues = _json(raw).get("issues")
+    except ValueError as exc:
+        raise ReviewSchemaError(str(exc), repairable=True) from exc
     if not isinstance(issues, list):
-        raise ValueError("审查结果必须包含 issues 列表")
-    parsed = []
-    for item in issues:
+        raise ReviewSchemaError("审查结果必须包含 issues 列表", repairable=True)
+    parsed: list[ReviewIssue] = []
+    warnings: list[str] = []
+    skipped_advisory = 0
+    for index, item in enumerate(issues):
         affected = item.get("affected_section_ids") if isinstance(item, dict) else None
         if affected is None and isinstance(item, dict) and item.get("section_id") in valid_sections:
             affected = [item["section_id"]]
         instruction = item.get("revision_instruction", item.get("instruction")) if isinstance(item, dict) else None
         description = item.get("description", instruction) if isinstance(item, dict) else None
         severity = item.get("severity", "warning") if isinstance(item, dict) else None
-        if (not isinstance(item, dict) or not isinstance(affected, list) or not affected or not all(section in valid_sections for section in affected)
-                or not isinstance(item.get("issue_type"), str) or not item["issue_type"].strip()
-                or not isinstance(instruction, str) or not instruction.strip() or not isinstance(description, str) or not description.strip()
-                or not isinstance(severity, str) or not severity.strip()):
-            raise ValueError("审查问题字段不符合要求")
+        explicit_severity = item.get("severity") if isinstance(item, dict) else None
+        valid = (isinstance(item, dict) and isinstance(affected, list) and bool(affected)
+                 and all(section in valid_sections for section in affected)
+                 and isinstance(item.get("issue_type"), str) and bool(item["issue_type"].strip())
+                 and isinstance(instruction, str) and bool(instruction.strip())
+                 and isinstance(description, str) and bool(description.strip())
+                 and isinstance(severity, str) and bool(severity.strip()))
+        if not valid:
+            keys = sorted(item) if isinstance(item, dict) else []
+            normalized_severity = explicit_severity.strip().lower() if isinstance(explicit_severity, str) else ""
+            detail = f"index={index}; fields={','.join(keys) or 'non_object'}"
+            # Only an explicitly classified advisory item may be omitted.  An
+            # unknown, blocking, or critical issue must fail visibly instead.
+            if normalized_severity in {"advisory", "info", "warning"}:
+                skipped_advisory += 1
+                warnings.append(f"review_advisory_item_skipped：{detail}")
+                continue
+            raise ReviewSchemaError(f"审查问题字段不符合要求 ({detail})", repairable=False)
         parsed.append(ReviewIssue(list(dict.fromkeys(affected)), item["issue_type"], description, instruction, severity))
-    return parsed
+    return ReviewParseResult(parsed, len(issues), skipped_advisory, warnings)
 
 
 def _evidence_role(hit: SearchHit) -> str:
@@ -1070,13 +1106,15 @@ def _validated_raw(llm: ProposalLLM, raw: str, draft: _SectionDraft, *, stage: s
 def generate_markdown_proposal(
     request: str, output_path: Path, *, llm: ProposalLLM,
     retriever: Callable[[list[str]], QueryResult], image_root: Path | None = None,
-    return_result: bool = False,
+    return_result: bool = False, progress: Callable[[str, dict], None] | None = None,
 ) -> Path | ProposalRunResult:
     """Generate one Markdown proposal; readable content is retained as a warned draft."""
     image_root = Path(image_root or RAG_DB_PATH)
     warnings: list[str] = []
     metrics = {"planning_llm_calls": 0, "planning_repair_calls": 0, "section_writing_calls": 0,
-               "section_reference_repair_calls": 0, "review_calls": 0, "section_revision_calls": 0,
+               "section_reference_repair_calls": 0, "review_calls": 0, "review_repair_calls": 0,
+               "review_items_received": 0, "review_items_valid": 0, "review_items_skipped_advisory": 0,
+               "review_repair_attempted": False, "review_warnings": [], "section_revision_calls": 0,
                "retrieval_query_count": 0, "embedding_api_calls": "unknown", "stage_durations": {},
                "images": {"image_intents": {}, "raw_image_records": [], "candidate_images": [],
                           "usable_images": [], "selected_images": [], "copied_images": [],
@@ -1087,9 +1125,25 @@ def generate_markdown_proposal(
     started = time.monotonic()
     def stage(name: str, started_at: float) -> None:
         metrics["stage_durations"][name] = round(time.monotonic() - started_at, 6)
+        if progress is not None:
+            progress(name, {"event": "stage_completed", "elapsed_seconds": metrics["stage_durations"][name]})
     def call(prompt: str, *, system_prompt: str, purpose: str) -> str:
         metrics[purpose] = metrics.get(purpose, 0) + 1
-        return llm.generate(prompt, system_prompt=system_prompt)
+        if progress is not None:
+            progress("model_call", {"event": "model_call_started", "purpose": purpose})
+        call_started = time.monotonic()
+        try:
+            response = llm.generate(prompt, system_prompt=system_prompt)
+        except Exception as exc:
+            if progress is not None:
+                progress("model_call", {"event": "model_call_failed", "purpose": purpose,
+                                         "elapsed_seconds": round(time.monotonic() - call_started, 6),
+                                         "error_type": type(exc).__name__})
+            raise
+        if progress is not None:
+            progress("model_call", {"event": "model_call_completed", "purpose": purpose,
+                                     "elapsed_seconds": round(time.monotonic() - call_started, 6)})
+        return response
 
     pre_started = time.monotonic()
     overview = ""
@@ -1141,7 +1195,28 @@ def generate_markdown_proposal(
         review_started = time.monotonic()
         _apply_image_budget(sections, image_root, warnings, metrics["images"])
         readable, _assets = _render(plan, sections, image_root=image_root, request=request, preview=True)
-        issues = _review_from(call(f"章节 ID：{[s.section_id for s in plan.sections]}\n完整方案（仅供审查，不得重写）：\n{readable}", system_prompt=_REVIEW_SYSTEM, purpose="review_calls"), set(sections))
+        review_raw = call(f"章节 ID：{[s.section_id for s in plan.sections]}\n完整方案（仅供审查，不得重写）：\n{readable}", system_prompt=_REVIEW_SYSTEM, purpose="review_calls")
+        try:
+            review = _review_from(review_raw, set(sections))
+        except ReviewSchemaError as initial_error:
+            if not initial_error.repairable:
+                raise
+            metrics["review_repair_attempted"] = True
+            warnings.append(f"review_format_repair_attempted：{type(initial_error).__name__}")
+            repaired = call(
+                f"上次审查 JSON 无法解析或顶层结构不符合要求（{initial_error}）。"
+                "请仅按既定 JSON schema 修复格式，保留所有有效审查结论。\n原始审查输出：\n"
+                f"{review_raw}",
+                system_prompt=_REVIEW_SYSTEM,
+                purpose="review_repair_calls",
+            )
+            review = _review_from(repaired, set(sections))
+        metrics["review_items_received"] = review.items_received
+        metrics["review_items_valid"] = len(review.issues)
+        metrics["review_items_skipped_advisory"] = review.items_skipped_advisory
+        metrics["review_warnings"] = review.warnings
+        warnings.extend(review.warnings)
+        issues = review.issues
         stage("review", review_started)
     except Exception as exc:  # noqa: BLE001
         raise ProposalGenerationError("review", exc) from exc
@@ -1190,7 +1265,7 @@ def generate_markdown_proposal(
         metrics["sources"] = published["sources"]
     except Exception as exc:  # noqa: BLE001
         raise ProposalGenerationError("markdown_write", exc) from exc
-    metrics["total_generation_llm_calls"] = sum(metrics[key] for key in ("planning_llm_calls", "planning_repair_calls", "section_writing_calls", "section_reference_repair_calls", "review_calls", "section_revision_calls"))
+    metrics["total_generation_llm_calls"] = sum(metrics[key] for key in ("planning_llm_calls", "planning_repair_calls", "section_writing_calls", "section_reference_repair_calls", "review_calls", "review_repair_calls", "section_revision_calls"))
     metrics["stage_durations"]["docx_render"] = 0.0
     metrics["stage_durations"]["total"] = round(time.monotonic() - started, 6)
     status = "PASS" if not warnings else "DRAFT_WITH_WARNINGS"

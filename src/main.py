@@ -48,6 +48,22 @@ def _write_proposal_request(output_path: Path, request: str, *, run_log: Path, d
     return path
 
 
+def _write_proposal_run_log(path: Path, *, status: str, stage: str, **details: object) -> None:
+    """Persist prompt-free, credential-free progress before and after remote work."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().astimezone().isoformat()
+    try:
+        previous = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        previous = {}
+    event = {"status": status, "stage": stage, "updated_at": timestamp, **details}
+    events = previous.get("events", []) if isinstance(previous, dict) else []
+    if not isinstance(events, list):
+        events = []
+    payload = {**previous, **event, "events": [*events, event]}
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def _ingest_path(path_str: str) -> None:
     """支持传入单个文件，也支持传入目录（自动遍历目录下所有受支持格式的文件）。"""
     path = Path(path_str)
@@ -251,20 +267,23 @@ def main() -> None:
                 print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug] [--run-log <proposal.run.log>]', file=sys.stderr)
                 sys.exit(1)
             run_log = Path(extras[index + 1])
+        _write_proposal_run_log(run_log, status="RUNNING", stage="initializing", output_file=output_path.name)
         try:
             try:
                 llm = LLMClient()
+                _write_proposal_run_log(run_log, status="RUNNING", stage="planning", provider="dashscope_openai_compatible", **llm.connection_settings)
             except Exception as exc:  # noqa: BLE001
                 raise ProposalGenerationError("planning", exc) from exc
+            def progress(stage: str, details: dict) -> None:
+                _write_proposal_run_log(run_log, status="RUNNING", stage=stage, **details)
             result = generate_markdown_proposal(
                 sys.argv[2], output_path, llm=llm,
                 retriever=lambda queries: pipeline.retrieve_evidence(queries),
-                return_result=True,
+                return_result=True, progress=progress,
             )
         except Exception as exc:  # CLI boundary: preserve a clear configuration/service error.
             stage = exc.stage if isinstance(exc, ProposalGenerationError) else "unknown"
-            run_log.parent.mkdir(parents=True, exist_ok=True)
-            run_log.write_text(json.dumps({"quality_status": "FATAL", "stage": stage, "error": f"{type(exc).__name__}: {exc}"}, ensure_ascii=False, indent=2), encoding="utf-8")
+            _write_proposal_run_log(run_log, status="FATAL", stage=stage, error_type=type(exc).__name__)
             print(f"方案生成失败 [{stage}] {type(exc).__name__}: {exc}", file=sys.stderr)
             if debug:
                 traceback.print_exception(exc, file=sys.stderr)
@@ -273,9 +292,7 @@ def main() -> None:
         print(f"质量状态：{result.quality_status}；通过项：{result.metrics['quality_passed_checks']}；warning：{len(result.warnings)}；DOCX：未生成")
         for warning in result.warnings[:5]:
             print(f"  - {warning}")
-        run_log.parent.mkdir(parents=True, exist_ok=True)
-        run_log.write_text(json.dumps({"quality_status": result.quality_status, "warnings": result.warnings,
-                                       "metrics": result.metrics}, ensure_ascii=False, indent=2), encoding="utf-8")
+        _write_proposal_run_log(run_log, status=result.quality_status, stage="complete", warnings=result.warnings, metrics=result.metrics)
         _write_proposal_request(output_path, sys.argv[2], run_log=run_log, debug=debug)
 
     else:

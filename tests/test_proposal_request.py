@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from src.main import _write_proposal_request
+from src.main import _write_proposal_request, _write_proposal_run_log
 
 
 def test_successful_proposal_request_metadata_is_reproducible_and_non_secret(tmp_path: Path):
@@ -22,3 +22,14 @@ def test_successful_proposal_request_metadata_is_reproducible_and_non_secret(tmp
     assert data["cli_arguments"] == {"debug": False, "run_log": "proposal.run.log"}
     assert "T" in data["generated_at"]
     assert "api" not in " ".join(data).lower()
+
+
+def test_run_log_is_written_at_stage_boundaries_without_request_or_secret(tmp_path: Path):
+    path = tmp_path / "proposal.run.log"
+    _write_proposal_run_log(path, status="RUNNING", stage="planning", provider="dashscope_openai_compatible", model="qwen-test", timeout_seconds=300)
+    _write_proposal_run_log(path, status="RUNNING", stage="model_call", event="model_call_completed", purpose="review_calls", elapsed_seconds=1.2)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["status"] == "RUNNING" and data["stage"] == "model_call"
+    assert data["model"] == "qwen-test" and "updated_at" in data
+    assert [event["stage"] for event in data["events"]] == ["planning", "model_call"]
+    assert "key" not in " ".join(data).lower() and "authorization" not in " ".join(data).lower()

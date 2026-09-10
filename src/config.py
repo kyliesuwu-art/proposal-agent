@@ -39,7 +39,7 @@ def dashscope_settings() -> dict[str, str]:
         "api_key": api_key,
         "base_url": base_url,
         "model": os.environ.get("DASHSCOPE_MODEL", "qwen3.7-plus").strip() or "qwen3.7-plus",
-        "timeout_seconds": os.environ.get("DASHSCOPE_TIMEOUT_SECONDS", "120").strip() or "120",
+        "timeout_seconds": os.environ.get("DASHSCOPE_TIMEOUT_SECONDS", "300").strip() or "300",
     }
 
 
