@@ -13,6 +13,7 @@
 import sys
 import traceback
 import json
+from datetime import datetime
 from pathlib import Path
 
 # 加载 .env 环境变量（MINERU_TOKEN 等）
@@ -30,6 +31,21 @@ from src.adapters.llm_client import LLMClient
 from src.markdown_proposal import ProposalGenerationError, diagnose_markdown_proposal, generate_markdown_proposal
 from src.render_word import RenderWordError, render_word
 from src.render_pptx import RenderPptxError, render_pptx
+
+
+def _write_proposal_request(output_path: Path, request: str, *, run_log: Path, debug: bool) -> Path:
+    """Persist reproducibility metadata only after a successful proposal delivery."""
+    path = output_path.with_name("proposal.request.json")
+    path.write_text(json.dumps({
+        "request": request,
+        "generated_at": datetime.now().astimezone().isoformat(),
+        "output_file": output_path.name,
+        "sources_file": "proposal.sources.json",
+        "run_log": run_log.name,
+        "debug": debug,
+        "cli_arguments": {"debug": debug, "run_log": run_log.name},
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
 
 
 def _ingest_path(path_str: str) -> None:
@@ -187,13 +203,25 @@ def main() -> None:
         parser.add_argument("--mode", choices=("faithful", "presentation"), default="presentation")
         parser.add_argument("--max-slides", type=int, default=15)
         parser.add_argument("--sources")
+        parser.add_argument("--plan", help="Use an existing proposal.slide-plan.json produced by build-slides")
         try:
             args = parser.parse_args(sys.argv[2:])
-            report = render_pptx(args.input, args.output, mode=args.mode, max_slides=args.max_slides, sources_path=args.sources)
+            report = render_pptx(args.input, args.output, mode=args.mode, max_slides=args.max_slides, sources_path=args.sources, plan_path=args.plan)
         except RenderPptxError as exc:
             print(f"PPTX render failed: {exc}", file=sys.stderr)
             sys.exit(1)
         print(f"PPTX: {Path(args.output).resolve()}\nSlide plan: {Path(args.output).with_suffix('.slide-plan.json')}\nReport: {report}")
+    elif command == "build-slides":
+        import argparse
+        from src.render_pptx import build_slides_markdown
+        parser = argparse.ArgumentParser(prog="python src/main.py build-slides")
+        parser.add_argument("--input", required=True); parser.add_argument("--output", required=True)
+        parser.add_argument("--sources"); parser.add_argument("--mode", choices=("briefing", "presentation", "faithful"), default="briefing")
+        parser.add_argument("--max-slides", type=int, default=15)
+        args = parser.parse_args(sys.argv[2:])
+        mode = "presentation" if args.mode == "briefing" else args.mode
+        output, plan, warnings = build_slides_markdown(args.input, args.output, mode=mode, max_slides=args.max_slides, sources_path=args.sources)
+        print(f"Slides Markdown: {output}\nSlide plan: {plan}\nWarnings: {json.dumps(warnings, ensure_ascii=False)}")
     elif command == "proposal":
         if len(sys.argv) == 3 and sys.argv[2] in {"-h", "--help"}:
             print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug]')
@@ -239,6 +267,7 @@ def main() -> None:
         run_log.parent.mkdir(parents=True, exist_ok=True)
         run_log.write_text(json.dumps({"quality_status": result.quality_status, "warnings": result.warnings,
                                        "metrics": result.metrics}, ensure_ascii=False, indent=2), encoding="utf-8")
+        _write_proposal_request(output_path, sys.argv[2], run_log=run_log, debug=debug)
 
     else:
         print(f"未知命令: {command}")

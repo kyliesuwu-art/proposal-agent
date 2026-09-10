@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 from pptx import Presentation
 
-from src.render_pptx import RenderPptxError, build_slide_plan, render_pptx
+from src.render_pptx import RenderPptxError, build_slide_plan, build_slides_markdown, render_pptx
 
 
 def _fixture(tmp_path: Path, *, with_image=True, sources=True) -> tuple[Path, Path | None]:
@@ -76,7 +76,9 @@ def test_overflow_does_not_delete_content(tmp_path):
 def test_missing_sources_and_images_warn_without_http(tmp_path):
     markdown, _ = _fixture(tmp_path, with_image=False, sources=False)
     plan, warnings = build_slide_plan(markdown)
-    assert plan["sources"] and any("derived" in warning for warning in warnings)
+    assert not plan["sources"]
+    assert plan["source_handoff"] == "LEGACY_INPUT_WARNING"
+    assert any("LEGACY_INPUT_WARNING" in warning for warning in warnings)
     markdown.write_text(markdown.read_text(encoding="utf-8") + "\n![bad](assets/nope.png)\n", encoding="utf-8")
     _, warnings = build_slide_plan(markdown)
     assert any("skipped missing" in warning for warning in warnings)
@@ -87,3 +89,65 @@ def test_invalid_explicit_sources_json_warns(tmp_path):
     invalid = tmp_path / "bad.json"; invalid.write_text("{", encoding="utf-8")
     _, warnings = build_slide_plan(markdown, sources_path=invalid)
     assert any("invalid sources JSON" in warning for warning in warnings)
+
+
+def test_figures_are_reassigned_by_slide_topic_and_legacy_source(tmp_path):
+    assets = tmp_path / "assets"; assets.mkdir()
+    for name in ("vpp.png", "arch.png", "price.png"):
+        Image.new("RGB", (200, 100), "blue").save(assets / name)
+    markdown = tmp_path / "proposal.md"
+    markdown.write_text("""# 演示
+
+## 系统总体架构
+
+架构说明。[来源: 架构.pdf, 第 2 页]
+![平台产品](assets/arch.png)
+图片来源：架构.pdf，第 2 页
+![虚拟电厂交易运营](assets/vpp.png)
+图片来源：运营.pdf，第 3 页
+![分时电价收益曲线](assets/price.png)
+图片来源：收益.pdf，第 4 页
+
+## 虚拟电厂调控与运营
+
+调度说明。[来源: 运营.pdf, 第 3 页]
+
+## 项目实施与综合效益
+
+收益说明。[来源: 收益.pdf, 第 4 页]
+""", encoding="utf-8")
+    plan, _ = build_slide_plan(markdown)
+    figures = plan["figures"]
+    assert figures["F1"]["target_section"] == "系统总体架构"
+    assert figures["F2"]["target_section"] == "虚拟电厂调控与运营"
+    assert figures["F3"]["target_section"] == "项目实施与综合效益"
+    assert all(figure["visible_sources"] for figure in figures.values())
+    figure_slides = [slide for slide in plan["slides"] if slide["figure_ids"]]
+    assert len(figure_slides) == 3
+    assert len({slide["title"].replace("（续）", "") for slide in figure_slides}) == 3
+
+
+def test_build_slides_writes_presentation_markdown_and_matching_plan(tmp_path):
+    markdown, source = _fixture(tmp_path)
+    output = tmp_path / "proposal.slides.md"
+    slides, plan_path, warnings = build_slides_markdown(markdown, output, mode="presentation", max_slides=15, sources_path=source)
+    text = slides.read_text(encoding="utf-8")
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    assert "## slide-001 | title |" in text
+    assert "Figure F1:" in text
+    assert "assets/system.png" not in text
+    assert len(plan["slides"]) >= 4
+    assert "chunk_id" not in plan["sources"]["S1"]
+    assert isinstance(warnings, list)
+
+
+def test_renderer_consumes_existing_slide_plan(tmp_path):
+    markdown, source = _fixture(tmp_path)
+    slides = tmp_path / "proposal.slides.md"
+    _, plan_path, _ = build_slides_markdown(markdown, slides, sources_path=source)
+    output = tmp_path / "proposal.pptx"
+    report_path = render_pptx(markdown, output, plan_path=plan_path)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["slide_plan"] == "proposal.slide-plan.json"
+    assert report["source_handoff"] == "PASS"
+    assert len(Presentation(output).slides) == len(json.loads(plan_path.read_text(encoding="utf-8"))["slides"])
