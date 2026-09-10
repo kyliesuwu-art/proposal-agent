@@ -151,6 +151,7 @@
 | 2026-09 | MinerU block 兼容 | 解析器版本升级为 `mineru-blocks-v2`：同页保留 aside、公式和 chart 图元/图注/脚注/bbox；目录型 index 过滤而有价值索引保留，未知 block 按页聚合告警。未来仅以文档级新版本解析、embedding 与验证成功后原子替换旧版本；本轮只读审计，不重处理数据库 | 366 ZIP 脱敏审计、P2 专项测试与全量离线测试 | 未提交 |
 | 2026-09 | 定向升级准备 | P3 以 ZIP SHA-256 与稳定 document ID 生成 legacy/failed/duplicate 互斥计划；`reindex-affected --dry-run` 禁止源目标同路径和已存在目标，且保证零数据库/网络/embedding 调用。实际候选库创建与 `--resume` 需独立授权 | 86/5/9 真实计划与 dry-run、离线测试 | 未提交 |
 | 2026-09 | PPT 下游交付 | `build-slides` 将已交付 Markdown 重组为含稳定 slide ID/layout 的演示稿和 slide plan；本地 PPTX 按图注主题重新分配图片，单页默认一图，并在容量不足时生成续页而不截断。历史 Markdown 缺少 sidecar 时仅从可见来源降级，不伪造侧车。成功 proposal 另存不含密钥的 `proposal.request.json` 以便复现 | PPT 专项、真实 Markdown→slides→PPTX 本地验收 | 未提交 |
+| 2026-09 | PPT briefing 上限 | `briefing --max-slides` 是封面、目录、正文与参考资料均计入的硬上限；规划器以可追踪 coverage 省略辅助说明，不能生成 continuation 绕过上限。`presentation`/`faithful` 保留全文 continuation 行为。PPTX 另做几何审计；没有 PowerPoint/LibreOffice 页面渲染时明确标记视觉验收 BLOCKED | briefing 硬上限、coverage、几何审计与真实历史输入验收 | 已提交 |
 
 | 2026-09 | 外部服务配置 | 新增 `scripts/ark_quickstart.py`（纯标准库，不依赖 curl/jq）用于验证火山方舟 Managed Agents 连通性；`.env` 与 `.env.example` 增加 `ARK_API_KEY` 与可选 `ARK_BASE_URL`。该脚本只做外部连通性验证，不参与方案生成链路，生成侧仍使用 DashScope | 编译检查与缺 Key 报错路径离线验证 | 未提交 |
 

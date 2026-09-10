@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 from pptx import Presentation
 
-from src.render_pptx import RenderPptxError, build_slide_plan, build_slides_markdown, render_pptx
+from src.render_pptx import RenderPptxError, build_slide_plan, build_slides_markdown, render_pptx, write_pptx_layout_audit
 
 
 def _fixture(tmp_path: Path, *, with_image=True, sources=True) -> tuple[Path, Path | None]:
@@ -151,3 +151,42 @@ def test_renderer_consumes_existing_slide_plan(tmp_path):
     assert report["slide_plan"] == "proposal.slide-plan.json"
     assert report["source_handoff"] == "PASS"
     assert len(Presentation(output).slides) == len(json.loads(plan_path.read_text(encoding="utf-8"))["slides"])
+
+
+def test_briefing_enforces_hard_cap_tracks_coverage_and_is_stable(tmp_path):
+    markdown, _ = _fixture(tmp_path, with_image=False, sources=False)
+    long_items = "\n".join(f"- 支撑说明 {index}，不影响核心指标。" for index in range(20))
+    markdown.write_text(markdown.read_text(encoding="utf-8").replace("## 来源与依据", long_items + "\n\n## 来源与依据"), encoding="utf-8")
+    first, _ = build_slide_plan(markdown, mode="briefing", max_slides=4)
+    second, _ = build_slide_plan(markdown, mode="briefing", max_slides=4)
+    assert len(first["slides"]) <= 4
+    assert first["actual_slide_count"] == len(first["slides"])
+    assert first["cap_enforced"] is True
+    assert first["source_coverage"]
+    assert first["slides"] == second["slides"]
+    assert len({slide["slide_id"] for slide in first["slides"]}) == len(first["slides"])
+
+
+def test_briefing_preserves_selected_numeric_threshold_and_uses_no_legacy_source_ids(tmp_path):
+    markdown, _ = _fixture(tmp_path, with_image=False, sources=False)
+    markdown.write_text(markdown.read_text(encoding="utf-8").replace("系统支持预测、决策、调度闭环，容量需现场确认。", "调节容量不低于 20 兆瓦，持续参与调峰不小于 2 小时，偏差不超过 15%。"), encoding="utf-8")
+    plan, _ = build_slide_plan(markdown, mode="briefing", max_slides=8)
+    content = "\n".join(bullet for slide in plan["slides"] for bullet in slide["bullets"])
+    assert "20 兆瓦" in content and "2 小时" in content and "15%" in content
+    assert plan["source_handoff"] == "LEGACY_INPUT_WARNING"
+    assert not plan["sources"]
+    assert all(not slide["source_ids"] for slide in plan["slides"])
+
+
+def test_layout_audit_marks_visual_render_blocked_without_page_images(tmp_path):
+    markdown, source = _fixture(tmp_path)
+    slides = tmp_path / "proposal.slides.md"
+    _, plan_path, _ = build_slides_markdown(markdown, slides, sources_path=source)
+    pptx = tmp_path / "proposal.pptx"
+    render_pptx(markdown, pptx, plan_path=plan_path)
+    json_path, md_path = write_pptx_layout_audit(pptx, plan_path, tmp_path / "audit")
+    audit = json.loads(json_path.read_text(encoding="utf-8"))
+    assert md_path.is_file()
+    assert audit["visual_render"] == "BLOCKED"
+    assert audit["slide_count"] == audit["plan_slide_count"]
+    assert all(page["shape_bounds_ok"] for page in audit["pages"])

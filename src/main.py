@@ -30,7 +30,7 @@ from src.adapters.parser import SUPPORTED_EXTENSIONS
 from src.adapters.llm_client import LLMClient
 from src.markdown_proposal import ProposalGenerationError, diagnose_markdown_proposal, generate_markdown_proposal
 from src.render_word import RenderWordError, render_word
-from src.render_pptx import RenderPptxError, render_pptx
+from src.render_pptx import RenderPptxError, render_pptx, write_pptx_layout_audit
 
 
 def _write_proposal_request(output_path: Path, request: str, *, run_log: Path, debug: bool) -> Path:
@@ -200,8 +200,8 @@ def main() -> None:
         parser = argparse.ArgumentParser(prog="python src/main.py render-pptx")
         parser.add_argument("--input", required=True)
         parser.add_argument("--output", required=True)
-        parser.add_argument("--mode", choices=("faithful", "presentation"), default="presentation")
-        parser.add_argument("--max-slides", type=int, default=15)
+        parser.add_argument("--mode", choices=("briefing", "faithful", "presentation"), default="presentation")
+        parser.add_argument("--max-slides", type=int, default=15, help="Hard cap for briefing; presentation uses it as a continuation warning threshold")
         parser.add_argument("--sources")
         parser.add_argument("--plan", help="Use an existing proposal.slide-plan.json produced by build-slides")
         try:
@@ -214,14 +214,23 @@ def main() -> None:
     elif command == "build-slides":
         import argparse
         from src.render_pptx import build_slides_markdown
-        parser = argparse.ArgumentParser(prog="python src/main.py build-slides")
+        parser = argparse.ArgumentParser(prog="python src/main.py build-slides", description="Build presentation Markdown and a slide plan. briefing creates an evidence-traceable summary under a hard slide cap.")
         parser.add_argument("--input", required=True); parser.add_argument("--output", required=True)
         parser.add_argument("--sources"); parser.add_argument("--mode", choices=("briefing", "presentation", "faithful"), default="briefing")
-        parser.add_argument("--max-slides", type=int, default=15)
+        parser.add_argument("--max-slides", type=int, default=15, help="Hard total-slide cap in briefing mode; includes cover, agenda, content, and references")
         args = parser.parse_args(sys.argv[2:])
-        mode = "presentation" if args.mode == "briefing" else args.mode
-        output, plan, warnings = build_slides_markdown(args.input, args.output, mode=mode, max_slides=args.max_slides, sources_path=args.sources)
+        output, plan, warnings = build_slides_markdown(args.input, args.output, mode=args.mode, max_slides=args.max_slides, sources_path=args.sources)
         print(f"Slides Markdown: {output}\nSlide plan: {plan}\nWarnings: {json.dumps(warnings, ensure_ascii=False)}")
+    elif command == "audit-pptx":
+        import argparse
+        parser = argparse.ArgumentParser(prog="python src/main.py audit-pptx", description="Write PPTX geometry audit. It reports visual rendering as BLOCKED until a renderer produces page PNGs.")
+        parser.add_argument("--input", required=True); parser.add_argument("--plan", required=True); parser.add_argument("--output-dir", required=True)
+        args = parser.parse_args(sys.argv[2:])
+        try:
+            json_path, md_path = write_pptx_layout_audit(args.input, args.plan, args.output_dir)
+        except RenderPptxError as exc:
+            parser.error(str(exc))
+        print(f"Visual audit JSON: {json_path}\nVisual audit Markdown: {md_path}")
     elif command == "proposal":
         if len(sys.argv) == 3 and sys.argv[2] in {"-h", "--help"}:
             print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug]')

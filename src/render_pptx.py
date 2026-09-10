@@ -148,6 +148,87 @@ def _chunk_items(items: list[tuple[str, list[str]]], *, max_items: int = 4, max_
     return chunks
 
 
+def _briefing_priority(text: str) -> int:
+    """Rank evidence already in the Markdown without adding a new claim."""
+    score = 0
+    if NUMERIC.search(text): score += 12
+    if "【待确认】" in text or "需结合" in text or "前提" in text: score += 10
+    for word in ("目标", "指标", "架构", "调度", "交易", "收益", "风险", "控制", "能力", "运营", "实施"):
+        if word in text: score += 3
+    return score
+
+
+def _split_briefing_bullet(text: str, *, limit: int = 62) -> list[str]:
+    """Wrap a long source sentence only at its existing Chinese separators."""
+    if len(text) <= limit:
+        return [text]
+    pieces = re.split(r"(?<=[，、；])", text)
+    result: list[str] = []
+    current = ""
+    for piece in pieces:
+        if current and len(current) + len(piece) > limit:
+            result.append(current.strip()); current = ""
+        current += piece
+    if current.strip(): result.append(current.strip())
+    return result
+
+
+def _briefing_bullets(items: list[tuple[str, list[str]]], *, limit: int = 6) -> list[tuple[str, list[str]]]:
+    """Select concise, source-faithful evidence for a briefing slide."""
+    ranked = sorted(enumerate(items), key=lambda pair: (-_briefing_priority(pair[1][0]), pair[0]))
+    selected: list[tuple[str, list[str]]] = []
+    for _, (text, ids) in ranked:
+        pieces = _split_briefing_bullet(text)
+        if selected and len(selected) + len(pieces) > limit:
+            continue
+        if len(pieces) > limit and not selected:
+            selected.extend((piece, ids) for piece in pieces[:limit])
+            break
+        selected.extend((piece, ids) for piece in pieces)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def _briefing_slides(title: str, sections: list[dict], figures: OrderedDict[str, dict], sources: OrderedDict[str, dict], max_slides: int) -> tuple[list[dict], list[dict]]:
+    """Build a bounded executive briefing; detail/presentation retain full continuation behavior."""
+    if max_slides < 3:
+        raise RenderPptxError("briefing requires at least 3 slides for cover, content, and references")
+    usable = [section for section in sections if section["items"] or section["figures"] or section["tables"]]
+    reserve = 3 if usable else 2  # cover, agenda, references
+    body_slots = max_slides - reserve
+    if len(usable) > body_slots:
+        # Deterministic adjacent grouping is an explicit merge, never a hidden overflow.
+        groups = [usable[index::body_slots] for index in range(body_slots)]
+    else:
+        groups = [[section] for section in usable]
+    slides = [{"slide_id": "slide-001", "layout": "title", "title": title, "bullets": [], "figure_ids": [], "source_ids": [], "visible_sources": []}]
+    if usable:
+        slides.append({"slide_id": "slide-002", "layout": "agenda", "title": "汇报要点", "bullets": [section["title"] for section in usable[:6]], "figure_ids": [], "source_ids": [], "visible_sources": []})
+    coverage: list[dict] = []
+    for group_index, group in enumerate(groups):
+        all_items = [item for section in group for item in section["items"]]
+        bullets_and_ids = _briefing_bullets(all_items)
+        figure_ids = [fid for section in group for fid in section["figures"]][:1]
+        text_title = group[0]["title"] if len(group) == 1 else "；".join(section["title"] for section in group)
+        visible_sources = list(dict.fromkeys(source for section in group for source in section["visible_sources"]))[:2]
+        source_ids = list(dict.fromkeys(sid for _, ids in bullets_and_ids for sid in ids))
+        source_ids.extend(sid for fid in figure_ids for sid in figures[fid]["source_ids"])
+        source_ids = list(dict.fromkeys(source_ids))
+        slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "content_image" if figure_ids else "content", "title": text_title, "bullets": [text for text, _ in bullets_and_ids], "figure_ids": figure_ids, "source_ids": source_ids, "visible_sources": visible_sources})
+        for section in group:
+            selected = _briefing_bullets(section["items"])
+            status = "merged" if len(group) > 1 else "covered"
+            if len(selected) < len(section["items"]):
+                status = "omitted_supporting_detail" if not selected else status
+            coverage.append({"source_heading": section["title"], "status": status, "slide_ids": [slides[-1]["slide_id"]], "reason": "briefing mode selected high-priority evidence; remaining explanatory detail omitted" if len(selected) < len(section["items"]) else "section represented in briefing"})
+    visible_all = list(dict.fromkeys(source for section in sections for source in section["visible_sources"]))
+    slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "sources", "title": "参考资料", "bullets": [], "figure_ids": [], "source_ids": list(sources), "visible_sources": visible_all})
+    if len(slides) > max_slides:
+        raise RenderPptxError(f"briefing slide cap exceeded: {len(slides)} > {max_slides}")
+    return slides, coverage
+
+
 def _table_rows(lines: list[str], start: int) -> tuple[list[list[str]], int]:
     rows: list[list[str]] = []
     i = start
@@ -162,7 +243,7 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
     """Create a serializable plan that can be stored and unit-tested independently of drawing."""
     markdown = Path(input_path).resolve()
     if not markdown.is_file() or markdown.suffix.lower() != ".md": raise RenderPptxError("--input must be an existing Markdown file")
-    if mode not in {"faithful", "presentation"}: raise RenderPptxError("mode must be faithful or presentation")
+    if mode not in {"briefing", "faithful", "presentation"}: raise RenderPptxError("mode must be briefing, faithful, or presentation")
     if max_slides < 1: raise RenderPptxError("--max-slides must be positive")
     text = markdown.read_text(encoding="utf-8")
     warnings: list[str] = []
@@ -224,32 +305,35 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
         owner["figures"].append(next(fid for fid, candidate in figures.items() if candidate is figure))
         owner["source_ids"].extend(figure["source_ids"])
         owner["visible_sources"].extend(figure["visible_sources"])
-    slides: list[dict] = [{"slide_id": "slide-001", "layout": "title", "title": title, "bullets": [], "figure_ids": [], "source_ids": []}]
-    if sections:
-        slides.append({"slide_id": "slide-002", "layout": "agenda", "title": "目录", "bullets": [s["title"] for s in sections], "figure_ids": [], "source_ids": []})
-    for section in sections:
-        slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "section", "title": section["title"], "bullets": [], "figure_ids": [], "source_ids": []})
-        items = section["items"][:]
-        for table in section["tables"]:
-            slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "table", "title": section["title"], "bullets": [], "figure_ids": [], "source_ids": list(dict.fromkeys(section["source_ids"])), "visible_sources": list(dict.fromkeys(section["visible_sources"])), "table": table})
-        # A figure is paired with the next text chunk when possible; remaining chunks are continued slides.
-        chunks = _chunk_items(items)
-        for number, chunk in enumerate(chunks):
-            figure_ids = [section["figures"].pop(0)] if section["figures"] else []
-            ids = list(dict.fromkeys([sid for _, item_ids in chunk for sid in item_ids] + section["source_ids"] + sum((figures[f]["source_ids"] for f in figure_ids), [])))
-            label = section["title"] + ("（续）" if number else "")
-            slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "content_image" if figure_ids else "content", "title": label, "bullets": [value for value, _ in chunk], "figure_ids": figure_ids, "source_ids": ids, "visible_sources": list(dict.fromkeys(section["visible_sources"]))})
-        while section["figures"]:
-            fid = section["figures"].pop(0)
-            slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "content_image", "title": section["title"] + "（续）", "bullets": [], "figure_ids": [fid], "source_ids": figures[fid]["source_ids"], "visible_sources": figures[fid]["visible_sources"]})
-    legacy_visible_sources = list(dict.fromkeys(source for section in sections for source in section["visible_sources"]))
-    slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "sources", "title": "参考资料", "bullets": [], "figure_ids": [], "source_ids": list(sources), "visible_sources": legacy_visible_sources})
-    if mode == "presentation" and len(slides) > max_slides: warnings.append(f"suggested maximum is {max_slides}, but {len(slides)} slides are required to avoid deleting content")
+    coverage: list[dict] = []
+    if mode == "briefing":
+        slides, coverage = _briefing_slides(title, sections, figures, sources, max_slides)
+    else:
+        slides: list[dict] = [{"slide_id": "slide-001", "layout": "title", "title": title, "bullets": [], "figure_ids": [], "source_ids": []}]
+        if sections:
+            slides.append({"slide_id": "slide-002", "layout": "agenda", "title": "目录", "bullets": [s["title"] for s in sections], "figure_ids": [], "source_ids": []})
+        for section in sections:
+            slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "section", "title": section["title"], "bullets": [], "figure_ids": [], "source_ids": []})
+            items = section["items"][:]
+            for table in section["tables"]:
+                slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "table", "title": section["title"], "bullets": [], "figure_ids": [], "source_ids": list(dict.fromkeys(section["source_ids"])), "visible_sources": list(dict.fromkeys(section["visible_sources"])), "table": table})
+            chunks = _chunk_items(items)
+            for number, chunk in enumerate(chunks):
+                figure_ids = [section["figures"].pop(0)] if section["figures"] else []
+                ids = list(dict.fromkeys([sid for _, item_ids in chunk for sid in item_ids] + section["source_ids"] + sum((figures[f]["source_ids"] for f in figure_ids), [])))
+                label = section["title"] + ("（续）" if number else "")
+                slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "content_image" if figure_ids else "content", "title": label, "bullets": [value for value, _ in chunk], "figure_ids": figure_ids, "source_ids": ids, "visible_sources": list(dict.fromkeys(section["visible_sources"]))})
+            while section["figures"]:
+                fid = section["figures"].pop(0)
+                slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "content_image", "title": section["title"] + "（续）", "bullets": [], "figure_ids": [fid], "source_ids": figures[fid]["source_ids"], "visible_sources": figures[fid]["visible_sources"]})
+        legacy_visible_sources = list(dict.fromkeys(source for section in sections for source in section["visible_sources"]))
+        slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "sources", "title": "参考资料", "bullets": [], "figure_ids": [], "source_ids": list(sources), "visible_sources": legacy_visible_sources})
+        if mode == "presentation" and len(slides) > max_slides: warnings.append(f"suggested maximum is {max_slides}, but {len(slides)} slides are required to avoid deleting content")
     for slide in slides:
         slide["source_ids"] = list(dict.fromkeys(slide["source_ids"]))
         slide["visible_sources"] = list(dict.fromkeys(slide.get("visible_sources", [])))
     handoff = "PASS" if sources else ("LEGACY_INPUT_WARNING" if not source_file.is_file() else "FAIL")
-    return {"title": title, "input_file": markdown.name, "mode": mode, "max_slides": max_slides, "source_handoff": handoff, "sources": sources, "figures": figures, "slides": slides}, warnings
+    return {"title": title, "input_file": markdown.name, "mode": mode, "requested_max_slides": max_slides, "max_slides": max_slides, "actual_slide_count": len(slides), "cap_enforced": mode == "briefing", "source_handoff": handoff, "source_coverage": coverage, "sources": sources, "figures": figures, "slides": slides}, warnings
 
 
 def build_slides_markdown(input_path: str | Path, output_path: str | Path, *, mode: str = "presentation", max_slides: int = 15, sources_path: str | Path | None = None) -> tuple[Path, Path, list[str]]:
@@ -326,7 +410,10 @@ def _draw(plan: dict, markdown: Path, output: Path) -> None:
                 pages = "、".join(info["pages"])
                 source_lines.append(f"[{sid}] {info['filename']} {('第' + pages + '页') if pages else ''}")
             if not source_lines:
-                source_lines = spec.get("visible_sources", [])
+                # Historical inputs have no source IDs.  Show each real file
+                # once rather than overflowing the reference slide with every
+                # repeated page citation.
+                source_lines = list(dict.fromkeys(value.split("，第 ", 1)[0] for value in spec.get("visible_sources", [])))
             for index, value in enumerate(source_lines):
                 _textbox(slide, .9, 1.25 + index*.42, 11.5, .35, value, 16)
         else:
@@ -351,10 +438,25 @@ def _validate(output: Path, plan: dict, markdown: Path) -> dict:
             if "[Content_Types].xml" not in names or "ppt/presentation.xml" not in names: errors.append("PPTX required ZIP parts are missing")
             relation_count = sum(1 for name in names if name.startswith("ppt/slides/_rels/") for _ in [name])
         prs = Presentation(output)
+        if plan.get("mode") == "briefing" and len(plan["slides"]) > plan.get("requested_max_slides", plan.get("max_slides", 0)):
+            errors.append("briefing slide cap exceeded")
+        ids = [spec.get("slide_id") for spec in plan["slides"]]
+        if len(ids) != len(set(ids)) or any(not value for value in ids): errors.append("slide IDs must be unique and non-empty")
         if len(prs.slides) != len(plan["slides"]): errors.append("slide count differs from slide plan")
         for expected, slide in zip(plan["slides"], prs.slides):
             text = "\n".join(shape.text for shape in slide.shapes if hasattr(shape, "text"))
             if expected["title"] not in text: errors.append(f"missing title: {expected['slide_id']}")
+            if not expected.get("title"): errors.append(f"empty title: {expected['slide_id']}")
+            if plan.get("mode") == "briefing" and expected["layout"] in {"content", "content_image"} and not expected.get("bullets"):
+                errors.append(f"empty content slide: {expected['slide_id']}")
+            if plan.get("mode") == "briefing" and expected["layout"] in {"content", "content_image"}:
+                if not 3 <= len(expected["bullets"]) <= 6: errors.append(f"briefing bullet density invalid: {expected['slide_id']}")
+                if any(len(value) > 65 for value in expected["bullets"]): errors.append(f"briefing bullet too long: {expected['slide_id']}")
+            for shape in slide.shapes:
+                if shape.left < 0 or shape.top < 0 or shape.width <= 0 or shape.height <= 0:
+                    errors.append(f"invalid shape geometry: {expected['slide_id']}"); break
+                if shape.left + shape.width > prs.slide_width or shape.top + shape.height > prs.slide_height:
+                    errors.append(f"shape exceeds slide bounds: {expected['slide_id']}"); break
             expected_footer = _source_text(expected["source_ids"], plan["sources"]) if expected["source_ids"] else ""
             if not expected_footer and expected.get("visible_sources"):
                 expected_footer = "来源：" + "；".join(expected["visible_sources"])
@@ -381,6 +483,28 @@ def _read_slide_plan(plan_path: str | Path) -> dict:
     return plan
 
 
+def write_pptx_layout_audit(pptx_path: str | Path, plan_path: str | Path, output_dir: str | Path, *, visual_backend: str | None = None) -> tuple[Path, Path]:
+    """Write a reusable geometry audit; it never claims a visual review without rendered pages."""
+    pptx, plan = Path(pptx_path).resolve(), _read_slide_plan(plan_path)
+    out = Path(output_dir).resolve(); rendered = out / "rendered"; rendered.mkdir(parents=True, exist_ok=True)
+    prs = Presentation(pptx)
+    pages = []
+    for spec, slide in zip(plan["slides"], prs.slides):
+        shapes = []
+        for shape in slide.shapes:
+            shapes.append({"left": shape.left, "top": shape.top, "width": shape.width, "height": shape.height, "has_text": bool(getattr(shape, "text", ""))})
+        pages.append({"slide_id": spec["slide_id"], "title": spec["title"], "shape_count": len(shapes), "shape_bounds_ok": all(item["left"] >= 0 and item["top"] >= 0 and item["width"] > 0 and item["height"] > 0 and item["left"] + item["width"] <= prs.slide_width and item["top"] + item["height"] <= prs.slide_height for item in shapes)})
+    rendered_pages = list(rendered.glob("*.png"))
+    visual_render = "PASS" if rendered_pages and visual_backend else "BLOCKED"
+    audit = {"pptx": pptx.name, "slide_count": len(prs.slides), "plan_slide_count": len(plan["slides"]), "aspect_ratio": round(prs.slide_width / prs.slide_height, 4), "source_handoff": plan.get("source_handoff"), "visual_backend": visual_backend, "visual_render": visual_render, "visual_review": "NOT_RUN" if visual_render != "PASS" else "PENDING", "rendered_page_count": len(rendered_pages), "pages": pages, "errors": ["visual renderer unavailable; no page PNGs or contact sheet produced"] if visual_render == "BLOCKED" else []}
+    json_path = out / "visual_audit.json"; json_path.write_text(json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8")
+    lines = ["# PPTX 版面审计", "", f"- PPTX：{pptx.name}", f"- 页数：{len(prs.slides)}", f"- 画幅：{audit['aspect_ratio']}（16:9 约为 1.7778）", f"- PPT_VISUAL_RENDER：{visual_render}", f"- PPT_VISUAL_REVIEW：{audit['visual_review']}", f"- 后端：{visual_backend or '未检测到 PowerPoint COM 或 LibreOffice'}", "", "## 页面", ""]
+    lines.extend(f"- {page['slide_id']}：{'PASS' if page['shape_bounds_ok'] else 'FAIL'}，{page['shape_count']} 个 shape，{page['title']}" for page in pages)
+    if audit["errors"]: lines.extend(["", "## Warning", "", *[f"- {error}" for error in audit["errors"]]])
+    md_path = out / "visual_audit.md"; md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return json_path, md_path
+
+
 def render_pptx(input_path: str | Path, output_path: str | Path, *, mode="presentation", max_slides=15, sources_path: str | Path | None = None, plan_path: str | Path | None = None) -> Path:
     markdown, output = Path(input_path).resolve(), Path(output_path).resolve()
     if plan_path:
@@ -392,7 +516,7 @@ def render_pptx(input_path: str | Path, output_path: str | Path, *, mode="presen
         output.parent.mkdir(parents=True, exist_ok=True); Path(plan_path).write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
     with tempfile.TemporaryDirectory(dir=output.parent, prefix="render-pptx-") as tempdir:
         staged = Path(tempdir) / output.name; _draw(plan, markdown, staged); validation = _validate(staged, plan, markdown)
-        report = {"status": "PASS" if not validation["errors"] else "FAIL", "backend": "local_python_pptx", "mode": plan.get("mode", mode), "slide_plan": Path(plan_path).name, "source_handoff": plan.get("source_handoff", "PASS"), "slide_count": len(plan["slides"]), "source_count": len(plan["sources"]), "image_reference_count": sum(len(s["figure_ids"]) for s in plan["slides"]), "embedded_image_count": validation["embedded_image_count"], "table_count": sum(1 for s in plan["slides"] if s["layout"] == "table"), "overflow_slide_count": sum(1 for s in plan["slides"] if "（续）" in s["title"]), "checked_numeric_tokens": NUMERIC.findall(markdown.read_text(encoding="utf-8")), "warnings": warnings, "errors": validation["errors"]}
+        report = {"status": "PASS" if not validation["errors"] else "FAIL", "backend": "local_python_pptx", "mode": plan.get("mode", mode), "slide_plan": Path(plan_path).name, "source_handoff": plan.get("source_handoff", "PASS"), "requested_max_slides": plan.get("requested_max_slides", max_slides), "actual_slide_count": len(plan["slides"]), "cap_enforced": plan.get("cap_enforced", False), "slide_count": len(plan["slides"]), "source_coverage": plan.get("source_coverage", []), "source_count": len(plan["sources"]), "image_reference_count": sum(len(s["figure_ids"]) for s in plan["slides"]), "embedded_image_count": validation["embedded_image_count"], "table_count": sum(1 for s in plan["slides"] if s["layout"] == "table"), "overflow_slide_count": sum(1 for s in plan["slides"] if "（续）" in s["title"]), "checked_numeric_tokens": NUMERIC.findall(markdown.read_text(encoding="utf-8")), "warnings": warnings, "errors": validation["errors"]}
         if report["errors"]: raise RenderPptxError("; ".join(report["errors"]))
         os.replace(staged, output)
     report_path = output.with_suffix(".pptx.render_report.json")
