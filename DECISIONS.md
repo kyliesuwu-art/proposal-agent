@@ -118,6 +118,19 @@
 - 决策：当前 Markdown 审阅稿继续保留行内来源，便于核对事实。计划中的 H5 将提供逐章审阅、批注、直接编辑和待确认参数填写；计划中的企业微信将作为需求、通知和确认入口。未来正式 Word 正文不显示来源标号或长来源标记，仅在文末列出“来源与依据”。
 - 影响：本决策不实现 H5、企业微信、Word 或其版本/会话管理；它们仍是独立后续工作。
 
+### D-014 proposal 的远程调用、review 容错与运行可观察性
+
+- 状态：有效
+- 日期：2026-09-11
+- 背景：医院园区高可靠供电与智慧配电方案的首次真实运行在 review 返回结构校验处失败；此前 `proposal.run.log` 只在结束时写入，无法区分远程调用、review、修订或发布失败。
+- 决策：DashScope OpenAI-compatible 调用采用 15 秒连接超时、300 秒读取超时及调用方有限重试；OpenAI SDK 内建重试关闭，避免嵌套、不可观察的无限等待。proposal 启动即建立 `proposal.run.log`，并追加脱敏事件：初始化、规划/检索/写作/review/修订阶段完成、模型调用开始/完成/失败与耗时。日志只记录 provider、endpoint、model、超时、stage、purpose、异常类型和安全 operation，不记录完整 prompt、API Key、Authorization 或环境变量值。
+- review 容错：仅显式 `advisory`、`info`、`warning` 的孤立格式损坏项可跳过，并记录 `review_advisory_item_skipped`、received/valid/skipped 计数及 warning；未分类、blocking 或 critical 的损坏项必须失败。无法解析 JSON 或缺少 issues 顶层列表时仅允许一次格式修复调用；修复仍失败即以 `review` stage 显式失败。
+- 发布诊断：Markdown/assets/sources 的暂存、校验与原子发布失败包装为 `ProposalWriteError`，以 `write_operation` 和底层异常类型写入 run log，不暴露内容。
+- 已完成：`0e96f7f fix: harden proposal review and add run observability`、`f21eecf fix: trace proposal publication failures`；完整测试为 139 passed、6 warnings，`compileall` 与 `git diff --check` 通过。
+- 推送状态：两个提交尚未推送，`git push origin main` 因 GitHub `443` 连接失败；不得 force push 或重写历史。
+- 当前真实运行：DashScope 与 `qwen3.7-plus` 可用。`outputs/hospital_power_verify_20260910_attempt2/` 的首次运行完成规划、五节写作、review 和修订后，在 `markdown_write` 失败；`outputs/hospital_power_verify_20260910_attempt2_retry/` 的唯一受控重试完成 review 与修订后，在 `quality_gate` 因 `ProposalQualityError` 失败。两目录仅保留 `proposal.run.log`，没有 `proposal.md`、`proposal.sources.json`、`proposal.request.json` 或 assets；不得用旧工业园区产物替代，也不得伪造 sidecar。
+- 影响：本轮医院 proposal 未交付，因而 `SOURCE_HANDOFF`、PPT story plan、多版式 renderer、PPTX/WPS 渲染均未启动。不得再盲目发起第三次 proposal；下一步应先对 `quality_gate` 失败增加同样脱敏但可定位的 gate rule/code 记录、以离线 fixture 复现并修复，再经全量测试后获得明确授权进行一次新的真实 proposal。
+
 ## 已废弃或已替代的决策
 
 - 固定 DOCX 模板、三个占位符和手写 OOXML 整篇填充已移除：它们把内容生成绑定到固定版式，无法可靠验证内容与来源。
@@ -152,6 +165,7 @@
 | 2026-09 | 定向升级准备 | P3 以 ZIP SHA-256 与稳定 document ID 生成 legacy/failed/duplicate 互斥计划；`reindex-affected --dry-run` 禁止源目标同路径和已存在目标，且保证零数据库/网络/embedding 调用。实际候选库创建与 `--resume` 需独立授权 | 86/5/9 真实计划与 dry-run、离线测试 | 未提交 |
 | 2026-09 | PPT 下游交付 | `build-slides` 将已交付 Markdown 重组为含稳定 slide ID/layout 的演示稿和 slide plan；本地 PPTX 按图注主题重新分配图片，单页默认一图，并在容量不足时生成续页而不截断。历史 Markdown 缺少 sidecar 时仅从可见来源降级，不伪造侧车。成功 proposal 另存不含密钥的 `proposal.request.json` 以便复现 | PPT 专项、真实 Markdown→slides→PPTX 本地验收 | 未提交 |
 | 2026-09 | PPT briefing 上限 | `briefing --max-slides` 是封面、目录、正文与参考资料均计入的硬上限；规划器以可追踪 coverage 省略辅助说明，不能生成 continuation 绕过上限。`presentation`/`faithful` 保留全文 continuation 行为。PPTX 另做几何审计；没有 PowerPoint/LibreOffice 页面渲染时明确标记视觉验收 BLOCKED | briefing 硬上限、coverage、几何审计与真实历史输入验收 | 已提交 |
+| 2026-09-11 | proposal 可靠性 | DashScope 使用显式连接/读取超时与有限重试；review 仅跳过显式 advisory 的孤立坏项，JSON 顶层失败允许一次修复；run log 从启动开始记录脱敏阶段与模型调用事件；发布失败增加安全 operation 追踪 | 139 passed，6 warnings；compileall；diff check | `0e96f7f`、`f21eecf`（待推送） |
 
 | 2026-09 | 外部服务配置 | 新增 `scripts/ark_quickstart.py`（纯标准库，不依赖 curl/jq）用于验证火山方舟 Managed Agents 连通性；`.env` 与 `.env.example` 增加 `ARK_API_KEY` 与可选 `ARK_BASE_URL`。该脚本只做外部连通性验证，不参与方案生成链路，生成侧仍使用 DashScope | 编译检查与缺 Key 报错路径离线验证 | 未提交 |
 
