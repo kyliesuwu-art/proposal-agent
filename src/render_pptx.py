@@ -13,6 +13,7 @@ from pptx import Presentation
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.util import Inches, Pt
 from src.markdown_images import image_blocks, image_syntax_errors, safe_asset_path
+from src.delivery_text import formal_text, forbidden_delivery_tokens
 
 
 class RenderPptxError(RuntimeError):
@@ -495,13 +496,13 @@ def _draw(plan: dict, markdown: Path, output: Path) -> None:
                          11.3 / columns, .36, value, 12)
         else:
             has_image = bool(spec["figure_ids"]); text_width = 6.5 if has_image else 11.5
-            body = "\n".join("• " + bullet for bullet in spec["bullets"])
+            body = "\n".join("• " + formal_text(bullet) for bullet in spec["bullets"])
             _textbox(slide, .85, 1.3, text_width, 4.9, body, 20)
             if has_image:
                 fid = spec["figure_ids"][0]; fig = plan["figures"][fid]; _add_image(slide, markdown.parent / fig["asset_path"], 7.6, 1.25, 4.9, 4.65)
                 if fig["caption"]: _textbox(slide, 7.6, 5.98, 4.9, .35, fig["caption"], 12, color=(90,105,120), align=PP_ALIGN.CENTER)
         footer = _source_text(spec["source_ids"], plan["sources"]) if spec["source_ids"] and plan.get("mode") != "briefing" else ""
-        if not footer and spec.get("visible_sources"):
+        if not footer and spec.get("visible_sources") and not plan.get("formal_delivery"):
             footer = "来源：" + "；".join(spec["visible_sources"])
         if footer: _textbox(slide, .7, 6.82, 11.95, .35, footer, 10, color=(90,105,120))
     output.parent.mkdir(parents=True, exist_ok=True); prs.save(output)
@@ -538,18 +539,21 @@ def _validate(output: Path, plan: dict, markdown: Path) -> dict:
             if _overlap_pairs(list(slide.shapes)):
                 errors.append(f"shape overlap: {expected['slide_id']}")
             expected_footer = _source_text(expected["source_ids"], plan["sources"]) if expected["source_ids"] and plan.get("mode") != "briefing" else ""
-            if not expected_footer and expected.get("visible_sources"):
+            if not expected_footer and expected.get("visible_sources") and not plan.get("formal_delivery"):
                 expected_footer = "来源：" + "；".join(expected["visible_sources"])
             if expected["layout"] not in {"title", "section", "sources"} and expected_footer and expected_footer not in text: errors.append(f"source footer mismatch: {expected['slide_id']}")
         planned_images = sum(len(s["figure_ids"]) for s in plan["slides"])
         if len(media) < len({f for s in plan["slides"] for f in s["figure_ids"]}): errors.append("not all planned images were embedded")
         content = "\n".join(shape.text for slide in prs.slides for shape in slide.shapes if hasattr(shape, "text"))
+        if plan.get("formal_delivery"):
+            forbidden = forbidden_delivery_tokens(content)
+            if forbidden: errors.append("formal delivery tokens remain: " + ", ".join(forbidden))
         if plan.get("mode") != "briefing":
             missing_numbers = [token for token in dict.fromkeys(NUMERIC.findall(markdown.read_text(encoding="utf-8"))) if token not in content]
             if missing_numbers: errors.append("numeric tokens missing from PPTX: " + ", ".join(missing_numbers))
         if re.search(r"[A-Za-z]:[\\/]", content): errors.append("absolute local path leaked into PPTX")
         source_slide = any(spec["layout"] == "sources" for spec in plan["slides"])
-        if not source_slide: errors.append("reference slide is missing")
+        if not source_slide and not plan.get("formal_delivery"): errors.append("reference slide is missing")
     except Exception as exc: errors.append(f"validation exception: {type(exc).__name__}: {exc}")
     return {"embedded_image_count": len(media) if 'media' in locals() else 0, "errors": errors}
 
