@@ -147,9 +147,9 @@
 
 - 状态：有效
 - 日期：2026-09-11
-- 决策：PPT 始终从已交付 proposal 和来源侧车构建；`briefing --max-slides` 为封面、目录、正文、图示和参考资料共用的硬上限。briefing 可省略支持性文字并记录 coverage，不得新增事实或参数；剩余页数优先为已选图片建立主题页，并记录无法使用的原因。正文页脚展示至多两项来源并标出总数，完整可追溯来源由侧车和参考资料页消费。
+- 决策：PPT 始终从已交付 proposal 和来源侧车构建；`briefing --max-slides` 为封面、目录、正文、图示和参考资料共用的硬上限。proposal 选图与 PPT 适用性是两个层级：每张图必须有 used/rejected 及理由，不能为了填页强制使用。briefing 可省略支持性文字并记录 coverage，不得新增事实或参数；正文页不显示来源链，完整来源保留在侧车、slide plan 和参考资料页。
 - 影响：presentation/faithful 保留所有数字和续页；briefing 不以未选择的支持性数字阻止发布。参考资料按文件名合并页码并自动分栏，防止来源行坐标越过页面；不得删除来源、隐藏对象、关闭几何检查或缩小正文到不可读字号。
-- 验收：attempt4 delivery 的 presentation 旧计划为 41 页，`slide-041` 的 39 条逐行来源使末行纵向越界。briefing 生成 13 页，解析/嵌入 5 张图，几何边界通过；本机无 PowerPoint/LibreOffice/Poppler 渲染器，视觉 PNG 验收仍为 BLOCKED。
+- 验收：attempt4 delivery 的 presentation 旧计划为 41 页，`slide-041` 的 39 条逐行来源使末行纵向越界。旧 briefing 的真实 WPS 截图已确认视觉审阅 FAIL，尽管结构和几何检查通过。结构检查只能证明文件、边界和矩形不相交，不能证明字形不溢出、图片语义正确或页面适合汇报。v2 以侧车/Markdown 原始 H2 固定图片归属，拒绝装饰残片和低信息量图片；没有全部页面真实 PNG/PDF 时，v2 视觉审阅仍为 NOT_RUN/BLOCKED。
 
 ## 已废弃或已替代的决策
 

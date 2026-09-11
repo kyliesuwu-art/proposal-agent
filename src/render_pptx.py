@@ -228,6 +228,9 @@ def _briefing_slides(title: str, sections: list[dict], figures: OrderedDict[str,
     # figure page instead of silently losing the image in the slide plan.
     assigned = {fid for slide in slides for fid in slide["figure_ids"]}
     for fid, figure in figures.items():
+        if figure.get("decision") != "used":
+            coverage.append({"source_heading": figure["original_section"], "status": "image_rejected", "slide_ids": [], "reason": figure.get("decision_reason", "not suitable for briefing")})
+            continue
         if fid in assigned:
             continue
         if len(slides) >= max_slides - 1:
@@ -262,7 +265,7 @@ def _table_rows(lines: list[str], start: int) -> tuple[list[list[str]], int]:
     return rows, i
 
 
-def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_slides: int = 15, sources_path: str | Path | None = None) -> tuple[dict, list[str]]:
+def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_slides: int = 15, sources_path: str | Path | None = None, image_decisions_path: str | Path | None = None) -> tuple[dict, list[str]]:
     """Create a serializable plan that can be stored and unit-tested independently of drawing."""
     markdown = Path(input_path).resolve()
     if not markdown.is_file() or markdown.suffix.lower() != ".md": raise RenderPptxError("--input must be an existing Markdown file")
@@ -276,6 +279,17 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
         raise RenderPptxError("invalid proposal image syntax: " + "；".join(image_errors))
     warnings.extend(image_errors)
     sources = _load_sources(source_file if source_file.is_file() else None, markdown, text, warnings)
+    sidecar_images = {}
+    if source_file.is_file():
+        try:
+            raw_sidecar = json.loads(source_file.read_text(encoding="utf-8"))
+            sidecar_images = {item.get("asset_path"): item for item in raw_sidecar.get("images", []) if isinstance(item, dict)}
+        except (OSError, json.JSONDecodeError, TypeError):
+            pass
+    decisions = {}
+    if image_decisions_path:
+        decision_file = Path(image_decisions_path).resolve()
+        decisions = json.loads(decision_file.read_text(encoding="utf-8")).get("images", {})
     title = next((match.group(2) for line in text.splitlines() if (match := HEADING.match(line)) and len(match.group(1)) == 1), markdown.stem)
     figures: OrderedDict[str, dict] = OrderedDict()
     sections: list[dict] = []
@@ -313,6 +327,7 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
                     "asset_path": str(asset.relative_to(markdown.parent)).replace("\\", "/"),
                     "caption": block.caption, "source_ids": source_ids,
                     "visible_sources": _visible_sources_for(context), "context": context,
+                    "original_section": current["title"],
                 }
             i += 1; continue
         if current and line.strip():
@@ -323,13 +338,23 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
             for part in parts:
                 if part: current["items"].append((part, ids)); current["source_ids"].extend(ids)
         i += 1
-    # Images may have appeared together in the long-form Markdown.  Presentation
-    # placement follows the figure's topic and deliberately uses a fresh H2 map.
-    for figure in figures.values():
-        owner, reason = _section_for_figure(_figure_topic(figure["caption"], figure["context"]), sections)
-        figure["target_section"] = owner["title"]
-        figure["placement_reason"] = reason
-        owner["figures"].append(next(fid for fid, candidate in figures.items() if candidate is figure))
+    # Explicit sidecar provenance always wins over a heuristic topic match.
+    for fid, figure in figures.items():
+        sidecar = sidecar_images.get(figure["asset_path"], {})
+        original = next((section for section in sections if section["title"] == figure["original_section"]), None)
+        section_id = sidecar.get("section_id")
+        owner = original
+        if section_id:
+            # proposal headings are ordered; the sidecar is authoritative but
+            # its ID only maps through the known Markdown section in this layer.
+            owner = original
+        figure["target_section"] = owner["title"] if owner else figure["original_section"]
+        figure["placement_reason"] = "sidecar section_id" if section_id else "Markdown H2 occurrence"
+        decision = decisions.get(figure["asset_path"], {})
+        figure["decision"] = decision.get("status", "used")
+        figure["decision_reason"] = decision.get("reason", "proposal image is suitable for PPT")
+        if figure["decision"] == "used" and owner:
+            owner["figures"].append(fid)
         owner["source_ids"].extend(figure["source_ids"])
         owner["visible_sources"].extend(figure["visible_sources"])
     coverage: list[dict] = []
@@ -363,9 +388,9 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
     return {"title": title, "input_file": markdown.name, "mode": mode, "requested_max_slides": max_slides, "max_slides": max_slides, "actual_slide_count": len(slides), "cap_enforced": mode == "briefing", "source_handoff": handoff, "source_coverage": coverage, "sources": sources, "figures": figures, "slides": slides}, warnings
 
 
-def build_slides_markdown(input_path: str | Path, output_path: str | Path, *, mode: str = "presentation", max_slides: int = 15, sources_path: str | Path | None = None) -> tuple[Path, Path, list[str]]:
+def build_slides_markdown(input_path: str | Path, output_path: str | Path, *, mode: str = "presentation", max_slides: int = 15, sources_path: str | Path | None = None, image_decisions_path: str | Path | None = None) -> tuple[Path, Path, list[str]]:
     """Create a presentation-oriented intermediate Markdown and the matching plan."""
-    plan, warnings = build_slide_plan(input_path, mode=mode, max_slides=max_slides, sources_path=sources_path)
+    plan, warnings = build_slide_plan(input_path, mode=mode, max_slides=max_slides, sources_path=sources_path, image_decisions_path=image_decisions_path)
     output = Path(output_path).resolve(); output.parent.mkdir(parents=True, exist_ok=True)
     lines = [f"# {plan['title']}｜演示文稿", ""]
     for slide in plan["slides"]:
@@ -377,7 +402,7 @@ def build_slides_markdown(input_path: str | Path, output_path: str | Path, *, mo
         if slide.get("visible_sources"): lines.append("- Visible sources: " + "；".join(slide["visible_sources"]))
         lines.append("")
     output.write_text("\n".join(lines), encoding="utf-8")
-    plan_path = output.with_name("proposal.slide-plan.json")
+    plan_path = output.with_name(output.stem.removesuffix(".slides") + ".slide-plan.json")
     plan_path.write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
     return output, plan_path, warnings
 
@@ -470,11 +495,12 @@ def _draw(plan: dict, markdown: Path, output: Path) -> None:
                          11.3 / columns, .36, value, 12)
         else:
             has_image = bool(spec["figure_ids"]); text_width = 6.5 if has_image else 11.5
-            for index, bullet in enumerate(spec["bullets"]): _textbox(slide, .85, 1.3 + index*.72, text_width, .6, "• " + bullet, 20)
+            body = "\n".join("• " + bullet for bullet in spec["bullets"])
+            _textbox(slide, .85, 1.3, text_width, 4.9, body, 20)
             if has_image:
                 fid = spec["figure_ids"][0]; fig = plan["figures"][fid]; _add_image(slide, markdown.parent / fig["asset_path"], 7.6, 1.25, 4.9, 4.65)
                 if fig["caption"]: _textbox(slide, 7.6, 5.98, 4.9, .35, fig["caption"], 12, color=(90,105,120), align=PP_ALIGN.CENTER)
-        footer = _source_text(spec["source_ids"], plan["sources"], limit=2 if plan.get("mode") == "briefing" else None) if spec["source_ids"] else ""
+        footer = _source_text(spec["source_ids"], plan["sources"]) if spec["source_ids"] and plan.get("mode") != "briefing" else ""
         if not footer and spec.get("visible_sources"):
             footer = "来源：" + "；".join(spec["visible_sources"])
         if footer: _textbox(slide, .7, 6.82, 11.95, .35, footer, 10, color=(90,105,120))
@@ -511,7 +537,7 @@ def _validate(output: Path, plan: dict, markdown: Path) -> dict:
                     errors.append(f"shape exceeds slide bounds: {expected['slide_id']}"); break
             if _overlap_pairs(list(slide.shapes)):
                 errors.append(f"shape overlap: {expected['slide_id']}")
-            expected_footer = _source_text(expected["source_ids"], plan["sources"], limit=2 if plan.get("mode") == "briefing" else None) if expected["source_ids"] else ""
+            expected_footer = _source_text(expected["source_ids"], plan["sources"]) if expected["source_ids"] and plan.get("mode") != "briefing" else ""
             if not expected_footer and expected.get("visible_sources"):
                 expected_footer = "来源：" + "；".join(expected["visible_sources"])
             if expected["layout"] not in {"title", "section", "sources"} and expected_footer and expected_footer not in text: errors.append(f"source footer mismatch: {expected['slide_id']}")

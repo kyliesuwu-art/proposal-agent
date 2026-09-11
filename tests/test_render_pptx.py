@@ -91,7 +91,7 @@ def test_invalid_explicit_sources_json_warns(tmp_path):
     assert any("invalid sources JSON" in warning for warning in warnings)
 
 
-def test_figures_are_reassigned_by_slide_topic_and_legacy_source(tmp_path):
+def test_figures_keep_markdown_h2_when_no_sidecar_exists(tmp_path):
     assets = tmp_path / "assets"; assets.mkdir()
     for name in ("vpp.png", "arch.png", "price.png"):
         Image.new("RGB", (200, 100), "blue").save(assets / name)
@@ -119,12 +119,12 @@ def test_figures_are_reassigned_by_slide_topic_and_legacy_source(tmp_path):
     plan, _ = build_slide_plan(markdown)
     figures = plan["figures"]
     assert figures["F1"]["target_section"] == "系统总体架构"
-    assert figures["F2"]["target_section"] == "虚拟电厂调控与运营"
-    assert figures["F3"]["target_section"] == "项目实施与综合效益"
+    assert figures["F2"]["target_section"] == "系统总体架构"
+    assert figures["F3"]["target_section"] == "系统总体架构"
     assert all(figure["visible_sources"] for figure in figures.values())
     figure_slides = [slide for slide in plan["slides"] if slide["figure_ids"]]
     assert len(figure_slides) == 3
-    assert len({slide["title"].replace("（续）", "") for slide in figure_slides}) == 3
+    assert all(figure["original_section"] == "系统总体架构" for figure in figures.values())
 
 
 def test_build_slides_writes_presentation_markdown_and_matching_plan(tmp_path):
