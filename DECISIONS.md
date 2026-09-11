@@ -201,4 +201,33 @@
 
 | 2026-09-11 | 正式交付 v4 | Word 结构化清洗并消费拒绝图片；PPT 以 19 页派生叙事计划交付，采用封面、目录、结论、图文、流程、时间轴和价值版式。正式目录仅保留 DOCX/PPTX，来源与审计转入 internal；视觉渲染仍待外部逐页复核 | 全量离线测试、compileall、diff check、OOXML/可见文本/几何审计 | 本次提交 |
 
+## 当前交付状态：attempt4_delivery v4
+
+- 范围：仅修复已交付 `attempt4_delivery/proposal.md` 的下游 Word/PPT 成品；未启动 attempt5，未重新生成或修改 proposal，未调用 DashScope、embedding、MinerU 或其他外部服务，也未访问或修改数据库。
+- 内容事实源：`proposal.md`、`proposal.sources.json`、`proposal.request.json` 与 `assets/` 均保持原状；Word/PPT 只读消费其派生文本、图片决策和 slide plan。
+- 已完成：统一独立图片块契约；修复 Word 被拒绝图片落入普通段落的 fall-through；正式文本按 Markdown 结构清理来源、图片来源、草稿提示、状态标签和重复标题；未知项目参数集中为“深化设计输入条件”，未伪造容量、电价、投资或收益。
+- 图片决策：5 个 proposal 图片均有记录。F1、F2、F4 用于 PPT；F3 为低信息装饰箭头，Word/PPT 均拒绝；F5 为低信息图，PPT 拒绝、Word 保留。v4 Word 嵌入 4 图，PPT 嵌入 3 图。
+- PPT 成品：`final_delivery_v4` 的 briefing 为 19 页，符合 15～25 页范围；计划使用封面、目录、结论卡片、图文、流程、时间轴和价值页等版式。所有正文页不显示来源脚注、内部 ID、待确认标签、草稿/渲染器说明或机械“（图示）/（续）”标题。
+- 技术验收：全量离线测试为 158 passed、8 warnings；`compileall` 与 `git diff --check` 通过。DOCX OOXML、media、可见文本扫描通过，PPTX OOXML 与 19/19 页几何边界/shape 重叠审计通过。`final_delivery_v4` 仅含正式 DOCX 和 PPTX；sidecar、plan、报告和审计均位于 `internal_v4`，审阅稿位于 `review_v4`。
+
+### 当前阻塞
+
+- `DOCX_VISUAL_REVIEW: BLOCKED`；`PPT_VISUAL_REVIEW: BLOCKED`。本机尚未获得可由当前链路稳定调用的 PowerPoint、LibreOffice、Poppler 或已验证 WPS Presentation 自动导出能力，因此没有真实逐页 PNG/PDF，不能把视觉验收标为 PASS。
+- 几何审计仅证明 PPTX 可打开、shape 未越界且矩形未相交；它不能证明字形未溢出、图片语义正确、图片清晰或版面美观。旧版 briefing_v2 的真实 WPS 截图已判定 `PPT_VISUAL_REVIEW: FAIL`，不能以其几何通过替代视觉复核。
+
+### 下一步
+
+1. 在 WPS 中打开 `final_delivery_v4` 的 DOCX/PPTX，导出全部逐页 PNG 或 PDF，并保留页码对应关系。
+2. 对 Word 检查封面、标题层级、行距、图片清晰度/分页、表格、页眉页脚和异常留白；对 PPT 检查 19 页的字形溢出、图片清晰度/语义、对齐、留白和页面节奏。
+3. 将 PNG 放入审计器认可的 rendered 目录或提供截图；逐页复核通过后才可把 `DOCX_VISUAL_REVIEW` 与 `PPT_VISUAL_REVIEW` 更新为 PASS。若发现缺陷，只修复下游派生计划/渲染器并生成新的 v5 交付目录，不修改 attempt4 原件或 proposal。
+
+### 已验证的坑与禁止做法
+
+- 不能以 `assets/` 子串或全局正则数量代替合法独占图片块数量；fenced code block、行内/模型包装语法必须由共享解析器区分。
+- 被拒绝图片必须先被识别并消费，再跳过嵌入；否则会把 `![caption](assets/...)` 写成 Word 正文。
+- 不能用全局字符串替换 `【待确认】`、`【设计建议】`、`【可选能力】`：这会产生“建议建议”“均标注为将在”等病句，或把未知条件伪装为已确认事实。
+- 不能因页数有空间就强制把所有 Markdown 图片放入 PPT；proposal 已选中不等于图片适合汇报，应保留格式级的 used/rejected 决策和理由。
+- 不得通过隐藏来源侧车、关闭几何检查、压低字号或删除内容来获得形式上的通过；正式页面可隐藏来源链，但 plan、sidecar 和内部审计必须可追溯。
+- 不得覆盖 `attempt4` 原始目录、`final_delivery_v3` 或既有审计产物；任何后续修复均创建新的明确版本目录。
+
 今后完成有意义的功能、配置、路径、模块或行为变更时追加本表；若改变既有决策，同时更新该决策状态，并将旧决策移入“已废弃或已替代的决策”。
