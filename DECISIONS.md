@@ -10,6 +10,7 @@
 - 数据集：10 份来源文档、214 条索引页；SQLite FTS5 与 Chroma 各 214 条记录，collection 为 `electrical_pages_v2`。
 - 单 Markdown proposal V1 已完成离线实现、受控 DashScope 尝试与发布诊断；attempt4 已生成可交付的 Markdown、来源侧车和真实图片资产。
 - DOCX/PPTX 本地渲染器已存在，均只消费已验证的 Markdown 交付物；attempt4 在 DOCX 本地预检处停止，尚未进入 PPTX 或视觉验收。
+- attempt4 原件保持不变；其离线 `attempt4_delivery` 副本已用共享图片块契约修复，Word 已嵌入全部 5 张图。PPT 计划识别全部 5 张图，但 PPTX 在既有 `slide-041` 几何越界处失败，未做视觉验收。
 
 ## 当前有效的架构决策
 
@@ -134,6 +135,14 @@
 - 后续计划：先离线修复图片图注/Markdown 行级规范化，使每个选择的图片严格渲染为一个独立完整的 Markdown 图片行，并补充“可提取链接数与可渲染独立图片行数一致”的回归测试。随后运行完整测试、编译和 diff 检查，提交并在网络恢复后普通 push；只有在用户再次明确授权后，才可针对同一已交付 Markdown 重跑 Word 技术验收。Word 通过逐页 PNG 渲染检查后，才可构建 PPTX、执行几何审计；只有生成真实逐页图片并检查后，才能声称 WPS/PowerPoint 视觉验收通过。
 - 踩坑与约束：不能仅以图片链接正则数量判断图片可发布性，Markdown 行级语法也必须可被下游渲染器完整消费；不能为通过渲染器而复制重复文件、放宽暂存校验或伪造 sidecar。`_write` 暂存校验继续作为最后防线；最终渲染前以 `link=unique_link=asset_plan=copied=staged_file` 为 FATAL 发布一致性门槛。H1 只由确定性渲染器生成，正文 H1/H2 在代码块外降级为 H3，草稿提示置于 H1 后。
 
+### D-015 proposal、Word 与 PPT 共享独立图片块契约
+
+- 状态：有效
+- 日期：2026-09-11
+- 决策：合法交付图片仅为 fenced code block 外、独占一行的 `![单行纯文本图注](assets/相对路径)`。图注由资料侧规范化为单行纯文本；禁止方括号、嵌套图片语法、行内图片、孤立 `![图注]` 与不安全路径。`src/markdown_images.py` 是 proposal 发布校验、Word 与 PPT 解析的唯一实现。
+- 影响：图片子串或宽松正则的计数不能代表可渲染图片数。新 proposal 发现畸形图块在发布前失败；带 `proposal.sources.json` 的 PPT 输入发现畸形图块也必须失败。attempt4 无需重新生成：只在独立的 delivery 副本移除可确认的模型包装残片，并保留原始目录、来源侧车、正文、引用和图片顺序。
+- 验收：attempt4 原件有 5 个 assets 子串、但只有 4 个独立图片块；delivery 有 5 个独立块。Word 报告的 `markdown_image_path_count`、`standalone_image_block_count`、`embedded_image_count`、`unique_asset_count` 和 DOCX media 均为 5。PPT slide plan 识别 5 张图；PPTX 在无关的 `slide-041` 几何越界失败，未进行几何或视觉验收。
+
 ## 已废弃或已替代的决策
 
 - 固定 DOCX 模板、三个占位符和手写 OOXML 整篇填充已移除：它们把内容生成绑定到固定版式，无法可靠验证内容与来源。
@@ -143,7 +152,7 @@
 
 ## 待决定事项
 
-- 修复 attempt4 暴露的图片图注行级 Markdown 规范化缺陷，并以同一已交付 Markdown 完成 Word 技术验收；随后再完成 PPTX 几何与真实页面渲染验收。
+- 修复 PPTX `slide-041` 的几何越界后，使用已经通过 Word 的 attempt4 delivery 完成 PPTX 几何与真实页面渲染验收；不得重新生成 proposal。
 - 是否为未来不同测试数据集增加显式、只读的 CLI 数据库参数；当前不扩大 CLI 范围。
 
 ## 变更记录
@@ -169,6 +178,7 @@
 | 2026-09 | PPT 下游交付 | `build-slides` 将已交付 Markdown 重组为含稳定 slide ID/layout 的演示稿和 slide plan；本地 PPTX 按图注主题重新分配图片，单页默认一图，并在容量不足时生成续页而不截断。历史 Markdown 缺少 sidecar 时仅从可见来源降级，不伪造侧车。成功 proposal 另存不含密钥的 `proposal.request.json` 以便复现 | PPT 专项、真实 Markdown→slides→PPTX 本地验收 | 未提交 |
 | 2026-09 | PPT briefing 上限 | `briefing --max-slides` 是封面、目录、正文与参考资料均计入的硬上限；规划器以可追踪 coverage 省略辅助说明，不能生成 continuation 绕过上限。`presentation`/`faithful` 保留全文 continuation 行为。PPTX 另做几何审计；没有 PowerPoint/LibreOffice 页面渲染时明确标记视觉验收 BLOCKED | briefing 硬上限、coverage、几何审计与真实历史输入验收 | 已提交 |
 | 2026-09-11 | proposal 可靠性 | DashScope 使用显式连接/读取超时与有限重试；review 仅跳过显式 advisory 的孤立坏项，JSON 顶层失败允许一次修复；run log 从启动开始记录脱敏阶段与模型调用事件；发布失败增加安全 operation 追踪；attempt3 识别出重复图片标记导致暂存交付不一致，新增最终标记去重、H1 规范化和发布前一致性门槛；attempt4 成功发布 Markdown/sidecar/assets，但 Word 预检识别出图片图注造成的行级 Markdown 缺陷 | 148 passed，6 warnings；compileall；diff check；attempt4 真实 Markdown/来源验收 | `0e96f7f`、`f21eecf`、`d74f78b`、`b886df2`、`0917629`（已推送）、`5c3b0e6`、`603f90d`（待网络恢复后推送） |
+| 2026-09-11 | 图片下游契约 | 新增共享独立图片块解析；proposal、Word、PPT 统一校验代码块外的安全 `assets/` 独立图块。attempt4 delivery 离线修复后 Word 嵌入 5/5 图；PPT plan 识别 5 图，但 PPTX 在 `slide-041` 几何越界停止 | 图片专项、proposal/PPT 专项、全量离线测试、compileall、diff check；Word 实际渲染 | 本次提交 |
 
 | 2026-09 | 外部服务配置 | 新增 `scripts/ark_quickstart.py`（纯标准库，不依赖 curl/jq）用于验证火山方舟 Managed Agents 连通性；`.env` 与 `.env.example` 增加 `ARK_API_KEY` 与可选 `ARK_BASE_URL`。该脚本只做外部连通性验证，不参与方案生成链路，生成侧仍使用 DashScope | 编译检查与缺 Key 报错路径离线验证 | 未提交 |
 

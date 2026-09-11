@@ -12,6 +12,7 @@ from pathlib import Path
 from pptx import Presentation
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.util import Inches, Pt
+from src.markdown_images import image_blocks, image_syntax_errors, safe_asset_path
 
 
 class RenderPptxError(RuntimeError):
@@ -248,6 +249,10 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
     text = markdown.read_text(encoding="utf-8")
     warnings: list[str] = []
     source_file = Path(sources_path).resolve() if sources_path else markdown.with_name("proposal.sources.json")
+    image_errors = image_syntax_errors(text)
+    if image_errors and source_file.is_file():
+        raise RenderPptxError("invalid proposal image syntax: " + "；".join(image_errors))
+    warnings.extend(image_errors)
     sources = _load_sources(source_file if source_file.is_file() else None, markdown, text, warnings)
     title = next((match.group(2) for line in text.splitlines() if (match := HEADING.match(line)) and len(match.group(1)) == 1), markdown.stem)
     figures: OrderedDict[str, dict] = OrderedDict()
@@ -266,11 +271,11 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
             i += 1; continue
         if current and line.strip().startswith("|") and i + 1 < len(lines) and "-" in lines[i + 1]:
             rows, i = _table_rows(lines, i); current["tables"].append(rows); continue
-        image = IMAGE.match(line.strip())
-        if image:
-            asset = _safe_asset(markdown, image.group(2))
-            if asset is None: warnings.append(f"skipped missing or unsafe image: {image.group(2)}")
-            elif current is None: warnings.append(f"skipped image outside a renderable H2 section: {image.group(2)}")
+        block = next((item for item in image_blocks(line) if item.line_number == 1), None)
+        if block:
+            asset = safe_asset_path(markdown, block.asset_path)
+            if asset is None: warnings.append(f"skipped missing or unsafe image: {block.asset_path}")
+            elif current is None: warnings.append(f"skipped image outside a renderable H2 section: {block.asset_path}")
             else:
                 fid = f"F{len(figures) + 1}"
                 # Do not borrow the following figure's caption when historical
@@ -284,7 +289,7 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
                 source_ids = _ids_for(context, sources)
                 figures[fid] = {
                     "asset_path": str(asset.relative_to(markdown.parent)).replace("\\", "/"),
-                    "caption": image.group(1), "source_ids": source_ids,
+                    "caption": block.caption, "source_ids": source_ids,
                     "visible_sources": _visible_sources_for(context), "context": context,
                 }
             i += 1; continue

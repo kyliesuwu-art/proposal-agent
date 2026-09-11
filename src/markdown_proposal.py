@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Protocol
 
+from src.markdown_images import image_blocks, image_syntax_errors, normalise_caption, normalise_internal_image_markers
+
 from src.config import RAG_DB_PATH
 from src.query_result import QueryResult, SearchHit
 from src.retrieval_fields import extract_retrieval_fields
@@ -156,7 +158,6 @@ _BAD_BOLD_HEADING_RE = re.compile(r"^\s*\*\*#{1,6}\s+", re.M)
 _BAD_IMAGE_ESCAPE_RE = re.compile(r"!\[[^\]]*\]\\\(")
 _BAD_LIST_ESCAPE_RE = re.compile(r"^\s*\d+\\\.\s+", re.M)
 _BAD_UNORDERED_LIST_ESCAPE_RE = re.compile(r"^\s*\\-\s+", re.M)
-_FINAL_IMAGE_RE = re.compile(r"(?<!\\)!\[[^\]\n]*\]\((assets/[A-Za-z0-9._/-]+)\)")
 _BAD_DOUBLE_BOLD_RE = re.compile(r"\*\*\\\*\\\*.+?\\\*\\\*\*\*")
 _CONFIRM_RE = re.compile(r"[^\n。！？；]*【待确认】[^\n。！？；]*[。！？；]?")
 _CONFIRMATION_PSEUDO_LABEL_RE = re.compile(
@@ -639,6 +640,7 @@ def _apply_image_budget(sections: dict[str, _SectionDraft], image_root: Path, wa
                       else "同一来源文件、页码和图片不得重复" if source_key in seen_source
                       else "全文图片预算上限为 5" if len(kept) >= 5
                       else "核心章节覆盖优先")
+            body = re.sub(rf"!\[[^\]\n]*\]\s*\[{re.escape(image_id)}\]", "", body)
             body = body.replace(f"[{image_id}]", "")
             removals.append(_image_record(section_id, image_id, item, image, reason=reason))
         selected_for_section = {image_id: selected_by for (owner, image_id), selected_by in kept.items() if owner == section_id}
@@ -708,7 +710,9 @@ def _deduplicate_selected_image_markers(sections: dict[str, _SectionDraft], tele
 
 
 def _render_body(raw_body: str, draft: _SectionDraft, assets: dict[tuple[str, str], _ImageAsset], *, preview: bool) -> tuple[str, set[str], list[dict]]:
-    raw_body = _demote_document_level_headings(_normalise_markdown(raw_body))
+    raw_body = _demote_document_level_headings(
+        _normalise_markdown(normalise_internal_image_markers(raw_body, set(draft.selected_images)))
+    )
     _validate_ids(raw_body, draft.evidence, draft.images)
     evidence_by_id = {item.evidence_id: item for item in draft.evidence}
     used: set[str] = set()
@@ -730,7 +734,7 @@ def _render_body(raw_body: str, draft: _SectionDraft, assets: dict[tuple[str, st
             return f"*图：{asset.caption}。来源：{_display_name(asset.evidence.file_name)}，第{asset.evidence.page_number}页。*"
         rendered_blocks.append({"section_id": asset.section_id, "image_id": asset.image_id,
                                 "relative_path": asset.relative_path, "selected_by": asset.selected_by})
-        return f"![{asset.caption}]({asset.relative_path})\n\n图片来源：{_display_name(asset.evidence.file_name)}，第 {asset.evidence.page_number} 页"
+        return f"![{normalise_caption(asset.caption)}]({asset.relative_path})\n\n图片来源：{_display_name(asset.evidence.file_name)}，第 {asset.evidence.page_number} 页"
 
     return _ID_RE.sub(replace, raw_body).strip(), used, rendered_blocks
 
@@ -874,8 +878,8 @@ def _render(plan: ProposalPlan, sections: dict[str, _SectionDraft], *, image_roo
 
 
 def _strict_image_links(markdown: str) -> list[str]:
-    """Count only real, stable assets Markdown tokens; escaped lookalikes do not count."""
-    return [match.group(1) for match in _FINAL_IMAGE_RE.finditer(markdown)]
+    """Count only shared-contract standalone image blocks."""
+    return [block.asset_path for block in image_blocks(markdown)]
 
 
 def _source_manifest(markdown: str, assets: dict[tuple[str, str], _ImageAsset]) -> dict:
@@ -933,8 +937,8 @@ def _image_placement_report(markdown: str, plan: ProposalPlan,
         if line in section_headers:
             actual_section_id = section_headers[line]
             continue
-        for match in _FINAL_IMAGE_RE.finditer(line):
-            relative_path = match.group(1)
+        for block in image_blocks(line):
+            relative_path = block.asset_path
             asset = by_path.get(relative_path)
             record = {
                 "relative_path": relative_path,
@@ -986,6 +990,7 @@ def _quality_gate(markdown: str, output_path: Path, assets: dict[tuple[str, str]
             or _BAD_LIST_ESCAPE_RE.search(markdown) or _BAD_UNORDERED_LIST_ESCAPE_RE.search(markdown)
             or _BAD_DOUBLE_BOLD_RE.search(markdown)):
         errors.append("存在无效的结构化 Markdown 转义")
+    errors.extend(image_syntax_errors(markdown))
     if _ID_RE.search(markdown):
         errors.append("残留内部证据或图片 ID")
     if ("cache/" in markdown or "cache\\" in markdown or re.search(r"[A-Za-z]:\\", markdown)
@@ -1037,6 +1042,7 @@ def _image_publishability_errors(markdown: str, assets: dict[tuple[str, str], _I
     asset_paths = sorted(asset.relative_path for asset in assets.values())
     counts = {
         "rendered_image_link_count": len(links),
+        "standalone_image_block_count": len(links),
         "unique_image_link_count": len(unique_links),
         "asset_plan_count": len(asset_paths),
     }
