@@ -4,12 +4,12 @@
 
 记录当前有效的架构选择、已替代方案和有意义的变更。它不是调试日志；代码、用户确认事实与离线测试优先于旧记录。
 
-## 当前状态快照（2026-09-01）
+## 当前状态快照（2026-09-11）
 
 - 唯一测试库：`runtime_data/word_test_db`。
 - 数据集：10 份来源文档、214 条索引页；SQLite FTS5 与 Chroma 各 214 条记录，collection 为 `electrical_pages_v2`。
-- 单 Markdown proposal V1 已完成离线实现与测试；尚未进行真实 DashScope proposal 生成验证。
-- DOCX 尚未实现；当前工作树修改尚未提交。
+- 单 Markdown proposal V1 已完成离线实现、受控 DashScope 尝试与发布诊断；失败运行不交付不完整产物。
+- DOCX/PPTX 本地渲染器已存在，均只消费已验证的 Markdown 交付物；当前工作树在每轮验证后保持干净。
 
 ## 当前有效的架构决策
 
@@ -36,7 +36,7 @@
 - 日期：2026-09
 - 决策：先生成、验证并审查一个 Markdown 方案，再由独立渲染阶段消费它。
 - 原因：内容、证据和审查可独立验证，避免文档格式逻辑干扰生成质量。
-- 影响：当前不实现 DOCX，渲染器不得反向决定方案内容。
+- 影响：DOCX/PPTX 渲染器不得反向决定方案内容。
 
 ### D-004 每次方案只维护一个 proposal.md
 
@@ -70,13 +70,13 @@
 - 原因：该库是本机唯一保留且完整的混合检索测试库。
 - 影响：`v2_test_db`、`v3_candidate_db` 和 `v3_candidate_db_rebuilt` 已删除，不应被默认使用、恢复或重建。
 
-### D-008 DOCX 是独立的后续渲染阶段
+### D-008 DOCX/PPTX 是独立渲染阶段
 
 - 状态：有效
 - 日期：2026-09
-- 决策：后续 DOCX 仅消费已验证的 `proposal.md`，不使用固定章节占位符。
+- 决策：本地 DOCX/PPTX 渲染器仅消费已验证的 `proposal.md` 与来源侧车，不使用固定章节占位符。
 - 原因：保证内容真实性优先于排版。
-- 影响：当前不引入 DOCX 模板语义填充、手写 OOXML 或多模态 DOCX 修改。
+- 影响：不引入 DOCX 模板语义填充、手写 OOXML 或多模态 DOCX 修改。
 
 ### D-009 当前不引入复杂编排框架
 
@@ -128,8 +128,8 @@
 - 发布诊断：Markdown/assets/sources 的暂存、校验与原子发布失败包装为 `ProposalWriteError`，以 `write_operation` 和底层异常类型写入 run log，不暴露内容。
 - 已完成：`0e96f7f fix: harden proposal review and add run observability`、`f21eecf fix: trace proposal publication failures`；完整测试为 139 passed、6 warnings，`compileall` 与 `git diff --check` 通过。
 - 推送状态：两个提交尚未推送，`git push origin main` 因 GitHub `443` 连接失败；不得 force push 或重写历史。
-- 当前真实运行：DashScope 与 `qwen3.7-plus` 可用。`outputs/hospital_power_verify_20260910_attempt2/` 的首次运行完成规划、五节写作、review 和修订后，在 `markdown_write` 失败；`outputs/hospital_power_verify_20260910_attempt2_retry/` 的唯一受控重试完成 review 与修订后，在 `quality_gate` 因 `ProposalQualityError` 失败。两目录仅保留 `proposal.run.log`，没有 `proposal.md`、`proposal.sources.json`、`proposal.request.json` 或 assets；不得用旧工业园区产物替代，也不得伪造 sidecar。
-- 影响：本轮医院 proposal 未交付，因而 `SOURCE_HANDOFF`、PPT story plan、多版式 renderer、PPTX/WPS 渲染均未启动。不得再盲目发起第三次 proposal；下一步应先对 `quality_gate` 失败增加同样脱敏但可定位的 gate rule/code 记录、以离线 fixture 复现并修复，再经全量测试后获得明确授权进行一次新的真实 proposal。
+- 当前真实运行：DashScope 与 `qwen3.7-plus` 可用。attempt2 在 `markdown_write` 失败；retry 在最终渲染前失败且未保留中间 Markdown；attempt3 的确定性根因是同一选中 `[IMG#]` 标记重复渲染为多个链接，而 `_asset_plan` 只产生一个资产。暂存校验器在 `validate_staged_markdown` 拒绝了图片链接、复制图片和 assets 文件数量不一致的交付，行为正确。各失败目录仅保留 `proposal.run.log`，没有 `proposal.md`、`proposal.sources.json`、`proposal.request.json` 或 assets；不得伪造 sidecar。
+- 影响：最终渲染前必须确定性去除同一章节内被选图片的重复标记，并以 `link=unique_link=asset_plan=copied=staged_file` 作为 FATAL 发布一致性门槛；`_write` 的暂存校验继续作为最后防线。H1 仅由确定性渲染器生成，正文 H1/H2 在代码块外降级为 H3，草稿提示置于 H1 后。完成离线测试、提交且工作树干净后，可由明确授权发起一次新的受控真实运行。
 
 ## 已废弃或已替代的决策
 
@@ -140,7 +140,7 @@
 
 ## 待决定事项
 
-- 在真实 Markdown 内容与引用验证通过后，选择独立 Markdown→DOCX 渲染器及最小图片路径可移植策略。
+- 在真实 Markdown 内容与引用交付通过后，完成本地 DOCX/PPTX 渲染器的技术与视觉验收。
 - 是否为未来不同测试数据集增加显式、只读的 CLI 数据库参数；当前不扩大 CLI 范围。
 
 ## 变更记录
@@ -165,7 +165,7 @@
 | 2026-09 | 定向升级准备 | P3 以 ZIP SHA-256 与稳定 document ID 生成 legacy/failed/duplicate 互斥计划；`reindex-affected --dry-run` 禁止源目标同路径和已存在目标，且保证零数据库/网络/embedding 调用。实际候选库创建与 `--resume` 需独立授权 | 86/5/9 真实计划与 dry-run、离线测试 | 未提交 |
 | 2026-09 | PPT 下游交付 | `build-slides` 将已交付 Markdown 重组为含稳定 slide ID/layout 的演示稿和 slide plan；本地 PPTX 按图注主题重新分配图片，单页默认一图，并在容量不足时生成续页而不截断。历史 Markdown 缺少 sidecar 时仅从可见来源降级，不伪造侧车。成功 proposal 另存不含密钥的 `proposal.request.json` 以便复现 | PPT 专项、真实 Markdown→slides→PPTX 本地验收 | 未提交 |
 | 2026-09 | PPT briefing 上限 | `briefing --max-slides` 是封面、目录、正文与参考资料均计入的硬上限；规划器以可追踪 coverage 省略辅助说明，不能生成 continuation 绕过上限。`presentation`/`faithful` 保留全文 continuation 行为。PPTX 另做几何审计；没有 PowerPoint/LibreOffice 页面渲染时明确标记视觉验收 BLOCKED | briefing 硬上限、coverage、几何审计与真实历史输入验收 | 已提交 |
-| 2026-09-11 | proposal 可靠性 | DashScope 使用显式连接/读取超时与有限重试；review 仅跳过显式 advisory 的孤立坏项，JSON 顶层失败允许一次修复；run log 从启动开始记录脱敏阶段与模型调用事件；发布失败增加安全 operation 追踪 | 139 passed，6 warnings；compileall；diff check | `0e96f7f`、`f21eecf`（待推送） |
+| 2026-09-11 | proposal 可靠性 | DashScope 使用显式连接/读取超时与有限重试；review 仅跳过显式 advisory 的孤立坏项，JSON 顶层失败允许一次修复；run log 从启动开始记录脱敏阶段与模型调用事件；发布失败增加安全 operation 追踪；attempt3 识别出重复图片标记导致暂存交付不一致，新增最终标记去重和发布前一致性门槛 | 148 passed，6 warnings；compileall；diff check | `0e96f7f`、`f21eecf`、`d74f78b`、`b886df2`、`0917629`（已推送；本轮提交待写入） |
 
 | 2026-09 | 外部服务配置 | 新增 `scripts/ark_quickstart.py`（纯标准库，不依赖 curl/jq）用于验证火山方舟 Managed Agents 连通性；`.env` 与 `.env.example` 增加 `ARK_API_KEY` 与可选 `ARK_BASE_URL`。该脚本只做外部连通性验证，不参与方案生成链路，生成侧仍使用 DashScope | 编译检查与缺 Key 报错路径离线验证 | 未提交 |
 

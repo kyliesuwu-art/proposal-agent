@@ -17,7 +17,7 @@
 - `src/pipeline.py::retrieve_evidence()`：纯检索入口；执行 Chroma 语义检索、SQLite FTS5 词法检索、RRF 融合与 supporting pages 选择，不生成答案。
 - `src/query_result.py`：`SearchHit`、`Citation`、`QueryResult` 传递结构化检索结果。
 - `src/adapters/llm_client.py`：DashScope 文本调用封装。
-- `src/main.py proposal`：唯一的真实方案生成 CLI。
+- `src/main.py proposal`：唯一的真实方案生成 CLI；`src/render_word.py` 与 `src/render_pptx.py` 是仅消费已交付 Markdown 的独立下游渲染器。
 
 LLM 负责大纲规划、分章写作、全文审查和命中章节的定向修订；确定性代码负责检索、证据 ID 校验、文件名/页码/图片路径映射与 Markdown 组装。
 
@@ -44,7 +44,7 @@ LLM 负责大纲规划、分章写作、全文审查和命中章节的定向修�
 - 用户明确列出的交付项必须在最终标题结构中逐项可识别；合理归并时使用明确的 H3，不能只在正文隐含覆盖。
 - 不引入 LangGraph、多智能体框架、复杂工作区或状态机。
 - 不恢复固定 Word 模板、三个占位符或手写 OOXML 生成器。
-- 当前尚未实现 DOCX；未来 DOCX 必须作为 `proposal.md` 的独立消费者。
+- DOCX 与 PPTX 的本地渲染器已存在，且只能作为已验证 `proposal.md` 及其来源侧车的独立消费者；不得反向决定方案内容。
 
 ## 6. 引用、参数与图片规则
 

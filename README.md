@@ -1,13 +1,13 @@
 # 方案知识库
 
-内部电气工程方案知识库实验项目。系统基于本地混合检索库和用户需求，生成带页码来源的单一 Markdown 方案；当前目标是验证内容、引用和审查质量，DOCX 渲染留待后续独立阶段。
+内部电气工程方案知识库实验项目。系统基于本地混合检索库和用户需求，生成带页码来源的单一 Markdown 方案；DOCX/PPTX 由独立本地渲染器消费已验证的 Markdown，不能反向决定内容。
 
 ## 当前状态
 
 - 当前唯一有效测试库：`runtime_data/word_test_db`。
 - 该库包含 10 份来源文档、214 条索引页、SQLite FTS5 和 Chroma collection `electrical_pages_v2`。
 - `v2_test_db`、`v3_candidate_db`、`v3_candidate_db_rebuilt` 已删除，不能作为默认路径。
-- 单 Markdown proposal V1 已有离线实现和测试；尚未进行真实外部服务生成验收。
+- 单 Markdown proposal V1 已完成离线测试并进行过受控真实 DashScope 尝试；失败运行不发布 Markdown 或来源侧车。
 
 ## 架构概览
 
@@ -27,6 +27,8 @@ uv run python src/main.py --help
 ```
 
 以下命令可能调用外部服务或读取真实库，必须获得明确授权后才能运行：`proposal`、`query`、`ingest`、`ingest-cache-dir`、`annotate` 以及外部评测命令。
+
+`scripts/ark_quickstart.py` 仅用于 Ark Managed Agents 连通性验证，不属于 DashScope proposal 生成链路。
 
 真实 proposal 的形式为：
 
