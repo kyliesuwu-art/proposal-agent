@@ -182,7 +182,8 @@ def _json(raw: str) -> dict:
 def _plan_from(raw: str) -> ProposalPlan:
     value = _json(raw)
     title, sections = value.get("title"), value.get("sections")
-    if not isinstance(title, str) or not title.strip() or not isinstance(sections, list) or not 3 <= len(sections) <= 8:
+    if (not isinstance(title, str) or not title.strip() or "\n" in title or "\r" in title
+            or re.match(r"^\s*#", title) or not isinstance(sections, list) or not 3 <= len(sections) <= 8):
         raise ValueError("大纲必须有标题和 3 至 8 个章节")
     planned: list[SectionPlan] = []
     seen: set[str] = set()
@@ -192,7 +193,9 @@ def _plan_from(raw: str) -> ProposalPlan:
         section_id = item.get("section_id")
         queries = item.get("retrieval_queries")
         if (not isinstance(section_id, str) or not section_id or section_id in seen
-                or not all(isinstance(item.get(key), str) and item[key].strip() for key in ("heading", "writing_goal"))
+                or not all(isinstance(item.get(key), str) and item[key].strip() and "\n" not in item[key]
+                           and "\r" not in item[key] and not re.match(r"^\s*#", item[key])
+                           for key in ("heading", "writing_goal"))
                 or not isinstance(item.get("level"), int) or not isinstance(queries, list)
                 or not queries or not all(isinstance(query, str) and query.strip() for query in queries)):
             raise ValueError("章节字段不符合要求")
@@ -378,6 +381,19 @@ def _normalise_markdown(text: str) -> str:
         # This only targets an otherwise complete Markdown image token.
         line = re.sub(r"(!\[[^\]]*\])\\\(([^)]*)\\\)", r"\1(\2)", line)
         lines.append(line + ending)
+    return "".join(lines)
+
+
+def _demote_document_level_headings(text: str) -> str:
+    """Reserve H1/H2 for the deterministic document renderer outside code fences."""
+    lines: list[str] = []
+    in_fence = False
+    for line in text.splitlines(keepends=True):
+        if re.match(r"^\s*(```|~~~)", line):
+            in_fence = not in_fence
+        elif not in_fence:
+            line = re.sub(r"^(\s*)#{1,2}(\s+)", r"\1###\2", line)
+        lines.append(line)
     return "".join(lines)
 
 
@@ -661,8 +677,38 @@ def _role_and_scope_errors(sections: dict[str, _SectionDraft]) -> list[str]:
     return errors
 
 
+def _deduplicate_selected_image_markers(sections: dict[str, _SectionDraft], telemetry: dict) -> None:
+    """Keep one selected image marker per owning section without asking the LLM."""
+    removed = 0
+    for section_id, draft in list(sections.items()):
+        selected = set(draft.selected_images)
+        if not selected:
+            continue
+        seen: set[str] = set()
+        lines: list[str] = []
+        in_fence = False
+        for line in draft.raw_body.splitlines(keepends=True):
+            if re.match(r"^\s*(```|~~~)", line):
+                in_fence = not in_fence
+            if not in_fence:
+                def replace(match: re.Match[str]) -> str:
+                    nonlocal removed
+                    image_id = match.group(1)
+                    if image_id not in selected or image_id not in seen:
+                        seen.add(image_id)
+                        return match.group(0)
+                    removed += 1
+                    return ""
+                line = _ID_RE.sub(replace, line)
+            lines.append(line)
+        body = "".join(lines)
+        if body != draft.raw_body:
+            sections[section_id] = _with_draft(draft, raw_body=body)
+    telemetry["duplicate_image_markers_removed"] = telemetry.get("duplicate_image_markers_removed", 0) + removed
+
+
 def _render_body(raw_body: str, draft: _SectionDraft, assets: dict[tuple[str, str], _ImageAsset], *, preview: bool) -> tuple[str, set[str], list[dict]]:
-    raw_body = _normalise_markdown(raw_body)
+    raw_body = _demote_document_level_headings(_normalise_markdown(raw_body))
     _validate_ids(raw_body, draft.evidence, draft.images)
     evidence_by_id = {item.evidence_id: item for item in draft.evidence}
     used: set[str] = set()
@@ -929,9 +975,13 @@ def _requested_headings(request: str) -> list[str]:
 def _quality_gate(markdown: str, output_path: Path, assets: dict[tuple[str, str], _ImageAsset], request: str) -> list[str]:
     errors = []
     headings = [line.lstrip("#").strip() for line in markdown.splitlines() if _HEADING_RE.match(line)]
-    h1_lines = [line for line in markdown.splitlines() if re.match(r"^#\s+\S", line)]
-    if not markdown.startswith("# ") or len(h1_lines) != 1 or not headings:
+    h1_lines = _document_h1_lines(markdown)
+    if not h1_lines or not headings:
         errors.append("缺少合法 H1 标题")
+    if len(h1_lines) > 1:
+        errors.append("存在多个 H1 标题")
+    if h1_lines and not markdown.startswith("# "):
+        errors.append("文档未以 H1 标题开头")
     if (_BAD_BOLD_HEADING_RE.search(markdown) or _BAD_IMAGE_ESCAPE_RE.search(markdown)
             or _BAD_LIST_ESCAPE_RE.search(markdown) or _BAD_UNORDERED_LIST_ESCAPE_RE.search(markdown)
             or _BAD_DOUBLE_BOLD_RE.search(markdown)):
@@ -969,9 +1019,43 @@ def _quality_gate(markdown: str, output_path: Path, assets: dict[tuple[str, str]
     return errors
 
 
+def _document_h1_lines(markdown: str) -> list[str]:
+    """Find document H1s while treating fenced code as literal content."""
+    h1_lines: list[str] = []
+    in_fence = False
+    for line in markdown.splitlines():
+        if re.match(r"^\s*(```|~~~)", line):
+            in_fence = not in_fence
+        elif not in_fence and re.match(r"^#\s+\S", line):
+            h1_lines.append(line)
+    return h1_lines
+
+
+def _image_publishability_errors(markdown: str, assets: dict[tuple[str, str], _ImageAsset]) -> tuple[list[str], dict[str, int]]:
+    links = _strict_image_links(markdown)
+    unique_links = sorted(set(links))
+    asset_paths = sorted(asset.relative_path for asset in assets.values())
+    counts = {
+        "rendered_image_link_count": len(links),
+        "unique_image_link_count": len(unique_links),
+        "asset_plan_count": len(asset_paths),
+    }
+    if len(links) != len(unique_links) or len(links) != len(asset_paths) or unique_links != asset_paths:
+        return ["image_publishability_invariant：图片链接、唯一链接与资产计划必须一一对应"], counts
+    return [], counts
+
+
+def _with_draft_notice(markdown: str) -> str:
+    """Keep the renderer-owned H1 as the first visible Markdown structure."""
+    first_line, separator, remainder = markdown.partition("\n")
+    if not first_line.startswith("# "):
+        return _DRAFT_NOTICE + markdown
+    return f"{first_line}\n\n{_DRAFT_NOTICE}{remainder.lstrip(chr(10))}"
+
+
 def _quality_gate_diagnostics(
     markdown: str, *, output_path: Path, gate_warnings: list[str], fatal_errors: list[str],
-    placement: dict,
+    placement: dict, image_counts: dict[str, int],
 ) -> dict:
     """Return a prompt-free snapshot of the pre-publication quality decision.
 
@@ -981,6 +1065,7 @@ def _quality_gate_diagnostics(
     aggregate counts instead.
     """
     headings = [line for line in markdown.splitlines() if _HEADING_RE.match(line)]
+    h1_lines = _document_h1_lines(markdown)
     citations = _VISIBLE_CITATION_RE.findall(markdown)
     figures = _strict_image_links(markdown)
     confirmations = _confirmation_items(markdown)
@@ -1023,15 +1108,23 @@ def _quality_gate_diagnostics(
         {"rule": "internal_paths_in_final_markdown", "expected": False,
          "actual": bool("cache/" in markdown or "cache\\" in markdown or re.search(r"[A-Za-z]:\\", markdown)),
          "passed": not ("cache/" in markdown or "cache\\" in markdown or re.search(r"[A-Za-z]:\\", markdown))},
+        {"rule": "image_publishability_invariant", "expected": "link=unique_link=asset_plan",
+         "actual": image_counts, "passed": not any(item.startswith("image_publishability_invariant") for item in fatal_errors)},
     ] + warning_checks
     return {
         "event": "quality_gate_checks",
         "checked_artifact": f"in_memory_final_markdown_prepublication:{output_path.name}",
         "draft_character_count": len(markdown),
         "heading_count": len(headings),
+        "h1_count": len(h1_lines),
+        "document_starts_with_h1": markdown.startswith("# "),
+        "missing_h1": not h1_lines,
+        "multiple_h1": len(h1_lines) > 1,
+        "h1_not_first": bool(h1_lines) and not markdown.startswith("# "),
         "citation_count": len(citations),
         "figure_count": len(figures),
         "pending_confirmation_count": len(confirmations),
+        **image_counts,
         "quality_gate_checks": checks,
         "quality_gate_failed_checks": [check for check in checks if not check["passed"]],
         # Messages are deterministic rule results, never model output,
@@ -1089,8 +1182,6 @@ def _final_markdown(plan: ProposalPlan, sections: dict[str, _SectionDraft], *, i
     warnings = _quality_gate(markdown, output_path, assets, request)
     placement = _image_placement_report(markdown, plan, assets)
     image_links = _strict_image_links(markdown)
-    if len(image_links) != len(assets):
-        warnings.append("最终 Markdown 有效图片链接与资产计划数量不一致")
     if len(image_links) >= 3 and len({item["actual_section_id"] for item in placement["final_images"]}) == 1:
         warnings.append("图片章节覆盖不足：三张或以上图片全部位于同一章节")
     for section_id, covered in placement["image_section_coverage"].items():
@@ -1098,7 +1189,7 @@ def _final_markdown(plan: ProposalPlan, sections: dict[str, _SectionDraft], *, i
         if draft.usable_images and not covered:
             warnings.append(f"图片：章节“{draft.plan.heading}”存在合格候选但最终无图")
     if warnings:
-        markdown = _DRAFT_NOTICE + markdown
+        markdown = _with_draft_notice(markdown)
     return markdown, assets, warnings, placement
 
 
@@ -1154,7 +1245,8 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
                 errors.append(f"最终暂存 Markdown 图片链接无效：{link}")
         staged_assets = stage / "assets"
         staged_files = sorted(path.relative_to(stage).as_posix() for path in staged_assets.rglob("*") if path.is_file()) if staged_assets.exists() else []
-        if len(image_links) != len(copied) or set(image_links) != set(staged_files):
+        if (len(image_links) != len(set(image_links)) or len(image_links) != len(copied)
+                or len(image_links) != len(staged_files) or set(image_links) != set(staged_files)):
             errors.append("最终暂存 Markdown 图片链接、复制图片与 assets 文件数量不一致")
         if errors:
             raise ProposalQualityError("；".join(errors))
@@ -1238,7 +1330,7 @@ def generate_markdown_proposal(
                           "removed_images": [], "removal_reasons": [], "final_markdown_images": [],
                           "final_asset_files": [], "selected_images_by_section": {},
                           "final_images_by_section": {}, "image_section_coverage": {},
-                          "image_placement_mismatches": []}}
+                          "image_placement_mismatches": [], "duplicate_image_markers_removed": 0}}
     started = time.monotonic()
     def stage(name: str, started_at: float) -> None:
         metrics["stage_durations"][name] = round(time.monotonic() - started_at, 6)
@@ -1352,6 +1444,7 @@ def generate_markdown_proposal(
     try:
         assembly_started = time.monotonic()
         _apply_image_budget(sections, image_root, warnings, metrics["images"])
+        _deduplicate_selected_image_markers(sections, metrics["images"])
         try:
             markdown, assets, gate_warnings, placement = _final_markdown(plan, sections, image_root=image_root, output_path=output_path, request=request)
         except ProposalQualityError as exc:
@@ -1361,6 +1454,14 @@ def generate_markdown_proposal(
         metrics["images"].update(placement)
         warnings.extend(gate_warnings)
         fatal_errors = _role_and_scope_errors(sections)
+        fatal_errors.extend(
+            f"document_structure_invariant：{warning}"
+            for warning in gate_warnings
+            if warning in {"缺少合法 H1 标题", "存在多个 H1 标题", "文档未以 H1 标题开头"}
+        )
+        image_errors, image_counts = _image_publishability_errors(markdown, assets)
+        metrics["images"].update(image_counts)
+        fatal_errors.extend(image_errors)
         if metrics["images"].get("image_pipeline_failure"):
             fatal_errors.append("image_pipeline_failure：合格图片候选不少于 3 张但最终未选择图片")
         if placement["image_placement_mismatches"]:
@@ -1371,14 +1472,14 @@ def generate_markdown_proposal(
             fatal_errors.append("最终 Markdown 显示了内部缓存路径或机器绝对路径")
         diagnostics = _quality_gate_diagnostics(
             markdown, output_path=output_path, gate_warnings=gate_warnings,
-            fatal_errors=fatal_errors, placement=placement,
+            fatal_errors=fatal_errors, placement=placement, image_counts=image_counts,
         )
         if progress is not None:
             progress("quality_gate", diagnostics)
         if fatal_errors:
             raise ProposalQualityError("；".join(fatal_errors))
-        if warnings and not markdown.startswith(_DRAFT_NOTICE):
-            markdown = _DRAFT_NOTICE + markdown
+        if warnings and _DRAFT_NOTICE.strip() not in markdown:
+            markdown = _with_draft_notice(markdown)
         stage("assembly", assembly_started)
         stage("quality_gate", assembly_started)
     except ProposalQualityError as exc:

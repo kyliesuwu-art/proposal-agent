@@ -117,7 +117,7 @@ def test_image_is_copied_with_stable_relative_path_and_caption(tmp_path: Path) -
     assert "图片来源：历史方案.pdf，第 12 页" in text
     assert (output.parent / "assets" / "image-001.png").read_bytes() == b"fake-png"
     assert [path.name for path in (output.parent / "assets").iterdir()] == ["image-001.png"]
-    assert text.startswith("> ⚠️")  # One relevant image is retained, but the 3-image target is unmet.
+    assert text.startswith("# ") and "\n\n> ⚠️" in text  # The renderer-owned H1 remains first.
 
 
 def test_missing_image_becomes_warned_draft_without_losing_markdown(tmp_path: Path) -> None:
@@ -131,7 +131,7 @@ def test_missing_image_becomes_warned_draft_without_losing_markdown(tmp_path: Pa
     result = generate_markdown_proposal("建设工商业储能", tmp_path / "proposal.md", llm=NoReviewLLM(),
                                        retriever=_retriever([]), image_root=root, return_result=True)
     text = result.path.read_text(encoding="utf-8")
-    assert result.quality_status == "DRAFT_WITH_WARNINGS" and text.startswith("> ⚠️")
+    assert result.quality_status == "DRAFT_WITH_WARNINGS" and text.startswith("# ") and "\n\n> ⚠️" in text
     assert "assets/image" not in text and any("图片" in warning for warning in result.warnings)
 
 
@@ -548,7 +548,8 @@ def test_nonfatal_quality_warning_keeps_markdown_and_pass_has_no_notice(tmp_path
     request = "方案应包含：\n1. 不存在标题"
     result = generate_markdown_proposal(request, tmp_path / "draft.md", llm=NoEvidence(), retriever=lambda q: QueryResult("", q, [], "", []), image_root=_image_root(tmp_path), return_result=True)
     assert result.quality_status == "DRAFT_WITH_WARNINGS" and result.path.exists()
-    assert result.path.read_text(encoding="utf-8").startswith("> ⚠️") and result.warnings
+    text = result.path.read_text(encoding="utf-8")
+    assert text.startswith("# ") and "\n\n> ⚠️" in text and result.warnings
 
 
 def test_confirmation_checklist_groups_specific_items_and_keeps_electricity_price_independent() -> None:
@@ -737,6 +738,12 @@ def test_final_markdown_structure_uses_raw_standard_tokens_only(tmp_path: Path) 
     assert markdown_proposal._strict_image_links(markdown) == ["assets/image-001.png"]
 
 
+def test_h1_quality_diagnostics_distinguish_missing_multiple_and_not_first(tmp_path: Path) -> None:
+    assert "缺少合法 H1 标题" in _quality_gate("## 章节\n", tmp_path / "proposal.md", {}, "")
+    assert "存在多个 H1 标题" in _quality_gate("# 一\n# 二\n", tmp_path / "proposal.md", {}, "")
+    assert "文档未以 H1 标题开头" in _quality_gate("> 草稿\n\n# 标题\n", tmp_path / "proposal.md", {}, "")
+
+
 def test_proposal_publishes_stable_sources_sidecar_with_image_provenance(tmp_path: Path) -> None:
     root = _image_root(tmp_path)
     image = root / "images" / "architecture.png"
@@ -794,3 +801,87 @@ def test_fallback_prefers_caption_matching_its_own_section_theme() -> None:
     carbon = {"caption": "能碳平台", "path": "images/carbon.png"}
     unrelated = {"caption": "虚拟电厂调度", "path": "images/vpp.png"}
     assert markdown_proposal._fallback_image_relevance(section, item, carbon) > markdown_proposal._fallback_image_relevance(section, item, unrelated)
+
+
+def test_selected_duplicate_image_marker_is_removed_before_rendering(tmp_path: Path) -> None:
+    root = _image_root(tmp_path)
+    item = markdown_proposal.EvidenceItem("S1", "source.pdf", 1, "正文", [{"path": "images/storage.png", "caption": "图"}])
+    section = markdown_proposal.SectionPlan("s1", "章节", 2, "目标", ["q"], "preferred")
+    draft = markdown_proposal._SectionDraft(section, "首次[IMG1]，重复[IMG1]。", [item], {"IMG1": (item, item.images[0])}, selected_images={"IMG1": "LLM"})
+    sections = {"s1": draft}
+    telemetry: dict = {}
+    markdown_proposal._deduplicate_selected_image_markers(sections, telemetry)
+    markdown, assets, _warnings, _placement = markdown_proposal._final_markdown(
+        markdown_proposal.ProposalPlan("标题", [section]), sections, image_root=root, output_path=tmp_path / "proposal.md", request="",
+    )
+    assert markdown.count("](assets/image-") == len(assets) == 1
+    assert telemetry["duplicate_image_markers_removed"] == 1
+
+
+def test_revision_duplicate_image_markers_publish_one_asset_per_section(tmp_path: Path) -> None:
+    root = _image_root(tmp_path)
+    for index in range(3):
+        (root / "images" / f"image-{index}.png").write_bytes(b"png")
+    plan = {"title": "重复图片", "sections": [
+        {"section_id": f"s{index}", "heading": f"章节{index}", "level": 2, "writing_goal": "目标",
+         "retrieval_queries": [f"q{index}"], "image_intent": "preferred"}
+        for index in range(1, 4)
+    ]}
+    class DuplicateRevision(FakeLLM):
+        def generate(self, prompt, system_prompt=""):
+            if "规划助手" in system_prompt:
+                return json.dumps(plan, ensure_ascii=False)
+            if "审查完整" in system_prompt:
+                return json.dumps({"issues": [{"section_id": "s1", "issue_type": "clarity", "instruction": "修订", "severity": "warning"}]}, ensure_ascii=False)
+            if "只输出修订后的" in system_prompt:
+                return "修订依据。[S1] [IMG1] [IMG1]"
+            return "章节依据。[S1] [IMG1] [IMG1]"
+    def retrieve(queries):
+        index = int(queries[0][-1]) - 1 if queries[0].startswith("q") else 0
+        return QueryResult("", queries, [SearchHit("source.pdf", index + 1, "图", "正文", 0.1,
+            [{"path": f"images/image-{index}.png", "caption": f"图{index}"}])], "", [])
+    result = generate_markdown_proposal("需求", tmp_path / "proposal.md", llm=DuplicateRevision(), retriever=retrieve, image_root=root, return_result=True)
+    text = result.path.read_text(encoding="utf-8")
+    image_metrics = result.metrics["images"]
+    assert image_metrics["duplicate_image_markers_removed"] >= 3
+    assert len(image_metrics["selected_images"]) == image_metrics["rendered_image_link_count"] == image_metrics["unique_image_link_count"] == image_metrics["asset_plan_count"] == len(image_metrics["copied_images"]) == len(image_metrics["final_asset_files"]) == 3
+    assert len(markdown_proposal._strict_image_links(text)) == len(set(markdown_proposal._strict_image_links(text))) == 3
+
+
+def test_image_publishability_mismatch_fails_before_write(tmp_path: Path, monkeypatch) -> None:
+    output = tmp_path / "proposal.md"
+    placement = {"selected_images_by_section": {}, "final_images_by_section": {}, "final_images": [],
+                 "image_section_coverage": {}, "image_placement_mismatches": []}
+    monkeypatch.setattr(markdown_proposal, "_final_markdown", lambda *_args, **_kwargs: ("# 标题\n\n![图](assets/image-001.png)\n", {}, [], placement))
+    monkeypatch.setattr(markdown_proposal, "_write", lambda *_args, **_kwargs: pytest.fail("_write must not run"))
+    with pytest.raises(ProposalGenerationError, match="quality_gate") as exc_info:
+        generate_markdown_proposal("需求", output, llm=FakeLLM(), retriever=_retriever([]), image_root=_image_root(tmp_path))
+    assert "image_publishability_invariant" in str(exc_info.value)
+    assert not output.exists()
+
+
+def test_renderer_owns_the_only_h1_and_preserves_fenced_heading_text(tmp_path: Path) -> None:
+    class HeadingLLM(FakeLLM):
+        def generate(self, prompt, system_prompt=""):
+            if "审查完整" in system_prompt:
+                return '{"issues":[]}'
+            if "只输出当前章节正文" in system_prompt:
+                return "# 模型 H1\n## 模型 H2\n### 原有 H3\n```\n# code heading\n```\n内容【待确认】。"
+            return super().generate(prompt, system_prompt)
+    result = generate_markdown_proposal("需求", tmp_path / "proposal.md", llm=HeadingLLM(), retriever=lambda q: QueryResult("", q, [], "", []), image_root=_image_root(tmp_path), return_result=True)
+    text = result.path.read_text(encoding="utf-8")
+    assert len(markdown_proposal._document_h1_lines(text)) == 1
+    assert "### 模型 H1" in text and "### 模型 H2" in text and "### 原有 H3" in text
+    assert "```\n# code heading\n```" in text
+    assert text.startswith("# ")
+
+
+def test_plan_rejects_multiline_or_heading_injected_titles() -> None:
+    for title, heading in (("标题\n注入", "章节"), ("标题", "# 注入")):
+        raw = json.dumps({"title": title, "sections": [
+            {"section_id": f"s{index}", "heading": heading if index == 1 else f"章节{index}", "level": 2,
+             "writing_goal": "目标", "retrieval_queries": ["q"]}
+            for index in range(1, 4)
+        ]}, ensure_ascii=False)
+        with pytest.raises(ValueError):
+            _plan_from(raw)
