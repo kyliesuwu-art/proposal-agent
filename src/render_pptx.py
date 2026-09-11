@@ -223,6 +223,28 @@ def _briefing_slides(title: str, sections: list[dict], figures: OrderedDict[str,
             coverage.append({"source_heading": section["title"], "status": status, "slide_ids": [slides[-1]["slide_id"]], "reason": "section represented in briefing"})
             if len(selected) < len(section["items"]):
                 coverage.append({"source_heading": section["title"], "status": "omitted_supporting_detail", "slide_ids": [], "reason": "briefing mode omitted repetitive or explanatory detail after selecting high-priority evidence"})
+    # A management briefing may omit supporting text, but it must account for
+    # every selected proposal image.  Use spare cap capacity for a topical
+    # figure page instead of silently losing the image in the slide plan.
+    assigned = {fid for slide in slides for fid in slide["figure_ids"]}
+    for fid, figure in figures.items():
+        if fid in assigned:
+            continue
+        if len(slides) >= max_slides - 1:
+            coverage.append({"source_heading": figure["target_section"], "status": "image_not_used", "slide_ids": [], "reason": "briefing hard cap leaves no readable image page"})
+            continue
+        owner = next(section for section in sections if section["title"] == figure["target_section"])
+        selected = _briefing_bullets(owner["items"], limit=3)
+        # The owner can have no prose only for a malformed input; do not create
+        # an empty briefing slide to force image placement.
+        if len(selected) < 3:
+            coverage.append({"source_heading": owner["title"], "status": "image_not_used", "slide_ids": [], "reason": "insufficient source-faithful bullets for readable figure page"})
+            continue
+        slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "content_image",
+                       "title": owner["title"] + "（图示）", "bullets": [text for text, _ in selected],
+                       "figure_ids": [fid], "source_ids": list(dict.fromkeys([sid for _, ids in selected for sid in ids] + figure["source_ids"])),
+                       "visible_sources": figure["visible_sources"]})
+        coverage.append({"source_heading": owner["title"], "status": "image_used", "slide_ids": [slides[-1]["slide_id"]], "reason": "selected proposal image receives a dedicated briefing page"})
     visible_all = list(dict.fromkeys(source for section in sections for source in section["visible_sources"]))
     slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "sources", "title": "参考资料", "bullets": [], "figure_ids": [], "source_ids": list(sources), "visible_sources": visible_all})
     if len(slides) > max_slides:
@@ -369,14 +391,25 @@ def _textbox(slide, x, y, w, h, text, size, *, bold=False, color=(31, 54, 82), a
     return shape
 
 
-def _source_text(ids: list[str], sources: dict) -> str:
+def _source_text(ids: list[str], sources: dict, *, limit: int | None = None) -> str:
     refs = []
-    for sid in ids:
+    shown_ids = ids if limit is None else ids[:limit]
+    for sid in shown_ids:
         info = sources.get(sid)
         if not info: continue
         pages = "、".join(info.get("pages", [])); suffix = f"第{pages}页" if pages else ""
         refs.append(f"[{sid}]《{info.get('filename', '')}》{suffix}")
-    return "来源：" + "；".join(refs)
+    suffix = f"等 {len(ids)} 项来源" if limit is not None and len(ids) > len(shown_ids) else ""
+    return "来源：" + "；".join(refs) + suffix
+
+
+def _reference_lines(sources: dict) -> list[str]:
+    """Collapse source pages by filename for a readable reference slide."""
+    grouped: OrderedDict[str, list[str]] = OrderedDict()
+    for sid, info in sources.items():
+        grouped.setdefault(info.get("filename", sid), []).extend(info.get("pages", []))
+    return [f"{name}（第{'、'.join(dict.fromkeys(pages))}页）" if pages else name
+            for name, pages in grouped.items()]
 
 
 def _add_image(slide, path: Path, x, y, w, h):
@@ -385,6 +418,17 @@ def _add_image(slide, path: Path, x, y, w, h):
         iw, ih = image.size
     scale = min(w / iw, h / ih); width, height = iw * scale, ih * scale
     return slide.shapes.add_picture(str(path), Inches(x + (w-width)/2), Inches(y + (h-height)/2), width=Inches(width), height=Inches(height))
+
+
+def _overlap_pairs(shapes) -> list[tuple[int, int]]:
+    pairs = []
+    for left, first in enumerate(shapes):
+        for right in range(left + 1, len(shapes)):
+            second = shapes[right]
+            if (first.left < second.left + second.width and second.left < first.left + first.width
+                    and first.top < second.top + second.height and second.top < first.top + first.height):
+                pairs.append((left, right))
+    return pairs
 
 
 def _draw(plan: dict, markdown: Path, output: Path) -> None:
@@ -410,24 +454,27 @@ def _draw(plan: dict, markdown: Path, output: Path) -> None:
                     for para in cell.text_frame.paragraphs:
                         for run in para.runs: run.font.name = "Microsoft YaHei"; run.font.size = Pt(16); run.font.bold = r == 0
         elif layout == "sources":
-            source_lines = []
-            for sid, info in plan["sources"].items():
-                pages = "、".join(info["pages"])
-                source_lines.append(f"[{sid}] {info['filename']} {('第' + pages + '页') if pages else ''}")
+            source_lines = _reference_lines(plan["sources"])
             if not source_lines:
                 # Historical inputs have no source IDs.  Show each real file
                 # once rather than overflowing the reference slide with every
                 # repeated page citation.
                 source_lines = list(dict.fromkeys(value.split("，第 ", 1)[0] for value in spec.get("visible_sources", [])))
+            # A source slide has a fixed vertical budget.  Add columns before
+            # moving a reference below the page; source text is never hidden.
+            columns = max(1, (len(source_lines) + 11) // 12)
+            rows = max(1, (len(source_lines) + columns - 1) // columns)
             for index, value in enumerate(source_lines):
-                _textbox(slide, .9, 1.25 + index*.42, 11.5, .35, value, 16)
+                column, row = index // rows, index % rows
+                _textbox(slide, .65 + column * (12.0 / columns), 1.2 + row * .45,
+                         11.3 / columns, .36, value, 12)
         else:
             has_image = bool(spec["figure_ids"]); text_width = 6.5 if has_image else 11.5
             for index, bullet in enumerate(spec["bullets"]): _textbox(slide, .85, 1.3 + index*.72, text_width, .6, "• " + bullet, 20)
             if has_image:
                 fid = spec["figure_ids"][0]; fig = plan["figures"][fid]; _add_image(slide, markdown.parent / fig["asset_path"], 7.6, 1.25, 4.9, 4.65)
                 if fig["caption"]: _textbox(slide, 7.6, 5.98, 4.9, .35, fig["caption"], 12, color=(90,105,120), align=PP_ALIGN.CENTER)
-        footer = _source_text(spec["source_ids"], plan["sources"]) if spec["source_ids"] else ""
+        footer = _source_text(spec["source_ids"], plan["sources"], limit=2 if plan.get("mode") == "briefing" else None) if spec["source_ids"] else ""
         if not footer and spec.get("visible_sources"):
             footer = "来源：" + "；".join(spec["visible_sources"])
         if footer: _textbox(slide, .7, 6.82, 11.95, .35, footer, 10, color=(90,105,120))
@@ -462,15 +509,18 @@ def _validate(output: Path, plan: dict, markdown: Path) -> dict:
                     errors.append(f"invalid shape geometry: {expected['slide_id']}"); break
                 if shape.left + shape.width > prs.slide_width or shape.top + shape.height > prs.slide_height:
                     errors.append(f"shape exceeds slide bounds: {expected['slide_id']}"); break
-            expected_footer = _source_text(expected["source_ids"], plan["sources"]) if expected["source_ids"] else ""
+            if _overlap_pairs(list(slide.shapes)):
+                errors.append(f"shape overlap: {expected['slide_id']}")
+            expected_footer = _source_text(expected["source_ids"], plan["sources"], limit=2 if plan.get("mode") == "briefing" else None) if expected["source_ids"] else ""
             if not expected_footer and expected.get("visible_sources"):
                 expected_footer = "来源：" + "；".join(expected["visible_sources"])
             if expected["layout"] not in {"title", "section", "sources"} and expected_footer and expected_footer not in text: errors.append(f"source footer mismatch: {expected['slide_id']}")
         planned_images = sum(len(s["figure_ids"]) for s in plan["slides"])
         if len(media) < len({f for s in plan["slides"] for f in s["figure_ids"]}): errors.append("not all planned images were embedded")
         content = "\n".join(shape.text for slide in prs.slides for shape in slide.shapes if hasattr(shape, "text"))
-        missing_numbers = [token for token in dict.fromkeys(NUMERIC.findall(markdown.read_text(encoding="utf-8"))) if token not in content]
-        if missing_numbers: errors.append("numeric tokens missing from PPTX: " + ", ".join(missing_numbers))
+        if plan.get("mode") != "briefing":
+            missing_numbers = [token for token in dict.fromkeys(NUMERIC.findall(markdown.read_text(encoding="utf-8"))) if token not in content]
+            if missing_numbers: errors.append("numeric tokens missing from PPTX: " + ", ".join(missing_numbers))
         if re.search(r"[A-Za-z]:[\\/]", content): errors.append("absolute local path leaked into PPTX")
         source_slide = any(spec["layout"] == "sources" for spec in plan["slides"])
         if not source_slide: errors.append("reference slide is missing")
@@ -498,13 +548,13 @@ def write_pptx_layout_audit(pptx_path: str | Path, plan_path: str | Path, output
         shapes = []
         for shape in slide.shapes:
             shapes.append({"left": shape.left, "top": shape.top, "width": shape.width, "height": shape.height, "has_text": bool(getattr(shape, "text", ""))})
-        pages.append({"slide_id": spec["slide_id"], "title": spec["title"], "shape_count": len(shapes), "shape_bounds_ok": all(item["left"] >= 0 and item["top"] >= 0 and item["width"] > 0 and item["height"] > 0 and item["left"] + item["width"] <= prs.slide_width and item["top"] + item["height"] <= prs.slide_height for item in shapes)})
+        pages.append({"slide_id": spec["slide_id"], "title": spec["title"], "shape_count": len(shapes), "shape_bounds_ok": all(item["left"] >= 0 and item["top"] >= 0 and item["width"] > 0 and item["height"] > 0 and item["left"] + item["width"] <= prs.slide_width and item["top"] + item["height"] <= prs.slide_height for item in shapes), "overlap_pairs": _overlap_pairs(list(slide.shapes))})
     rendered_pages = list(rendered.glob("*.png"))
     visual_render = "PASS" if rendered_pages and visual_backend else "BLOCKED"
     audit = {"pptx": pptx.name, "slide_count": len(prs.slides), "plan_slide_count": len(plan["slides"]), "aspect_ratio": round(prs.slide_width / prs.slide_height, 4), "source_handoff": plan.get("source_handoff"), "visual_backend": visual_backend, "visual_render": visual_render, "visual_review": "NOT_RUN" if visual_render != "PASS" else "PENDING", "rendered_page_count": len(rendered_pages), "pages": pages, "errors": ["visual renderer unavailable; no page PNGs or contact sheet produced"] if visual_render == "BLOCKED" else []}
     json_path = out / "visual_audit.json"; json_path.write_text(json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8")
     lines = ["# PPTX 版面审计", "", f"- PPTX：{pptx.name}", f"- 页数：{len(prs.slides)}", f"- 画幅：{audit['aspect_ratio']}（16:9 约为 1.7778）", f"- PPT_VISUAL_RENDER：{visual_render}", f"- PPT_VISUAL_REVIEW：{audit['visual_review']}", f"- 后端：{visual_backend or '未检测到 PowerPoint COM 或 LibreOffice'}", "", "## 页面", ""]
-    lines.extend(f"- {page['slide_id']}：{'PASS' if page['shape_bounds_ok'] else 'FAIL'}，{page['shape_count']} 个 shape，{page['title']}" for page in pages)
+    lines.extend(f"- {page['slide_id']}：{'PASS' if page['shape_bounds_ok'] and not page['overlap_pairs'] else 'FAIL'}，{page['shape_count']} 个 shape，{page['title']}" for page in pages)
     if audit["errors"]: lines.extend(["", "## Warning", "", *[f"- {error}" for error in audit["errors"]]])
     md_path = out / "visual_audit.md"; md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return json_path, md_path

@@ -143,6 +143,14 @@
 - 影响：图片子串或宽松正则的计数不能代表可渲染图片数。新 proposal 发现畸形图块在发布前失败；带 `proposal.sources.json` 的 PPT 输入发现畸形图块也必须失败。attempt4 无需重新生成：只在独立的 delivery 副本移除可确认的模型包装残片，并保留原始目录、来源侧车、正文、引用和图片顺序。
 - 验收：attempt4 原件有 5 个 assets 子串、但只有 4 个独立图片块；delivery 有 5 个独立块。Word 报告的 `markdown_image_path_count`、`standalone_image_block_count`、`embedded_image_count`、`unique_asset_count` 和 DOCX media 均为 5。PPT slide plan 识别 5 张图；PPTX 在无关的 `slide-041` 几何越界失败，未进行几何或视觉验收。
 
+### D-016 管理汇报 briefing 的硬上限与来源版式
+
+- 状态：有效
+- 日期：2026-09-11
+- 决策：PPT 始终从已交付 proposal 和来源侧车构建；`briefing --max-slides` 为封面、目录、正文、图示和参考资料共用的硬上限。briefing 可省略支持性文字并记录 coverage，不得新增事实或参数；剩余页数优先为已选图片建立主题页，并记录无法使用的原因。正文页脚展示至多两项来源并标出总数，完整可追溯来源由侧车和参考资料页消费。
+- 影响：presentation/faithful 保留所有数字和续页；briefing 不以未选择的支持性数字阻止发布。参考资料按文件名合并页码并自动分栏，防止来源行坐标越过页面；不得删除来源、隐藏对象、关闭几何检查或缩小正文到不可读字号。
+- 验收：attempt4 delivery 的 presentation 旧计划为 41 页，`slide-041` 的 39 条逐行来源使末行纵向越界。briefing 生成 13 页，解析/嵌入 5 张图，几何边界通过；本机无 PowerPoint/LibreOffice/Poppler 渲染器，视觉 PNG 验收仍为 BLOCKED。
+
 ## 已废弃或已替代的决策
 
 - 固定 DOCX 模板、三个占位符和手写 OOXML 整篇填充已移除：它们把内容生成绑定到固定版式，无法可靠验证内容与来源。
@@ -179,6 +187,7 @@
 | 2026-09 | PPT briefing 上限 | `briefing --max-slides` 是封面、目录、正文与参考资料均计入的硬上限；规划器以可追踪 coverage 省略辅助说明，不能生成 continuation 绕过上限。`presentation`/`faithful` 保留全文 continuation 行为。PPTX 另做几何审计；没有 PowerPoint/LibreOffice 页面渲染时明确标记视觉验收 BLOCKED | briefing 硬上限、coverage、几何审计与真实历史输入验收 | 已提交 |
 | 2026-09-11 | proposal 可靠性 | DashScope 使用显式连接/读取超时与有限重试；review 仅跳过显式 advisory 的孤立坏项，JSON 顶层失败允许一次修复；run log 从启动开始记录脱敏阶段与模型调用事件；发布失败增加安全 operation 追踪；attempt3 识别出重复图片标记导致暂存交付不一致，新增最终标记去重、H1 规范化和发布前一致性门槛；attempt4 成功发布 Markdown/sidecar/assets，但 Word 预检识别出图片图注造成的行级 Markdown 缺陷 | 148 passed，6 warnings；compileall；diff check；attempt4 真实 Markdown/来源验收 | `0e96f7f`、`f21eecf`、`d74f78b`、`b886df2`、`0917629`（已推送）、`5c3b0e6`、`603f90d`（待网络恢复后推送） |
 | 2026-09-11 | 图片下游契约 | 新增共享独立图片块解析；proposal、Word、PPT 统一校验代码块外的安全 `assets/` 独立图块。attempt4 delivery 离线修复后 Word 嵌入 5/5 图；PPT plan 识别 5 图，但 PPTX 在 `slide-041` 几何越界停止 | 图片专项、proposal/PPT 专项、全量离线测试、compileall、diff check；Word 实际渲染 | 本次提交 |
+| 2026-09-11 | PPT 管理汇报 | briefing 在硬上限内压缩已交付 Markdown 并记录 coverage；每张选中图片有主题页或明确未用原因；来源页按文件合并、自动分栏，briefing 页脚限制显示来源数。attempt4 delivery 13 页、5 图，几何通过；视觉渲染因本机无渲染器阻塞 | PPT 专项、全量离线测试、compileall、diff check；真实 delivery PPTX 与几何审计 | 本次提交 |
 
 | 2026-09 | 外部服务配置 | 新增 `scripts/ark_quickstart.py`（纯标准库，不依赖 curl/jq）用于验证火山方舟 Managed Agents 连通性；`.env` 与 `.env.example` 增加 `ARK_API_KEY` 与可选 `ARK_BASE_URL`。该脚本只做外部连通性验证，不参与方案生成链路，生成侧仍使用 DashScope | 编译检查与缺 Key 报错路径离线验证 | 未提交 |
 

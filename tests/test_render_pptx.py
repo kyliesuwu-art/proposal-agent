@@ -190,3 +190,26 @@ def test_layout_audit_marks_visual_render_blocked_without_page_images(tmp_path):
     assert audit["visual_render"] == "BLOCKED"
     assert audit["slide_count"] == audit["plan_slide_count"]
     assert all(page["shape_bounds_ok"] for page in audit["pages"])
+
+
+def test_many_sources_fit_without_geometry_overflow(tmp_path):
+    markdown, source = _fixture(tmp_path)
+    records = [{"source_id": f"S{i}", "filename": f"来源文件{i}.pdf", "pages": [i]}
+               for i in range(1, 40)]
+    source.write_text(json.dumps({"sources": records}, ensure_ascii=False), encoding="utf-8")
+    output = tmp_path / "many-sources.pptx"
+    report = json.loads(render_pptx(markdown, output, sources_path=source).read_text(encoding="utf-8"))
+    assert not report["errors"]
+
+
+def test_briefing_uses_all_selected_figures_when_cap_has_space(tmp_path):
+    assets = tmp_path / "assets"; assets.mkdir()
+    for index in range(5): Image.new("RGB", (20, 10), "blue").save(assets / f"f{index}.png")
+    markdown = tmp_path / "proposal.md"
+    markdown.write_text("# T\n\n## A\n\n" + "\n\n".join(
+        f"要点{index}，需结合现场确认。[来源: 手册.pdf, 第 1 页]\n![图{index}](assets/f{index}.png)"
+        for index in range(5)) + "\n\n## 来源与依据\n- 手册.pdf：第 1 页\n", encoding="utf-8")
+    source = tmp_path / "proposal.sources.json"; source.write_text(json.dumps({"sources": [{"source_id": "S1", "filename": "手册.pdf", "pages": [1]}]}, ensure_ascii=False), encoding="utf-8")
+    plan, _ = build_slide_plan(markdown, mode="briefing", max_slides=10, sources_path=source)
+    assert len(plan["slides"]) <= 10
+    assert {fid for slide in plan["slides"] for fid in slide["figure_ids"]} == set(plan["figures"])
