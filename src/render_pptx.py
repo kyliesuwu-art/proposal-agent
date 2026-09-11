@@ -464,13 +464,31 @@ def _draw(plan: dict, markdown: Path, output: Path) -> None:
         slide = prs.slides.add_slide(blank); layout = spec["layout"]
         if layout == "title":
             _textbox(slide, 1.0, 2.5, 11.3, 1.3, spec["title"], 50, bold=True, align=PP_ALIGN.CENTER)
-            _textbox(slide, 1.0, 4.1, 11.3, .4, "基于已审阅 Markdown 的本地演示文稿", 20, color=(90, 105, 120), align=PP_ALIGN.CENTER)
+            if not plan.get("formal_delivery"):
+                _textbox(slide, 1.0, 4.1, 11.3, .4, "基于已审阅 Markdown 的本地演示文稿", 20, color=(90, 105, 120), align=PP_ALIGN.CENTER)
             continue
-        _textbox(slide, .65, .42, 12.0, .55, spec["title"], 35, bold=True)
+        _textbox(slide, .65, .42, 11.1, .55, spec["title"], 32 if plan.get("formal_delivery") else 35, bold=True, color=(11, 54, 86))
+        if plan.get("formal_delivery"):
+            _textbox(slide, 12.05, .47, .55, .28, str(len(prs.slides)), 11, color=(0, 133, 142), align=PP_ALIGN.RIGHT)
         if layout == "section":
             _textbox(slide, .9, 2.7, 11.5, .8, spec["title"], 32, color=(47, 103, 145), align=PP_ALIGN.CENTER)
         elif layout == "agenda":
-            for index, bullet in enumerate(spec["bullets"]): _textbox(slide, 1.15, 1.35 + index*.72, 10.8, .5, f"{index+1}. {bullet}", 24)
+            for index, bullet in enumerate(spec["bullets"]): _textbox(slide, 1.15, 1.35 + index*.62, 10.8, .46, f"{index+1}. {bullet}", 20)
+        elif layout in {"key_points", "metrics"}:
+            columns = max(1, min(3, len(spec["bullets"])))
+            width = 11.7 / columns
+            for index, bullet in enumerate(spec["bullets"]):
+                _textbox(slide, .8 + (index % columns) * (width + .1), 1.7 + (index // columns) * 2.1,
+                         width, 1.45, bullet, 20, bold=layout == "metrics", color=(11, 54, 86))
+        elif layout == "diagram":
+            for index, bullet in enumerate(spec["bullets"]):
+                _textbox(slide, .9 + index * 3.95, 2.35, 3.45, 1.15, bullet, 20, bold=True,
+                         color=(0, 120, 130), align=PP_ALIGN.CENTER)
+        elif layout == "timeline":
+            count = max(1, len(spec["bullets"])); width = 11.6 / count
+            for index, bullet in enumerate(spec["bullets"]):
+                _textbox(slide, .85 + index * width, 2.15, width - .14, 1.7, bullet, 19,
+                         bold=True, color=(11, 54, 86), align=PP_ALIGN.CENTER)
         elif layout == "table":
             rows = spec.get("table", []); cols = max((len(row) for row in rows), default=1)
             table = slide.shapes.add_table(len(rows), cols, Inches(.75), Inches(1.3), Inches(11.8), Inches(4.9)).table
@@ -496,12 +514,12 @@ def _draw(plan: dict, markdown: Path, output: Path) -> None:
                          11.3 / columns, .36, value, 12)
         else:
             has_image = bool(spec["figure_ids"]); text_width = 6.5 if has_image else 11.5
-            body = "\n".join("• " + formal_text(bullet) for bullet in spec["bullets"])
+            body = "\n".join("• " + formal_text(bullet) for bullet in spec["bullets"] if formal_text(bullet))
             _textbox(slide, .85, 1.3, text_width, 4.9, body, 20)
             if has_image:
                 fid = spec["figure_ids"][0]; fig = plan["figures"][fid]; _add_image(slide, markdown.parent / fig["asset_path"], 7.6, 1.25, 4.9, 4.65)
                 if fig["caption"]: _textbox(slide, 7.6, 5.98, 4.9, .35, fig["caption"], 12, color=(90,105,120), align=PP_ALIGN.CENTER)
-        footer = _source_text(spec["source_ids"], plan["sources"]) if spec["source_ids"] and plan.get("mode") != "briefing" else ""
+        footer = _source_text(spec["source_ids"], plan["sources"]) if spec["source_ids"] and plan.get("mode") != "briefing" and not plan.get("formal_delivery") else ""
         if not footer and spec.get("visible_sources") and not plan.get("formal_delivery"):
             footer = "来源：" + "；".join(spec["visible_sources"])
         if footer: _textbox(slide, .7, 6.82, 11.95, .35, footer, 10, color=(90,105,120))
@@ -519,6 +537,8 @@ def _validate(output: Path, plan: dict, markdown: Path) -> dict:
         prs = Presentation(output)
         if plan.get("mode") == "briefing" and len(plan["slides"]) > plan.get("requested_max_slides", plan.get("max_slides", 0)):
             errors.append("briefing slide cap exceeded")
+        if plan.get("formal_delivery") and not 15 <= len(plan["slides"]) <= 25:
+            errors.append("formal briefing must contain 15 to 25 slides")
         ids = [spec.get("slide_id") for spec in plan["slides"]]
         if len(ids) != len(set(ids)) or any(not value for value in ids): errors.append("slide IDs must be unique and non-empty")
         if len(prs.slides) != len(plan["slides"]): errors.append("slide count differs from slide plan")
@@ -526,9 +546,10 @@ def _validate(output: Path, plan: dict, markdown: Path) -> dict:
             text = "\n".join(shape.text for shape in slide.shapes if hasattr(shape, "text"))
             if expected["title"] not in text: errors.append(f"missing title: {expected['slide_id']}")
             if not expected.get("title"): errors.append(f"empty title: {expected['slide_id']}")
-            if plan.get("mode") == "briefing" and expected["layout"] in {"content", "content_image"} and not expected.get("bullets"):
+            content_layouts = {"content", "content_image", "key_points", "metrics", "diagram", "timeline"}
+            if plan.get("mode") == "briefing" and expected["layout"] in content_layouts and not expected.get("bullets"):
                 errors.append(f"empty content slide: {expected['slide_id']}")
-            if plan.get("mode") == "briefing" and expected["layout"] in {"content", "content_image"}:
+            if plan.get("mode") == "briefing" and expected["layout"] in content_layouts:
                 if not 3 <= len(expected["bullets"]) <= 6: errors.append(f"briefing bullet density invalid: {expected['slide_id']}")
                 if any(len(value) > 65 for value in expected["bullets"]): errors.append(f"briefing bullet too long: {expected['slide_id']}")
             for shape in slide.shapes:
@@ -538,7 +559,7 @@ def _validate(output: Path, plan: dict, markdown: Path) -> dict:
                     errors.append(f"shape exceeds slide bounds: {expected['slide_id']}"); break
             if _overlap_pairs(list(slide.shapes)):
                 errors.append(f"shape overlap: {expected['slide_id']}")
-            expected_footer = _source_text(expected["source_ids"], plan["sources"]) if expected["source_ids"] and plan.get("mode") != "briefing" else ""
+            expected_footer = _source_text(expected["source_ids"], plan["sources"]) if expected["source_ids"] and plan.get("mode") != "briefing" and not plan.get("formal_delivery") else ""
             if not expected_footer and expected.get("visible_sources") and not plan.get("formal_delivery"):
                 expected_footer = "来源：" + "；".join(expected["visible_sources"])
             if expected["layout"] not in {"title", "section", "sources"} and expected_footer and expected_footer not in text: errors.append(f"source footer mismatch: {expected['slide_id']}")

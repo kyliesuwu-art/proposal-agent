@@ -8,7 +8,7 @@ from docx.shared import Cm, Pt
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from src.markdown_images import image_blocks, image_syntax_errors, safe_asset_path
-from src.delivery_text import formal_text, forbidden_delivery_tokens
+from src.delivery_text import formal_markdown, forbidden_delivery_tokens
 HEADING=re.compile(r"^(#{1,6})\s+(.+)$"); NUM=re.compile(r"\b\d+(?:\.\d+)?\s*(?:MWp|MWh|MW|kV|kW|V|W|A|mm²|mm2|%)\b",re.I)
 class RenderWordError(RuntimeError): pass
 def font(run,name='宋体',size=12,bold=False,italic=False):
@@ -32,15 +32,19 @@ def render_word(input_path,output_path,*,formal=False,image_decisions_path=None)
  text=md.read_text(encoding='utf8'); rejected=set()
  if image_decisions_path:
   rejected={p for p,v in json.loads(Path(image_decisions_path).read_text(encoding='utf8')).get('images',{}).items() if not v.get('use_in_word',v.get('status')=='used')}
- if formal: text=formal_text(text)
+ if formal: text,_=formal_markdown(text)
  refs,unique=sources(md,rejected);doc=Document();sec=doc.sections[0];sec.top_margin=sec.bottom_margin=Cm(2.5);sec.left_margin=sec.right_margin=Cm(2.7); hs=ts=0;lines=text.splitlines();i=0
  while i<len(lines):
-  line=lines[i];h=HEADING.match(line)
-  if h:
+  line=lines[i];h=HEADING.match(line); blocks=image_blocks(line)
+  # Consume every recognised Markdown image. Rejected figures must not fall
+  # through to ordinary text and leak their raw Markdown into the DOCX.
+  if blocks:
+   block=blocks[0]
+   if block.asset_path not in rejected:
+    alt,path=block.caption,safe_asset_path(md,block.asset_path);p=doc.add_paragraph();p.alignment=WD_ALIGN_PARAGRAPH.CENTER;p.add_run().add_picture(str(path),width=Cm(15));
+    if alt:q=doc.add_paragraph();q.alignment=WD_ALIGN_PARAGRAPH.CENTER;font(q.add_run(alt),size=10)
+  elif h:
    lv=len(h.group(1));p=doc.add_heading(level=lv);p.paragraph_format.keep_with_next=True;font(p.add_run(h.group(2)),'黑体',22 if lv==1 else 18 if lv==2 else 15,True);hs+=1
-  elif (block := next((b for b in image_blocks(line) if b.line_number == 1), None)) and block.asset_path not in rejected:
-   alt,path=block.caption,safe_asset_path(md,block.asset_path);p=doc.add_paragraph();p.alignment=WD_ALIGN_PARAGRAPH.CENTER;p.add_run().add_picture(str(path),width=Cm(15));
-   if alt:q=doc.add_paragraph();q.alignment=WD_ALIGN_PARAGRAPH.CENTER;font(q.add_run(alt),size=10)
   elif line.strip().startswith('|') and i+1<len(lines) and '-' in lines[i+1]:
    block=[line];i+=1
    while i+1<len(lines) and lines[i+1].strip().startswith('|'):i+=1;block.append(lines[i])
