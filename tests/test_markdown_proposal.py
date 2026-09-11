@@ -229,13 +229,23 @@ def test_quality_gate_reports_all_known_final_markdown_violations(tmp_path: Path
 
 def test_final_quality_gate_runs_before_any_proposal_file_is_written(tmp_path: Path, monkeypatch) -> None:
     output = tmp_path / "outputs" / "proposal.md"
+    progress: list[tuple[str, dict]] = []
     monkeypatch.setattr(
         markdown_proposal,
         "_final_markdown",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ProposalQualityError("存在无效的结构化 Markdown 转义")),
     )
     with pytest.raises(ProposalGenerationError, match="quality_gate"):
-        generate_markdown_proposal("需求", output, llm=FakeLLM(), retriever=_retriever([]), image_root=_image_root(tmp_path))
+        generate_markdown_proposal(
+            "需求", output, llm=FakeLLM(), retriever=_retriever([]), image_root=_image_root(tmp_path),
+            progress=lambda stage, details: progress.append((stage, details)),
+        )
+    event = [details for stage, details in progress if stage == "quality_gate" and details.get("quality_gate_phase") == "final_render_precondition"]
+    assert event[0]["checked_artifact"] == "unavailable:final_render_failed_prepublication:proposal.md"
+    assert event[0]["quality_gate_failed_checks"] == [{
+        "rule": "final_markdown_render_precondition", "expected": "rendered in-memory final Markdown",
+        "actual": "ProposalQualityError", "passed": False,
+    }]
     assert not output.exists()
 
 

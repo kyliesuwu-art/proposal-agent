@@ -1041,6 +1041,30 @@ def _quality_gate_diagnostics(
     }
 
 
+def _unavailable_final_markdown_diagnostics(error: ProposalQualityError, output_path: Path) -> dict:
+    """Describe a final-render failure when no safe Markdown aggregate exists."""
+    check = {
+        "rule": "final_markdown_render_precondition",
+        "expected": "rendered in-memory final Markdown",
+        "actual": type(error).__name__,
+        "passed": False,
+    }
+    return {
+        "event": "quality_gate_checks",
+        "quality_gate_phase": "final_render_precondition",
+        "checked_artifact": f"unavailable:final_render_failed_prepublication:{output_path.name}",
+        "draft_character_count": None,
+        "heading_count": None,
+        "citation_count": None,
+        "figure_count": None,
+        "pending_confirmation_count": None,
+        "quality_gate_checks": [check],
+        "quality_gate_failed_checks": [check],
+        "quality_gate_warning_messages": [],
+        "quality_gate_error_messages": [str(error)],
+    }
+
+
 def _sync_assets(stage_root: Path, assets: dict[tuple[str, str], _ImageAsset]) -> list[dict]:
     """Copy into a private staging directory before touching published assets."""
     copied: list[dict] = []
@@ -1328,7 +1352,12 @@ def generate_markdown_proposal(
     try:
         assembly_started = time.monotonic()
         _apply_image_budget(sections, image_root, warnings, metrics["images"])
-        markdown, assets, gate_warnings, placement = _final_markdown(plan, sections, image_root=image_root, output_path=output_path, request=request)
+        try:
+            markdown, assets, gate_warnings, placement = _final_markdown(plan, sections, image_root=image_root, output_path=output_path, request=request)
+        except ProposalQualityError as exc:
+            if progress is not None:
+                progress("quality_gate", _unavailable_final_markdown_diagnostics(exc, output_path))
+            raise
         metrics["images"].update(placement)
         warnings.extend(gate_warnings)
         fatal_errors = _role_and_scope_errors(sections)
