@@ -28,7 +28,7 @@ load_project_environment()
 from src import pipeline
 from src.adapters.parser import SUPPORTED_EXTENSIONS
 from src.adapters.llm_client import LLMClient
-from src.markdown_proposal import ProposalGenerationError, ProposalWriteError, diagnose_markdown_proposal, generate_markdown_proposal
+from src.markdown_proposal import ProposalGenerationError, ProposalQualityError, ProposalWriteError, diagnose_markdown_proposal, generate_markdown_proposal
 from src.render_word import RenderWordError, render_word
 from src.render_pptx import RenderPptxError, render_pptx, write_pptx_layout_audit
 
@@ -286,6 +286,10 @@ def main() -> None:
             details: dict[str, object] = {"error_type": type(exc).__name__}
             if isinstance(exc, ProposalGenerationError):
                 details["cause_type"] = type(exc.cause).__name__
+                if exc.stage == "quality_gate" and isinstance(exc.cause, ProposalQualityError):
+                    # The quality gate only raises deterministic rule messages.
+                    # Keep the complete reason alongside its structured snapshot.
+                    details["quality_gate_error_message"] = str(exc.cause)
                 if isinstance(exc.cause, ProposalWriteError):
                     details["write_operation"] = exc.cause.operation
                     details["write_cause_type"] = type(exc.cause.cause).__name__

@@ -969,6 +969,78 @@ def _quality_gate(markdown: str, output_path: Path, assets: dict[tuple[str, str]
     return errors
 
 
+def _quality_gate_diagnostics(
+    markdown: str, *, output_path: Path, gate_warnings: list[str], fatal_errors: list[str],
+    placement: dict,
+) -> dict:
+    """Return a prompt-free snapshot of the pre-publication quality decision.
+
+    The final Markdown is deliberately kept in memory until the gate passes. A
+    failing run must still be diagnosable, but logging its body would turn a run
+    log into an accidental proposal copy. Record only deterministic checks and
+    aggregate counts instead.
+    """
+    headings = [line for line in markdown.splitlines() if _HEADING_RE.match(line)]
+    citations = _VISIBLE_CITATION_RE.findall(markdown)
+    figures = _strict_image_links(markdown)
+    confirmations = _confirmation_items(markdown)
+    role_prefixes = ("证据角色越界", "案例金额污染", "范围越界")
+    warning_rule_prefixes = (
+        ("缺少合法 H1 标题", "missing_valid_h1"),
+        ("存在无效的结构化 Markdown 转义", "invalid_markdown_structure"),
+        ("残留内部证据或图片 ID", "internal_ids"),
+        ("显示了内部缓存路径或机器绝对路径", "internal_paths"),
+        ("正文存在引用但来源列表为空", "citation_without_sources"),
+        ("存在重复或非标准的待确认项标题", "noncanonical_confirmation_heading"),
+        ("存在空待确认项", "empty_confirmation_item"),
+        ("正文残留待确认视觉伪标题", "confirmation_pseudo_label"),
+        ("待确认项未完整规范覆盖用户明确参数", "missing_requested_confirmations"),
+        ("图片文件不存在", "missing_image_file"),
+        ("用户明确要求的章节缺少标题覆盖", "missing_requested_heading"),
+        ("最终 Markdown 有效图片链接与资产计划数量不一致", "image_link_asset_count_mismatch"),
+        ("图片章节覆盖不足", "insufficient_image_section_coverage"),
+        ("图片：章节", "preferred_section_missing_image"),
+    )
+    warning_checks = [
+        {"rule": next((rule for prefix, rule in warning_rule_prefixes if warning.startswith(prefix)), "markdown_quality_violation"),
+         "expected": "absent", "actual": "present", "passed": False}
+        for warning in gate_warnings
+    ]
+    checks: list[dict[str, object]] = [
+        {"rule": "final_markdown_quality_warnings", "expected": 0,
+         "actual": len(gate_warnings), "passed": not gate_warnings},
+        {"rule": "role_and_scope_errors", "expected": 0,
+         "actual": len([item for item in fatal_errors if item.startswith(role_prefixes)]),
+         "passed": not any(item.startswith(role_prefixes) for item in fatal_errors)},
+        {"rule": "image_pipeline_failure", "expected": False,
+         "actual": any(item.startswith("image_pipeline_failure") for item in fatal_errors),
+         "passed": not any(item.startswith("image_pipeline_failure") for item in fatal_errors)},
+        {"rule": "image_placement_mismatch", "expected": 0,
+         "actual": len(placement["image_placement_mismatches"]),
+         "passed": not placement["image_placement_mismatches"]},
+        {"rule": "internal_ids_in_final_markdown", "expected": 0,
+         "actual": len(_ID_RE.findall(markdown)), "passed": not _ID_RE.search(markdown)},
+        {"rule": "internal_paths_in_final_markdown", "expected": False,
+         "actual": bool("cache/" in markdown or "cache\\" in markdown or re.search(r"[A-Za-z]:\\", markdown)),
+         "passed": not ("cache/" in markdown or "cache\\" in markdown or re.search(r"[A-Za-z]:\\", markdown))},
+    ] + warning_checks
+    return {
+        "event": "quality_gate_checks",
+        "checked_artifact": f"in_memory_final_markdown_prepublication:{output_path.name}",
+        "draft_character_count": len(markdown),
+        "heading_count": len(headings),
+        "citation_count": len(citations),
+        "figure_count": len(figures),
+        "pending_confirmation_count": len(confirmations),
+        "quality_gate_checks": checks,
+        "quality_gate_failed_checks": [check for check in checks if not check["passed"]],
+        # Messages are deterministic rule results, never model output,
+        # prompts, credentials, or Markdown body text.
+        "quality_gate_warning_messages": gate_warnings,
+        "quality_gate_error_messages": fatal_errors,
+    }
+
+
 def _sync_assets(stage_root: Path, assets: dict[tuple[str, str], _ImageAsset]) -> list[dict]:
     """Copy into a private staging directory before touching published assets."""
     copied: list[dict] = []
@@ -1268,6 +1340,12 @@ def generate_markdown_proposal(
             fatal_errors.append("最终 Markdown 残留内部证据或图片 ID")
         if ("cache/" in markdown or "cache\\" in markdown or re.search(r"[A-Za-z]:\\", markdown)):
             fatal_errors.append("最终 Markdown 显示了内部缓存路径或机器绝对路径")
+        diagnostics = _quality_gate_diagnostics(
+            markdown, output_path=output_path, gate_warnings=gate_warnings,
+            fatal_errors=fatal_errors, placement=placement,
+        )
+        if progress is not None:
+            progress("quality_gate", diagnostics)
         if fatal_errors:
             raise ProposalQualityError("；".join(fatal_errors))
         if warnings and not markdown.startswith(_DRAFT_NOTICE):

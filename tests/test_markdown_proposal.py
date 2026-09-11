@@ -239,6 +239,30 @@ def test_final_quality_gate_runs_before_any_proposal_file_is_written(tmp_path: P
     assert not output.exists()
 
 
+def test_quality_gate_progress_includes_safe_structured_failure_snapshot(tmp_path: Path, monkeypatch) -> None:
+    output = tmp_path / "proposal.md"
+    progress: list[tuple[str, dict]] = []
+    monkeypatch.setattr(
+        markdown_proposal,
+        "_role_and_scope_errors",
+        lambda _sections: ["范围越界：章节“范围”将非工业园区能源核心内容作为核心模块"],
+    )
+    with pytest.raises(ProposalGenerationError, match="quality_gate"):
+        generate_markdown_proposal(
+            "需求", output, llm=FakeLLM(), retriever=_retriever([]), image_root=_image_root(tmp_path),
+            progress=lambda stage, details: progress.append((stage, details)),
+        )
+    quality_events = [details for stage, details in progress if stage == "quality_gate" and details.get("event") == "quality_gate_checks"]
+    assert len(quality_events) == 1
+    event = quality_events[0]
+    assert event["checked_artifact"] == "in_memory_final_markdown_prepublication:proposal.md"
+    assert event["draft_character_count"] > 0
+    assert {"heading_count", "citation_count", "figure_count", "pending_confirmation_count"} <= set(event)
+    assert any(check["rule"] == "role_and_scope_errors" and check["expected"] == 0 and check["actual"] == 1 and not check["passed"] for check in event["quality_gate_failed_checks"])
+    assert "# " not in str(event)
+    assert not output.exists()
+
+
 def test_confirmation_items_remove_empty_generic_and_duplicate_but_keep_specific_items() -> None:
     body = "\n".join([
         "待确认内容：具体参数待确认【待确认】。",

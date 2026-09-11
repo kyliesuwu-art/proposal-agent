@@ -33,3 +33,19 @@ def test_run_log_is_written_at_stage_boundaries_without_request_or_secret(tmp_pa
     assert data["model"] == "qwen-test" and "updated_at" in data
     assert [event["stage"] for event in data["events"]] == ["planning", "model_call"]
     assert "key" not in " ".join(data).lower() and "authorization" not in " ".join(data).lower()
+
+
+def test_run_log_retains_structured_quality_gate_failure_details(tmp_path: Path):
+    path = tmp_path / "proposal.run.log"
+    _write_proposal_run_log(
+        path, status="RUNNING", stage="quality_gate", event="quality_gate_checks",
+        checked_artifact="in_memory_final_markdown_prepublication:proposal.md",
+        draft_character_count=42, heading_count=2, citation_count=1, figure_count=0,
+        pending_confirmation_count=1,
+        quality_gate_checks=[{"rule": "role_and_scope_errors", "expected": 0, "actual": 1, "passed": False}],
+        quality_gate_failed_checks=[{"rule": "role_and_scope_errors", "expected": 0, "actual": 1, "passed": False}],
+    )
+    data = json.loads(path.read_text(encoding="utf-8"))
+    event = data["events"][0]
+    assert event["quality_gate_failed_checks"] == [{"rule": "role_and_scope_errors", "expected": 0, "actual": 1, "passed": False}]
+    assert event["checked_artifact"] == "in_memory_final_markdown_prepublication:proposal.md"

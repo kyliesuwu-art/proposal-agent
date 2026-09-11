@@ -1,10 +1,12 @@
 """结构化查询、联合引用与 CLI Markdown 输出的离线测试。"""
 
+import json
 import sys
 
 import pytest
 
 from src import main, pipeline
+from src.markdown_proposal import ProposalGenerationError, ProposalQualityError
 from src.query_result import Citation, QueryResult
 
 
@@ -171,6 +173,25 @@ def test_proposal_cli_failure_is_nonzero_and_debug_can_print_traceback(monkeypat
     assert "[planning]" in output.err
     assert "safe failure" in output.err
     assert ("Traceback" in output.err) is debug
+
+
+def test_proposal_cli_records_complete_deterministic_quality_gate_error(monkeypatch, tmp_path) -> None:
+    class ConfiguredLLM:
+        connection_settings = {"model": "fake"}
+
+    def fail_quality_gate(*_args, **_kwargs):
+        raise ProposalGenerationError("quality_gate", ProposalQualityError("范围越界：章节“范围”将非核心内容作为核心模块"))
+
+    output = tmp_path / "proposal.md"
+    monkeypatch.setattr(main, "LLMClient", ConfiguredLLM)
+    monkeypatch.setattr(main, "generate_markdown_proposal", fail_quality_gate)
+    monkeypatch.setattr(sys, "argv", ["main.py", "proposal", "需求", "--output", str(output)])
+
+    with pytest.raises(SystemExit):
+        main.main()
+
+    log = json.loads((tmp_path / "proposal.run.log").read_text(encoding="utf-8"))
+    assert log["quality_gate_error_message"] == "范围越界：章节“范围”将非核心内容作为核心模块"
 
 
 def test_retrieve_evidence_merges_planned_queries_without_llm(monkeypatch) -> None:
