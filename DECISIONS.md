@@ -8,8 +8,8 @@
 
 - 唯一测试库：`runtime_data/word_test_db`。
 - 数据集：10 份来源文档、214 条索引页；SQLite FTS5 与 Chroma 各 214 条记录，collection 为 `electrical_pages_v2`。
-- 单 Markdown proposal V1 已完成离线实现、受控 DashScope 尝试与发布诊断；失败运行不交付不完整产物。
-- DOCX/PPTX 本地渲染器已存在，均只消费已验证的 Markdown 交付物；当前工作树在每轮验证后保持干净。
+- 单 Markdown proposal V1 已完成离线实现、受控 DashScope 尝试与发布诊断；attempt4 已生成可交付的 Markdown、来源侧车和真实图片资产。
+- DOCX/PPTX 本地渲染器已存在，均只消费已验证的 Markdown 交付物；attempt4 在 DOCX 本地预检处停止，尚未进入 PPTX 或视觉验收。
 
 ## 当前有效的架构决策
 
@@ -126,10 +126,13 @@
 - 决策：DashScope OpenAI-compatible 调用采用 15 秒连接超时、300 秒读取超时及调用方有限重试；OpenAI SDK 内建重试关闭，避免嵌套、不可观察的无限等待。proposal 启动即建立 `proposal.run.log`，并追加脱敏事件：初始化、规划/检索/写作/review/修订阶段完成、模型调用开始/完成/失败与耗时。日志只记录 provider、endpoint、model、超时、stage、purpose、异常类型和安全 operation，不记录完整 prompt、API Key、Authorization 或环境变量值。
 - review 容错：仅显式 `advisory`、`info`、`warning` 的孤立格式损坏项可跳过，并记录 `review_advisory_item_skipped`、received/valid/skipped 计数及 warning；未分类、blocking 或 critical 的损坏项必须失败。无法解析 JSON 或缺少 issues 顶层列表时仅允许一次格式修复调用；修复仍失败即以 `review` stage 显式失败。
 - 发布诊断：Markdown/assets/sources 的暂存、校验与原子发布失败包装为 `ProposalWriteError`，以 `write_operation` 和底层异常类型写入 run log，不暴露内容。
-- 已完成：`0e96f7f fix: harden proposal review and add run observability`、`f21eecf fix: trace proposal publication failures`；完整测试为 139 passed、6 warnings，`compileall` 与 `git diff --check` 通过。
-- 推送状态：两个提交尚未推送，`git push origin main` 因 GitHub `443` 连接失败；不得 force push 或重写历史。
-- 当前真实运行：DashScope 与 `qwen3.7-plus` 可用。attempt2 在 `markdown_write` 失败；retry 在最终渲染前失败且未保留中间 Markdown；attempt3 的确定性根因是同一选中 `[IMG#]` 标记重复渲染为多个链接，而 `_asset_plan` 只产生一个资产。暂存校验器在 `validate_staged_markdown` 拒绝了图片链接、复制图片和 assets 文件数量不一致的交付，行为正确。各失败目录仅保留 `proposal.run.log`，没有 `proposal.md`、`proposal.sources.json`、`proposal.request.json` 或 assets；不得伪造 sidecar。
-- 影响：最终渲染前必须确定性去除同一章节内被选图片的重复标记，并以 `link=unique_link=asset_plan=copied=staged_file` 作为 FATAL 发布一致性门槛；`_write` 的暂存校验继续作为最后防线。H1 仅由确定性渲染器生成，正文 H1/H2 在代码块外降级为 H3，草稿提示置于 H1 后。完成离线测试、提交且工作树干净后，可由明确授权发起一次新的受控真实运行。
+- 已完成：`0e96f7f fix: harden proposal review and add run observability`、`f21eecf fix: trace proposal publication failures`、`d74f78b fix: record quality gate failure diagnostics`、`b886df2 fix: distinguish pre-render quality failures`、`0917629 docs: record proposal reliability decisions`、`5c3b0e6 fix: enforce proposal image publication invariants`、`603f90d docs: update proposal delivery status`。图片/H1 修复后的完整离线测试为 148 passed、6 warnings，`compileall` 与 `git diff --check` 通过。
+- 推送状态：`0917629` 已同步；`5c3b0e6` 与 `603f90d` 尚未同步。两次 `git push origin main` 均因 GitHub `443` 无法连接而失败；不得 force push 或重写历史。
+- 已完成的真实验收：DashScope 与 `qwen3.7-plus` 可用。attempt2 在 `markdown_write` 失败；retry 在最终渲染前失败且未保留中间 Markdown；attempt3 的确定性根因是同一选中 `[IMG#]` 标记重复渲染为多个链接，而 `_asset_plan` 只产生一个资产。暂存校验器在 `validate_staged_markdown` 拒绝了图片链接、复制图片和 assets 文件数量不一致的交付，行为正确。各失败目录仅保留 `proposal.run.log`，没有 `proposal.md`、`proposal.sources.json`、`proposal.request.json` 或 assets；不得伪造 sidecar。
+- attempt4：在修复后唯一一次受控真实运行中，`proposal.md`、`proposal.sources.json`、`proposal.request.json` 和 5 个真实 assets 均成功发布。验收结果为 1 个 H1、15 个标题、69 个可见引用、12 项具体待确认；5 个图片链接、5 个唯一链接和 5 个资产文件一一对应，且分布在 5 个相关业务章节。不存在内部 ID、缓存路径或绝对路径；医院容量、负荷、电价、投资和收益等未提供参数均标为 `【待确认】`，案例数值明确标为参考。
+- 当前阻塞：attempt4 的 `render-word` 在本地 DOCX 验证器以 `RenderWordError: local DOCX validation failed` 停止，未生成 DOCX。根因是最终 Markdown 的图片图注规范化不完整：图片正则可提取 5 个图片链接，但仅 4 个处于完整独立行；第 3 张图前有 4 个不完整的 `![caption]` 片段。渲染器因此只嵌入 4 张图片，而来源扫描期望 5 张，预检正确拒绝发布。PPTX、几何审计和 WPS/PowerPoint 视觉验收均未启动。
+- 后续计划：先离线修复图片图注/Markdown 行级规范化，使每个选择的图片严格渲染为一个独立完整的 Markdown 图片行，并补充“可提取链接数与可渲染独立图片行数一致”的回归测试。随后运行完整测试、编译和 diff 检查，提交并在网络恢复后普通 push；只有在用户再次明确授权后，才可针对同一已交付 Markdown 重跑 Word 技术验收。Word 通过逐页 PNG 渲染检查后，才可构建 PPTX、执行几何审计；只有生成真实逐页图片并检查后，才能声称 WPS/PowerPoint 视觉验收通过。
+- 踩坑与约束：不能仅以图片链接正则数量判断图片可发布性，Markdown 行级语法也必须可被下游渲染器完整消费；不能为通过渲染器而复制重复文件、放宽暂存校验或伪造 sidecar。`_write` 暂存校验继续作为最后防线；最终渲染前以 `link=unique_link=asset_plan=copied=staged_file` 为 FATAL 发布一致性门槛。H1 只由确定性渲染器生成，正文 H1/H2 在代码块外降级为 H3，草稿提示置于 H1 后。
 
 ## 已废弃或已替代的决策
 
@@ -140,7 +143,7 @@
 
 ## 待决定事项
 
-- 在真实 Markdown 内容与引用交付通过后，完成本地 DOCX/PPTX 渲染器的技术与视觉验收。
+- 修复 attempt4 暴露的图片图注行级 Markdown 规范化缺陷，并以同一已交付 Markdown 完成 Word 技术验收；随后再完成 PPTX 几何与真实页面渲染验收。
 - 是否为未来不同测试数据集增加显式、只读的 CLI 数据库参数；当前不扩大 CLI 范围。
 
 ## 变更记录
@@ -165,7 +168,7 @@
 | 2026-09 | 定向升级准备 | P3 以 ZIP SHA-256 与稳定 document ID 生成 legacy/failed/duplicate 互斥计划；`reindex-affected --dry-run` 禁止源目标同路径和已存在目标，且保证零数据库/网络/embedding 调用。实际候选库创建与 `--resume` 需独立授权 | 86/5/9 真实计划与 dry-run、离线测试 | 未提交 |
 | 2026-09 | PPT 下游交付 | `build-slides` 将已交付 Markdown 重组为含稳定 slide ID/layout 的演示稿和 slide plan；本地 PPTX 按图注主题重新分配图片，单页默认一图，并在容量不足时生成续页而不截断。历史 Markdown 缺少 sidecar 时仅从可见来源降级，不伪造侧车。成功 proposal 另存不含密钥的 `proposal.request.json` 以便复现 | PPT 专项、真实 Markdown→slides→PPTX 本地验收 | 未提交 |
 | 2026-09 | PPT briefing 上限 | `briefing --max-slides` 是封面、目录、正文与参考资料均计入的硬上限；规划器以可追踪 coverage 省略辅助说明，不能生成 continuation 绕过上限。`presentation`/`faithful` 保留全文 continuation 行为。PPTX 另做几何审计；没有 PowerPoint/LibreOffice 页面渲染时明确标记视觉验收 BLOCKED | briefing 硬上限、coverage、几何审计与真实历史输入验收 | 已提交 |
-| 2026-09-11 | proposal 可靠性 | DashScope 使用显式连接/读取超时与有限重试；review 仅跳过显式 advisory 的孤立坏项，JSON 顶层失败允许一次修复；run log 从启动开始记录脱敏阶段与模型调用事件；发布失败增加安全 operation 追踪；attempt3 识别出重复图片标记导致暂存交付不一致，新增最终标记去重和发布前一致性门槛 | 148 passed，6 warnings；compileall；diff check | `0e96f7f`、`f21eecf`、`d74f78b`、`b886df2`、`0917629`（已推送；本轮提交待写入） |
+| 2026-09-11 | proposal 可靠性 | DashScope 使用显式连接/读取超时与有限重试；review 仅跳过显式 advisory 的孤立坏项，JSON 顶层失败允许一次修复；run log 从启动开始记录脱敏阶段与模型调用事件；发布失败增加安全 operation 追踪；attempt3 识别出重复图片标记导致暂存交付不一致，新增最终标记去重、H1 规范化和发布前一致性门槛；attempt4 成功发布 Markdown/sidecar/assets，但 Word 预检识别出图片图注造成的行级 Markdown 缺陷 | 148 passed，6 warnings；compileall；diff check；attempt4 真实 Markdown/来源验收 | `0e96f7f`、`f21eecf`、`d74f78b`、`b886df2`、`0917629`（已推送）、`5c3b0e6`、`603f90d`（待网络恢复后推送） |
 
 | 2026-09 | 外部服务配置 | 新增 `scripts/ark_quickstart.py`（纯标准库，不依赖 curl/jq）用于验证火山方舟 Managed Agents 连通性；`.env` 与 `.env.example` 增加 `ARK_API_KEY` 与可选 `ARK_BASE_URL`。该脚本只做外部连通性验证，不参与方案生成链路，生成侧仍使用 DashScope | 编译检查与缺 Key 报错路径离线验证 | 未提交 |
 
