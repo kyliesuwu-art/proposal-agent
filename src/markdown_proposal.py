@@ -36,6 +36,15 @@ class ProposalQualityError(ValueError):
     """A deterministic, user-visible proposal quality gate failure."""
 
 
+class ProposalWriteError(RuntimeError):
+    """A publication failure with a safe operation name, never raw content."""
+
+    def __init__(self, operation: str, cause: BaseException) -> None:
+        self.operation = operation
+        self.cause = cause
+        super().__init__(f"proposal publication failed at {operation}: {type(cause).__name__}")
+
+
 @dataclass(frozen=True)
 class ProposalRunResult:
     path: Path
@@ -1031,10 +1040,13 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
     path.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=".proposal-stage-", dir=path.parent))
     backup: Path | None = None
+    operation = "stage_markdown"
     try:
         staged_markdown = stage / path.name
         staged_markdown.write_text(markdown, encoding="utf-8")
+        operation = "sync_assets"
         copied = _sync_assets(stage, assets)
+        operation = "validate_staged_markdown"
         rendered = staged_markdown.read_text(encoding="utf-8")
         image_links = _strict_image_links(rendered)
         errors = []
@@ -1050,14 +1062,17 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
             errors.append("最终暂存 Markdown 图片链接、复制图片与 assets 文件数量不一致")
         if errors:
             raise ProposalQualityError("；".join(errors))
+        operation = "build_sources_manifest"
         sources_manifest = _source_manifest(rendered, assets)
         staged_sources = stage / "proposal.sources.json"
+        operation = "stage_sources_manifest"
         staged_sources.write_text(json.dumps(sources_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         for asset in assets.values():
             if not (stage / asset.relative_path).is_file():
                 raise ProposalQualityError(f"图片相对路径无法解析：{asset.relative_path}")
         published_assets = path.parent / "assets"
         if published_assets.exists():
+            operation = "merge_existing_assets"
             # Preserve all existing user assets by staging a full copy before replacement.
             merged = stage / "assets-merged"
             shutil.copytree(published_assets, merged)
@@ -1067,12 +1082,16 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
             shutil.rmtree(staged_assets, ignore_errors=True)
             merged.rename(staged_assets)
         if published_assets.exists():
+            operation = "backup_existing_assets"
             backup = path.parent / f".assets-backup-{uuid.uuid4().hex}"
             published_assets.rename(backup)
         if staged_assets.exists():
+            operation = "publish_assets"
             staged_assets.rename(published_assets)
         try:
+            operation = "publish_markdown"
             os.replace(staged_markdown, path)
+            operation = "publish_sources_manifest"
             os.replace(staged_sources, path.with_name("proposal.sources.json"))
         except Exception:
             if published_assets.exists() and backup is not None:
@@ -1084,6 +1103,8 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
         return {"copied_images": copied, "final_markdown_images": image_links, "final_asset_files": staged_files,
                 "sources_path": "proposal.sources.json", "sources": sources_manifest["sources"],
                 "image_sources": sources_manifest["images"]}
+    except Exception as exc:
+        raise ProposalWriteError(operation, exc) from exc
     finally:
         if backup is not None and backup.exists() and not (path.parent / "assets").exists():
             backup.rename(path.parent / "assets")

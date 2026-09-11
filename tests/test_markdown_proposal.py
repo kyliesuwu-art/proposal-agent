@@ -448,6 +448,17 @@ def test_five_section_call_metrics_and_cross_section_revision(tmp_path: Path) ->
     assert revised.metrics["embedding_api_calls"] == "unknown"
 
 
+def test_write_failure_records_safe_publication_operation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_sync(*_args, **_kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(markdown_proposal, "_sync_assets", fail_sync)
+    with pytest.raises(markdown_proposal.ProposalWriteError) as exc_info:
+        markdown_proposal._write(tmp_path / "proposal.md", "# 方案\n", {})
+    assert exc_info.value.operation == "sync_assets"
+    assert type(exc_info.value.cause).__name__ == "OSError"
+
+
 def test_review_skips_only_explicitly_advisory_malformed_items() -> None:
     result = markdown_proposal._review_from(json.dumps({"issues": [
         {"severity": "advisory", "issue_type": "clarity"},

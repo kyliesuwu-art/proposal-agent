@@ -28,7 +28,7 @@ load_project_environment()
 from src import pipeline
 from src.adapters.parser import SUPPORTED_EXTENSIONS
 from src.adapters.llm_client import LLMClient
-from src.markdown_proposal import ProposalGenerationError, diagnose_markdown_proposal, generate_markdown_proposal
+from src.markdown_proposal import ProposalGenerationError, ProposalWriteError, diagnose_markdown_proposal, generate_markdown_proposal
 from src.render_word import RenderWordError, render_word
 from src.render_pptx import RenderPptxError, render_pptx, write_pptx_layout_audit
 
@@ -283,7 +283,13 @@ def main() -> None:
             )
         except Exception as exc:  # CLI boundary: preserve a clear configuration/service error.
             stage = exc.stage if isinstance(exc, ProposalGenerationError) else "unknown"
-            _write_proposal_run_log(run_log, status="FATAL", stage=stage, error_type=type(exc).__name__)
+            details: dict[str, object] = {"error_type": type(exc).__name__}
+            if isinstance(exc, ProposalGenerationError):
+                details["cause_type"] = type(exc.cause).__name__
+                if isinstance(exc.cause, ProposalWriteError):
+                    details["write_operation"] = exc.cause.operation
+                    details["write_cause_type"] = type(exc.cause.cause).__name__
+            _write_proposal_run_log(run_log, status="FATAL", stage=stage, **details)
             print(f"方案生成失败 [{stage}] {type(exc).__name__}: {exc}", file=sys.stderr)
             if debug:
                 traceback.print_exception(exc, file=sys.stderr)
