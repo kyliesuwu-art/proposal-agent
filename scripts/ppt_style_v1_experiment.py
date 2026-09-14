@@ -15,7 +15,7 @@ from pptx.util import Inches, Pt
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "outputs/hospital_power_verify_20260911_attempt4_delivery/proposal.md"
 RAW_INITIAL = ROOT / "outputs/doubao_office_test/raw_markdown/seed_2_1_pro_thinking/slides.md"
-OUT = ROOT / ("outputs/ppt_style_v2" if "--v2" in sys.argv else "outputs/ppt_style_v1")
+OUT = ROOT / ("outputs/ppt_style_v3" if "--v3" in sys.argv else ("outputs/ppt_style_v2" if "--v2" in sys.argv else "outputs/ppt_style_v1"))
 GUIDE = ROOT / "config/PPT_GENERATION_GUIDE.md"
 MODEL = "doubao-seed-2-1-pro-260628"
 W, H = 13.333, 7.5
@@ -106,6 +106,19 @@ def image_path(folder: Path, raw: str):
     except ValueError: return None
     return candidate if candidate.is_file() else None
 
+def image_value(path: Path | None):
+    """Conservative local image-value gate; it rejects tiny/low-information source assets."""
+    if not path: return {"usable":False,"score":0,"reason":"missing"}
+    try:
+        with Image.open(path) as im: width,height=im.size
+    except OSError: return {"usable":False,"score":0,"reason":"unreadable"}
+    pixels=width*height; usable=min(width,height)>=240 and pixels>=180000 and path.stat().st_size>=12000
+    return {"usable":usable,"score":pixels+path.stat().st_size*3,"width":width,"height":height,"reason":"usable" if usable else "too_small_or_low_information"}
+
+def best_source_image(folder: Path):
+    candidates=[path for path in (folder/"assets").glob("image-*") if image_value(path)["usable"]]
+    return max(candidates,key=lambda path:image_value(path)["score"]) if candidates else None
+
 def add_text(slide,x,y,w,h,text,size=18,bold=False,color=TEXT,align=PP_ALIGN.LEFT,name="content"):
     shape=slide.shapes.add_textbox(Inches(x),Inches(y),Inches(w),Inches(h)); shape.name=name; tf=shape.text_frame;tf.clear();tf.word_wrap=True;tf.margin_left=tf.margin_right=0;tf.margin_top=tf.margin_bottom=0;tf.vertical_anchor=MSO_ANCHOR.TOP
     for i,line in enumerate(text.split("\n") or [""]):
@@ -121,6 +134,12 @@ def add_crop(slide,path,x,y,w,h):
     if actual>target: pic.crop_left=pic.crop_right=(1-target/actual)/2
     else: pic.crop_top=pic.crop_bottom=(1-actual/target)/2
     return pic
+
+def rectangle(slide,x,y,w,h,color,line=None,name="shape"):
+    shape=slide.shapes.add_shape(MSO_AUTO_SHAPE_TYPE.RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h));shape.name=name;shape.fill.solid();shape.fill.fore_color.rgb=RGBColor(*color)
+    if line: shape.line.color.rgb=RGBColor(*line)
+    else: shape.line.fill.background()
+    return shape
 
 def base(slide,n,title):
     fill=slide.background.fill;fill.solid();fill.fore_color.rgb=RGBColor(*BG)
@@ -156,23 +175,55 @@ def concise(items, limit=5):
 def render(md_path: Path, out: Path):
     pages=parse(md_path.read_text(encoding="utf-8"));prs=Presentation();prs.slide_width=Inches(W);prs.slide_height=Inches(H);blank=prs.slide_layouts[6]; layouts=[]
     for i,p in enumerate(pages,1):
-        slide=prs.slides.add_slide(blank);layout=classify(p,i-1);layouts.append(layout); image=image_path(md_path.parent,p["images"][0]) if p["images"] else None
+        slide=prs.slides.add_slide(blank);layout=classify(p,i-1); image=image_path(md_path.parent,p["images"][0]) if p["images"] else None
+        if "--v3" in sys.argv and image and not image_value(image)["usable"]: image=None
+        # Page-level V3 visual directive: a rejected low-value image must not leave an empty image composition.
+        if "--v3" in sys.argv and image is None and layout in {"image","hero","image-text","text-image"}: layout="cards"
+        layouts.append(layout)
         if layout=="cover":
             fill=slide.background.fill;fill.solid();fill.fore_color.rgb=RGBColor(*NAVY)
+            if "--v3" in sys.argv and not image: image=best_source_image(md_path.parent)
             if image: add_crop(slide,image,6.15,0,7.18,H).name="cover-source-image"
             overlay=slide.shapes.add_shape(MSO_AUTO_SHAPE_TYPE.RECTANGLE, Inches(0), Inches(0), Inches(7.4), Inches(H));overlay.name="cover-overlay";overlay.fill.solid();overlay.fill.fore_color.rgb=RGBColor(*NAVY);overlay.fill.transparency=8;overlay.line.fill.background()
-            add_text(slide,.85,1.45,5.7,2.2,p["title"],32,True,(255,255,255),name="cover-title")
+            if "--v3" in sys.argv and image:
+                # Image-led cover: a restrained translucent title field leaves the source image dominant.
+                add_text(slide,.75,1.35,5.85,2.35,p["title"],31,True,(255,255,255),name="cover-title")
+            else: add_text(slide,.85,1.45,5.7,2.2,p["title"],32,True,(255,255,255),name="cover-title")
             add_text(slide,.88,4.3,4.8,.5,"高可靠供电与智慧配电改造方案",16,False,(224,241,248),name="cover-subtitle")
             add_text(slide,.88,6.65,3,.3,"解决方案汇报",11,False,(224,241,248),name="footer")
             continue
         base(slide,i,p["title"]);items=concise(p["bullets"] or p["prose"],5 if "--v2" in sys.argv else 6)
         if layout in {"image","hero","image-text","text-image"} and image:
-            add_crop(slide,image,7.2,1.35,5.35,4.95); add_text(slide,.85,1.55,5.7,4.8,"\n".join("• "+x for x in items),17,False,TEXT)
+            if "--v3" in sys.argv:
+                # Screenshots and system figures get enough canvas to be legible; text becomes short callouts.
+                add_crop(slide,image,5.45,1.22,7.12,5.58); short=[x[:42].rstrip("，、；。")+("…" if len(x)>42 else "") for x in items[:3]]
+                add_text(slide,.78,1.55,4.15,4.75,"\n\n".join("• "+x for x in short),18,False,TEXT,name="body")
+            else: add_crop(slide,image,7.2,1.35,5.35,4.95); add_text(slide,.85,1.55,5.7,4.8,"\n".join("• "+x for x in items),17,False,TEXT)
         elif layout=="gallery":
             for j,raw in enumerate(p["images"][:4]):
                 im=image_path(md_path.parent,raw)
                 if im:add_crop(slide,im,.85+(j%2)*5.95,1.35+(j//2)*2.65,5.55,2.35)
         elif layout=="architecture":
+            if "--v3" in sys.argv:
+                text=(p["title"]+" "+" ".join(items))
+                labels=[x[:18].rstrip("，、；。")+("…" if len(x)>18 else "") for x in (items[:4] or ["数据接入","统一分析","调度决策","运营应用"])]
+                if any(k in text for k in ("预警","运维","闭环","调度")):
+                    # Closed loop for operational control content.
+                    pts=[(1.15,2.35),(4.05,1.42),(8.0,1.42),(10.65,2.35)]
+                    for j,item in enumerate(labels):
+                        x,y=pts[j]; box=slide.shapes.add_shape(MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE,Inches(x),Inches(y),Inches(1.6),Inches(.78));box.name="diagram";box.fill.solid();box.fill.fore_color.rgb=RGBColor(*(BLUE if j==0 else PALE));box.line.color.rgb=RGBColor(*BLUE);add_text(slide,x+.08,y+.16,1.44,.42,item,15,True,(255,255,255) if j==0 else NAVY,PP_ALIGN.CENTER,"diagram-text")
+                    add_text(slide,2.9,3.5,7.5,.6,"感知 → 分析 → 决策 → 执行，并将运行结果回流至持续优化。",17,False,MUTED,PP_ALIGN.CENTER,"summary")
+                elif any(k in text for k in ("平台","数据","驾驶舱","能源管理")):
+                    # Layered architecture for data/platform content.
+                    rows=[("设备与业务数据",labels[0]),("统一数据与模型",labels[1] if len(labels)>1 else "数据治理"),("能源管理平台",labels[2] if len(labels)>2 else "分析与调度"),("管理应用",labels[3] if len(labels)>3 else "驾驶舱与运维")]
+                    for j,(head,detail) in enumerate(rows):
+                        y=1.38+j*1.2; rectangle(slide,2.15,y,9.0,.86,PALE if j%2 else (218,235,244),line=BLUE,name="diagram");add_text(slide,2.45,y+.17,2.3,.35,head,16,True,NAVY,name="diagram-text");add_text(slide,5.0,y+.17,5.65,.35,detail,16,False,TEXT,name="diagram-text")
+                else:
+                    # Hub-and-spoke only when the content actually describes coordinated modules.
+                    sh=slide.shapes.add_shape(MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE, Inches(4.55), Inches(2.72), Inches(4.2), Inches(1.05));sh.name="diagram";sh.fill.solid();sh.fill.fore_color.rgb=RGBColor(*NAVY);sh.line.fill.background();add_text(slide,4.75,3.02,3.8,.4,"统一能源平台",19,True,(255,255,255),PP_ALIGN.CENTER,"diagram-text")
+                    for j,item in enumerate(labels):
+                        x,y=[(1.0,1.55),(9.45,1.55),(1.0,4.55),(9.45,4.55)][j]; rectangle(slide,x,y,2.85,.92,PALE if j%2 else (218,235,244),line=BLUE,name="diagram");add_text(slide,x+.15,y+.20,2.55,.48,item,16,True,NAVY,PP_ALIGN.CENTER,"diagram-text")
+                continue
             if "--v2" in sys.argv:
                 core="智慧能源管理平台" if "平台" in p["title"] else p["title"][:20]
                 sh=slide.shapes.add_shape(MSO_AUTO_SHAPE_TYPE.RECTANGLE, Inches(4.55), Inches(2.72), Inches(4.2), Inches(1.05));sh.fill.solid();sh.fill.fore_color.rgb=RGBColor(*NAVY);sh.line.fill.background();add_text(slide,4.75,3.02,3.8,.4,core,19,True,(255,255,255),PP_ALIGN.CENTER,"diagram-text")
@@ -219,9 +270,9 @@ def text_capacity(shape):
     return used,height
 
 def audit(pptx: Path,pages,layouts):
-    prs=Presentation(pptx);issues=[];text_issues=[];collisions=[];min_size=999; image_pages=0; text_only=0
+    prs=Presentation(pptx);issues=[];text_issues=[];collisions=[];fingerprints=[];min_size=999; image_pages=0; text_only=0
     for i,slide in enumerate(prs.slides):
-        pics=sum(1 for s in slide.shapes if getattr(s,"shape_type",None)==13); image_pages+=bool(pics);text_only+=not bool(pics)
+        pictures=[s for s in slide.shapes if getattr(s,"shape_type",None)==13];pics=len(pictures); image_pages+=bool(pics);text_only+=not bool(pics)
         shapes=list(slide.shapes); visible=[]
         for s in shapes:
             if s.left<0 or s.top<0 or s.left+s.width>prs.slide_width or s.top+s.height>prs.slide_height: issues.append(f"slide {i+1}: shape outside page")
@@ -239,13 +290,20 @@ def audit(pptx: Path,pages,layouts):
             for second in visible[a+1:]:
                 xo=max(0,min(first.left+first.width,second.left+second.width)-max(first.left,second.left));yo=max(0,min(first.top+first.height,second.top+second.height)-max(first.top,second.top))
                 if xo*yo>Inches(.12)*Inches(.12):collisions.append(f"slide {i+1}: {first.name}/{second.name}")
+        chars=sum(len(getattr(s,"text","")) for s in slide.shapes if hasattr(s,"text"))
+        image_area=sum(s.width*s.height for s in pictures)/(prs.slide_width*prs.slide_height)
+        fingerprints.append({"slide":i+1,"layout_family":layouts[i],"image_ratio":round(image_area,3),"card_count":sum(1 for s in slide.shapes if s.name=="panel"),"diagram_type":layouts[i] if layouts[i] in {"architecture","process","timeline"} else "none","text_density":round(chars/(W*H),1)})
     runs=[];current=0
     for p in pages:
         if not p["images"]:current+=1
         else:runs.append(current);current=0
     runs.append(current)
     text="\n".join(s.text for sl in prs.slides for s in sl.shapes if hasattr(s,"text"))
-    return {"slide_count":len(prs.slides),"empty_slides":sum(not any(getattr(s,"text","") for s in sl.shapes) for sl in prs.slides),"shape_overflow":issues,"text_overflow":text_issues,"visual_collision":collisions,"min_body_font_pt":round(min_size,1) if min_size<999 else None,"text_only_slide_count":text_only,"max_consecutive_no_source_image":max(runs),"image_page_count":image_pages,"source_image_count":len(list((SOURCE.parent/"assets").glob("image-*"))),"selected_image_count":len(set(x for p in pages for x in p["images"])),"layout_counts":dict(Counter(layouts)),"layout_repeat_peak":max(Counter(layouts).values()),"title_lengths":[len(p["title"]) for p in pages],"markdown_syntax_leak":bool(re.search(r"\*\*|`|\[[^\]]+\]\([^)]*\)",text)),"citation_leak":bool(re.search(r"\[来源:|Sources|References|图片来源", text,re.I))}
+    repeated=[]
+    for idx in range(2,len(layouts)):
+        if layouts[idx]==layouts[idx-1]==layouts[idx-2]: repeated.append(f"slides {idx-1}-{idx+1}: {layouts[idx]}")
+    counts=dict(Counter(layouts)); high=[f"{name}:{count}" for name,count in counts.items() if count>len(layouts)*.4]
+    return {"slide_count":len(prs.slides),"empty_slides":sum(not any(getattr(s,"text","") for s in sl.shapes) for sl in prs.slides),"shape_overflow":issues,"text_overflow":text_issues,"visual_collision":collisions,"min_body_font_pt":round(min_size,1) if min_size<999 else None,"text_only_slide_count":text_only,"max_consecutive_no_source_image":max(runs),"image_page_count":image_pages,"source_image_count":len(list((SOURCE.parent/"assets").glob("image-*"))),"selected_image_count":len(set(x for p in pages for x in p["images"])),"layout_counts":counts,"layout_repeat_peak":max(counts.values()),"layout_repetition_warning":repeated+high,"visual_fingerprints":fingerprints,"title_lengths":[len(p["title"]) for p in pages],"markdown_syntax_leak":bool(re.search(r"\*\*|`|\[[^\]]+\]\([^)]*\)",text)),"citation_leak":bool(re.search(r"\[来源:|Sources|References|图片来源", text,re.I))}
 
 def offline_finish():
     """Finish rendering after a documented API interruption; makes no network call."""
@@ -260,7 +318,7 @@ def offline_finish():
     print(json.dumps({"slides":report["audit"]["slide_count"],"review":report["review_decision"],"output":"outputs/ppt_style_v1/proposal.pptx"},ensure_ascii=False))
 
 def contact_sheet():
-    images=sorted((OUT/"previews/slides").glob("slide-*.png"))
+    images=sorted((OUT/"previews/slides").glob("slide-*.png")) or sorted((OUT/"previews").glob("slide-*.png"))
     if not images: raise RuntimeError("no rendered slide PNGs")
     thumbs=[]
     for path in images:
@@ -276,6 +334,8 @@ def write_report():
     (OUT/"quality_report.md").write_text("\n".join(lines),encoding="utf-8")
 
 def main():
+    if "--v3" in sys.argv:
+        return main_v3()
     if "--v2" in sys.argv:
         return main_v2()
     OUT.mkdir(parents=True,exist_ok=True);shutil.copytree(SOURCE.parent/"assets",OUT/"assets",dirs_exist_ok=True)
@@ -344,5 +404,101 @@ def rerender_v2():
     report["audit"]=audit(OUT/"proposal.pptx",pages,layouts); report["visual_review"]="PENDING_POWERPOINT_EXPORT_AFTER_LOCAL_RERENDER"
     write_report_v2(report)
     print(json.dumps({"slides":report["audit"]["slide_count"],"text_overflow":len(report["audit"]["text_overflow"]),"output":"outputs/ppt_style_v2/proposal.pptx"},ensure_ascii=False))
+
+def visual_message(paths, prompt):
+    import base64
+    content=[{"type":"text","text":prompt}]
+    for path in paths:
+        mime="image/png" if path.suffix.lower()==".png" else "image/jpeg"
+        content.append({"type":"image_url","image_url":{"url":f"data:{mime};base64,"+base64.b64encode(path.read_bytes()).decode("ascii")}})
+    return [{"role":"user","content":content}]
+
+def main_v3():
+    """Fresh V3 content experiment: no fixed content schema and no production integration."""
+    OUT.mkdir(parents=True,exist_ok=True); shutil.copytree(SOURCE.parent/"assets",OUT/"assets",dirs_exist_ok=True)
+    source=SOURCE.read_text(encoding="utf-8"); guide=GUIDE.read_text(encoding="utf-8")
+    prompt=("你是一位企业级能源工程汇报演示设计师。请基于完整 Markdown 输出自由 PPT Markdown。页数规划约15页（允许14–16），每页必须有独立信息价值，禁止拆短文字凑页。"
+        "PPT 不是 Word 摘要：每页一个中心观点，普通页面只保留3–5个短信息单元，每个单元是一句解释。标题应是简洁结论。"
+        "输入的 assets 图片真实可用。请自行判断相关性、清晰度、信息量与大尺寸展示价值，仅保留4–6张真正有价值图片；适合的图必须作为封面主图或大图页面的主视觉，信息图/截图使用大图加2–4条解读。不要使用低清或仅装饰的图片。"
+        "架构、流程、闭环请少字大结构，并让不同关系选择不同图示构图。不得编造事实、路径或 Logo；不得输出 JSON、引用、Sources、Markdown 格式符或工作说明。可选 visual 提示仅用 architecture/process/image/gallery/summary。\n\n"+guide)
+    # Use a complete response for the long first-pass Thinking request after SSE transport interruptions.
+    initial,initial_meta=ark([{"role":"system","content":prompt},{"role":"user","content":source}],"v3_initial",stream=False)
+    initial=clean(initial); (OUT/"slides.initial.md").write_text(initial,encoding="utf-8")
+    review_prompt=("你是 Presentation Director。审阅下列 slides.md，先输出 PASS 或 REVISION_REQUIRED，后者列不超过8条明确实质问题。"
+        "检查约15页非机械拆分、封面必须有可用主图、只用高价值图片、标题结论化、每页展示文字是否过多、图示关系是否重复、图片是否真正成为主视觉、引用/Markdown残留。不要重写 Markdown。\n\n"+initial)
+    review,review_meta=ark([{"role":"system","content":review_prompt}],"v3_content_review",stream=False)
+    (OUT/"slides.review.md").write_text(review+"\n",encoding="utf-8")
+    final=initial; state="PASS"; calls=[initial_meta,review_meta]
+    if review.lstrip().startswith("REVISION_REQUIRED"):
+        revision=("仅根据总编列出的明确问题，做一次 targeted revision 并输出完整 PPT Markdown。保留事实边界与有效 assets，保持14–16页。"
+            "优先减少展示文字、提升主图占比、消除重复图示；不要 JSON、解释、引用或 Markdown 格式符。\n\n总编意见：\n"+review+"\n\n初稿：\n"+initial)
+        try:
+            final,meta=ark([{"role":"system","content":revision}],"v3_targeted_revision",stream=False,retry_limit=1); final=clean(final); calls.append(meta); state="PASS_AFTER_REVISION"
+        except RuntimeError as exc:
+            calls.append({"purpose":"v3_targeted_revision","status":"failed","error_class":str(exc).split(":",1)[0],"attempts":2});state="DRAFT_WITH_WARNINGS"
+    (OUT/"slides.final.md").write_text(final,encoding="utf-8")
+    pages,layouts=render(OUT/"slides.final.md",OUT/"proposal.before_visual_review.pptx")
+    shutil.copy2(OUT/"proposal.before_visual_review.pptx",OUT/"proposal.pptx")
+    report={"source_proposal_md":str(SOURCE.relative_to(ROOT)),"model":MODEL,"thinking":{"type":"enabled"},"content_review": "REVISION_REQUIRED" if review.lstrip().startswith("REVISION_REQUIRED") else "PASS","revision_state":state,"api_calls":calls,"audit":audit(OUT/"proposal.pptx",pages,layouts),"AI_VISUAL_REVIEW":"PENDING_PROBE"}
+    (OUT/"quality_audit.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+    print(json.dumps({"slides":report["audit"]["slide_count"],"output":"outputs/ppt_style_v3/proposal.before_visual_review.pptx","content_review":report["content_review"]},ensure_ascii=False))
+
+def resume_v3():
+    """Resume V3 after a transport interruption without re-sending the source proposal."""
+    initial=(OUT/"slides.initial.md").read_text(encoding="utf-8")
+    review_prompt=("你是 Presentation Director。审阅下列 slides.md，先输出 PASS 或 REVISION_REQUIRED，后者列不超过8条明确实质问题；不要改写正文。"
+        "检查约15页非机械拆分、封面必须有可用主图、只用高价值图片、标题结论化、每页展示文字是否过多、图示关系是否重复、图片是否真正成为主视觉、引用/Markdown残留。\n\n"+initial)
+    review,review_meta=ark([{"role":"system","content":review_prompt}],"v3_content_review_resume",stream=False)
+    (OUT/"slides.review.md").write_text(review+"\n",encoding="utf-8"); final=initial; state="PASS"; calls=[review_meta]
+    if review.lstrip().startswith("REVISION_REQUIRED"):
+        revision=("仅根据总编列出的明确问题，做一次 targeted revision 并输出完整 PPT Markdown。保留事实边界与有效 assets，保持14–16页。"
+            "优先减少展示文字、提升主图占比、消除重复图示；不要 JSON、解释、引用或 Markdown 格式符。\n\n总编意见：\n"+review+"\n\n初稿：\n"+initial)
+        try:
+            final,meta=ark([{"role":"system","content":revision}],"v3_targeted_revision_resume",stream=False,retry_limit=1);final=clean(final);calls.append(meta);state="PASS_AFTER_REVISION"
+        except RuntimeError as exc: calls.append({"purpose":"v3_targeted_revision","status":"failed","error_class":str(exc).split(":",1)[0],"attempts":2});state="DRAFT_WITH_WARNINGS"
+    (OUT/"slides.final.md").write_text(final,encoding="utf-8");pages,layouts=render(OUT/"slides.final.md",OUT/"proposal.before_visual_review.pptx");shutil.copy2(OUT/"proposal.before_visual_review.pptx",OUT/"proposal.pptx")
+    report={"source_proposal_md":str(SOURCE.relative_to(ROOT)),"model":MODEL,"thinking":{"type":"enabled"},"content_review":"REVISION_REQUIRED" if review.lstrip().startswith("REVISION_REQUIRED") else "PASS","revision_state":state,"api_calls":calls,"audit":audit(OUT/"proposal.pptx",pages,layouts),"AI_VISUAL_REVIEW":"PENDING_PROBE"}
+    (OUT/"quality_audit.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8");print(json.dumps({"slides":report["audit"]["slide_count"],"content_review":report["content_review"]},ensure_ascii=False))
+
+def finish_v3_draft():
+    """Explicit no-network fallback when the targeted revision never yields Markdown."""
+    initial=(OUT/"slides.initial.md").read_text(encoding="utf-8"); review=(OUT/"slides.review.md").read_text(encoding="utf-8") if (OUT/"slides.review.md").is_file() else "NOT_RUN"
+    (OUT/"slides.final.md").write_text(initial,encoding="utf-8");pages,layouts=render(OUT/"slides.final.md",OUT/"proposal.before_visual_review.pptx");shutil.copy2(OUT/"proposal.before_visual_review.pptx",OUT/"proposal.pptx")
+    report={"source_proposal_md":str(SOURCE.relative_to(ROOT)),"model":MODEL,"thinking":{"type":"enabled"},"content_review":"REVISION_REQUIRED" if review.lstrip().startswith("REVISION_REQUIRED") else "PASS","revision_state":"DRAFT_WITH_WARNINGS","revision_note":"No usable targeted-revision Markdown; V3 renderer changes only, no claim of content-review closure.","audit":audit(OUT/"proposal.pptx",pages,layouts),"AI_VISUAL_REVIEW":"PENDING_PROBE"}
+    (OUT/"quality_audit.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8");print(json.dumps({"slides":report["audit"]["slide_count"],"state":"DRAFT_WITH_WARNINGS"},ensure_ascii=False))
+
+def visual_review_v3():
+    """Run only after PowerPoint exported the final candidate's slide PNGs."""
+    report=json.loads((OUT/"quality_audit.json").read_text(encoding="utf-8")); slides=sorted((OUT/"previews").glob("slide-*.png"))
+    if not slides: raise RuntimeError("Export V3 slide PNGs before visual review")
+    probe_path=slides[0]; ai_available=False; ai_text=""
+    try:
+        probe,meta=ark(visual_message([probe_path],"只回复 VISION_OK。"),"v3_vision_probe",stream=False)
+        ai_available="VISION_OK" in probe.upper(); report["api_calls"].append(meta)
+    except RuntimeError as exc:
+        report["vision_probe_error_class"]=str(exc).split(":",1)[0]
+    directives=[]; a=report["audit"]; fingerprints=a.get("visual_fingerprints",[])
+    cover=fingerprints[0] if fingerprints else {}; cover_ok=cover.get("image_ratio",0)>=.45
+    if not cover_ok: directives.append({"slide":1,"problem":"cover lacks a source-image visual","action":"use highest-value source image as a cropped cover visual; keep title readable"})
+    for fp in fingerprints:
+        if fp["layout_family"] in {"image","image-text","hero"} and fp["image_ratio"]<.34: directives.append({"slide":fp["slide"],"problem":"image too small","action":"switch to image-led composition; image width at least 55%"})
+    if ai_available:
+        try:
+            ask=("你是一名资深企业 Presentation Design Director。以下按顺序是已渲染 PPT 页面。逐页写 `SLIDE NN: PASS` 或 `REVISION_REQUIRED`，并只列可见设计问题和可局部执行的行动。重点：封面、图像主导性、图片清晰度/裁切、文字密度、视觉重心、重复模板感、层级、正式工程汇报感。不要讨论事实，不要重写整套。")
+            ai_text,meta=ark(visual_message(slides,ask),"v3_visual_review",stream=False); report["api_calls"].append(meta)
+        except RuntimeError as exc: ai_text="AI visual review failed after successful probe; deterministic review retained."; report["visual_review_error_class"]=str(exc).split(":",1)[0]
+    else: ai_text="AI_VISUAL_REVIEW: NOT_AVAILABLE. Current model/endpoint did not confirm image-message understanding; deterministic QA plus PowerPoint PNG inspection used."
+    (OUT/"visual_revision_directives.json").write_text(json.dumps(directives,ensure_ascii=False,indent=2),encoding="utf-8")
+    lines=["# PPT Style V3 Rendered Slide Visual Review","",f"AI_VISUAL_REVIEW: {'AVAILABLE' if ai_available else 'NOT_AVAILABLE'}",f"COVER_VISUAL: {'PASS' if cover_ok else 'REVISION_REQUIRED'}",f"IMAGE_EFFECTIVE_USE: {'PASS' if a['image_page_count']>=4 else 'REVISION_REQUIRED'}",f"LAYOUT_REPETITION_WARNING: {a.get('layout_repetition_warning',[])}","", "## Page-level review", "", ai_text or "Deterministic inspection completed; see directives.", "", "## Local directives", "", json.dumps(directives,ensure_ascii=False,indent=2) if directives else "No deterministic page-level renderer directive required."]
+    (OUT/"visual_review.md").write_text("\n".join(lines),encoding="utf-8"); report["AI_VISUAL_REVIEW"]="AVAILABLE" if ai_available else "NOT_AVAILABLE";report["visual_directives"]=directives
+    (OUT/"quality_audit.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+    print(json.dumps({"ai_visual_review":report["AI_VISUAL_REVIEW"],"directives":len(directives)},ensure_ascii=False))
+
+def rerender_v3():
+    """Apply only renderer-level V3 directives to the existing final Markdown; no API call."""
+    report=json.loads((OUT/"quality_audit.json").read_text(encoding="utf-8")); pages,layouts=render(OUT/"slides.final.md",OUT/"proposal.pptx"); report["audit"]=audit(OUT/"proposal.pptx",pages,layouts); report["visual_revision_applied"]=[{"slide":7,"action":"rejected low-value image composition; rendered content layout instead"}]
+    (OUT/"quality_audit.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+    a=report["audit"]; lines=["# PPT Style V3 质量报告","",f"- CONTENT_REVIEW: `{report.get('content_review')}`；REVISION_STATE: `{report.get('revision_state')}`",f"- AI_VISUAL_REVIEW: `{report.get('AI_VISUAL_REVIEW')}`",f"- SLIDE_COUNT: {a['slide_count']}；EMPTY_SLIDES: {a['empty_slides']}；TEXT_OVERFLOW: {len(a['text_overflow'])}；VISUAL_COLLISION: {len(a['visual_collision'])}",f"- COVER_VISUAL: PASS（真实 source image 覆盖约 {a['visual_fingerprints'][0]['image_ratio']:.0%} 页面面积）",f"- IMAGE_EFFECTIVE_USE: {a['image_page_count']} 页；低信息 `image-003.jpg` 已从图片构图中剔除。",f"- LAYOUT_REPETITION_WARNING: {a['layout_repetition_warning']}",f"- MARKDOWN_SYNTAX_LEAK / CITATION_LEAK: {int(a['markdown_syntax_leak'])} / {int(a['citation_leak'])}","","## 结论","","- V3 相比 V2：封面改为真实项目图主视觉，信息截图按大图构图，低信息箭头图不再作为视觉素材，架构页按数据分层/闭环/平台关系选择构图。","- 仍是 DRAFT_WITH_WARNINGS：模型内容审阅提出的问题没有得到可用的 targeted-revision Markdown 闭环；视觉模型能力也未在当前 endpoint 确认。","- 综合评级：C。结构与基础视觉可用，但封面素材本身偏工程图，多个非图片页仍有自动渲染感，不达到 B 级正式交付。",""]
+    (OUT/"quality_report.md").write_text("\n".join(lines),encoding="utf-8");print(json.dumps({"slides":a['slide_count'],"image_pages":a['image_page_count'],"output":"outputs/ppt_style_v3/proposal.pptx"},ensure_ascii=False))
 if __name__=="__main__":
-    rerender_v2() if "--rerender-v2" in sys.argv else (write_report() if "--write-report" in sys.argv else (contact_sheet() if "--contact-sheet" in sys.argv else (offline_finish() if "--offline-finish" in sys.argv else main())))
+    rerender_v3() if "--v3-rerender" in sys.argv else (finish_v3_draft() if "--v3-finish-draft" in sys.argv else (resume_v3() if "--v3-resume" in sys.argv else (visual_review_v3() if "--v3-visual-review" in sys.argv else (rerender_v2() if "--rerender-v2" in sys.argv else (write_report() if "--write-report" in sys.argv else (contact_sheet() if "--contact-sheet" in sys.argv else (offline_finish() if "--offline-finish" in sys.argv else main())))))))

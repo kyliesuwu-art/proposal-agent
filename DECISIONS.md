@@ -233,3 +233,4 @@
 今后完成有意义的功能、配置、路径、模块或行为变更时追加本表；若改变既有决策，同时更新该决策状态，并将旧决策移入“已废弃或已替代的决策”。
 
 | 2026-09-14 | PPT Style V2 实验 | 保持 Raw Markdown + Seed Thinking 的自由内容组织；实验 renderer 以约 15 页、真实素材优先、16pt 正文下限、轻量 inline Markdown 清理与文本容量审计为门禁。V2 只输出 `outputs/ppt_style_v2`，不改 proposal 主链或数据库；模型审阅要求修订但 revision 无可用结果时必须标记 `DRAFT_WITH_WARNINGS`，不能以初稿冒充通过。 | 13 个 PPT renderer 测试、PowerPoint 导出 15 页 PNG、逐页肉眼检查 | 本次提交 |
+| 2026-09-14 | PPT Style V3 实验 | 在同一自由 Markdown 链路上加入真实图片价值门、图片主视觉构图、按关系语义切换的架构图、页面视觉指纹和渲染后视觉审阅。当前 Seed endpoint 的图片消息探测未确认可用，因此报告必须标记 `AI_VISUAL_REVIEW: NOT_AVAILABLE`，只采用 PNG、确定性审计与人工复核；低价值图的局部 renderer directive 可单页执行。 | 13 个 PPT renderer 测试、PowerPoint 导出 15 页 PNG、V2/V3 联系表和逐页肉眼检查 | 本次提交 |
