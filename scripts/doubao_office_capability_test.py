@@ -106,16 +106,29 @@ def json_from_model(value: str) -> dict[str, Any]:
 
 
 def ask_for_content(base: str, key: str, model: str) -> tuple[dict[str, Any], dict[str, Any]]:
-    prompt = '''你是企业能源解决方案总监。为“工业园区绿色智慧能源与虚拟电厂解决方案”生成领导汇报内容。不得编造项目数据，未知一律写“【待确认】”。只返回一个 JSON 对象：
-{"slides":[{"title":"", "takeaway":"", "type":"cover|cards|architecture|flow|timeline|value|summary", "points":[""], "diagram":[""]}], "sections":[{"heading":"", "paragraphs":[""], "table":{"headers":[""],"rows":[[""]]} }]}
-slides 必须正好 11 页，依次覆盖：封面、背景、目标、总体架构、光伏储能充电、智慧配电、EMS、VPP、实施路径、预期价值、总结。每页一个结论，points 最多 4 条、每条不超过 30 个汉字；architecture/flow/timeline 页面在 diagram 中给出 3-6 个节点。sections 必须有 7 个正式章节（项目理解、建设目标、总体架构、建设方案、实施路径、预期效益、待确认事项），含至少 2 个表格。'''
+    prompt = '''为“工业园区绿色智慧能源与虚拟电厂解决方案”写领导汇报 PPT 内容。不得编造数据，未知写【待确认】。只返回紧凑 JSON：{"slides":[{"title":"","takeaway":"","type":"cover|cards|architecture|flow|timeline|value|summary","points":[""],"diagram":[""]}]}。必须正好 11 页，顺序为封面、背景、目标、总体架构、光储充、智慧配电、EMS、VPP、实施、价值、总结。每页最多 3 条短语；架构/流程/实施页 diagram 3-5 节点。'''
     status, response, elapsed = request(base, key, "/api/v3/chat/completions", {
-        "model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0.35, "max_tokens": 7000,
+        "model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 1800, "thinking": {"type": "disabled"},
     })
     metadata = {"http_status": status, "latency_seconds": round(elapsed, 2), "usage": response.get("usage", "NOT_REPORTED_BY_API")}
     if status != 200:
         raise RuntimeError(json.dumps(response.get("_safe_error", safe_error(status)), ensure_ascii=False))
     return json_from_model(message_content(response)), metadata
+
+
+def sections_from_slides(slides: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Turn model-authored slide conclusions into a compact Word narrative without claims beyond them."""
+    headings = ["一、项目理解", "二、建设目标", "三、总体架构", "四、建设方案", "五、实施路径", "六、预期效益", "七、待确认事项"]
+    groups = [(1, 2), (2, 3), (3, 4), (4, 8), (8, 9), (9, 10), (0, 11)]
+    result = []
+    for index, (start, end) in enumerate(groups):
+        selected = slides[start:end]
+        text = "；".join(point for slide in selected for point in slide.get("points", [])[:3]) or "【待确认】"
+        item: dict[str, Any] = {"heading": headings[index], "paragraphs": [text + "。"]}
+        if index in (1, 3):
+            item["table"] = {"headers": ["主题", "要点", "确认项"], "rows": [[s.get("title", ""), s.get("takeaway", ""), "【待确认】"] for s in selected[:3]]}
+        result.append(item)
+    return result
 
 
 def capability_preview_content() -> dict[str, Any]:
@@ -295,11 +308,13 @@ def main() -> int:
         report["local_render"]={"status":"RENDERER_ONLY_PASS","content_source":"LOCAL_FALLBACK_NOT_DOUBAO (Ark generation blocked by quota)","pptx":{"path":"local_render/proposal.pptx","bytes":ppt.stat().st_size,**ppt_audit(ppt)},"docx":{"path":"local_render/proposal.docx","bytes":docx.stat().st_size,"section_count":len(content["sections"]),"table_count":sum(bool(s.get("table")) for s in content["sections"])} }
         (OUT/"capability_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8"); return 1
     # Actual candidate endpoint probes.  They request an Office artifact but deliberately use the smallest possible prompt.
-    for name,path,body in [("responses","/api/v3/responses",{"model":model,"input":"Return a PPTX file containing only title: Office capability probe."}), ("content_generation_task","/api/v3/content_generation_tasks",{"model":model,"input":"Generate a PPTX file containing only title: Office capability probe."})]:
-        code,payload,seconds=request(base,key,path,body); report["direct_probes"][name]={"http_status":code,"latency_seconds":round(seconds,2),"accepted":code in (200,201,202),"response_keys":sorted(k for k in payload if not k.startswith("_")),"file_or_attachment_fields":sorted(k for k in payload if any(w in k.lower() for w in ("file","attachment","download","output","artifact"))),"error":payload.get("_safe_error")}
+    if os.environ.get("ARK_OFFICE_SKIP_DIRECT") != "1":
+        for name,path,body in [("responses","/api/v3/responses",{"model":model,"input":"Return a PPTX file containing only title: Office capability probe."}), ("content_generation_task","/api/v3/content_generation/tasks",{"model":model,"content":[{"type":"text","text":"Generate a PPTX file containing only title: Office capability probe."}]})]:
+            code,payload,seconds=request(base,key,path,body); report["direct_probes"][name]={"http_status":code,"latency_seconds":round(seconds,2),"accepted":code in (200,201,202),"response_keys":sorted(k for k in payload if not k.startswith("_")),"file_or_attachment_fields":sorted(k for k in payload if any(w in k.lower() for w in ("file","attachment","download","output","artifact"))),"error":payload.get("_safe_error")}
     try:
         content, generation=ask_for_content(base,key,model); (OUT/"local_render"/"doubao_content.json").write_text(json.dumps(content,ensure_ascii=False,indent=2),encoding="utf-8")
-        if len(content.get("slides",[]))!=11 or len(content.get("sections",[]))<7: raise ValueError("model JSON did not meet the required 11-slide/7-section contract")
+        if len(content.get("slides",[]))!=11: raise ValueError("model JSON did not meet the required 11-slide contract")
+        content["sections"] = sections_from_slides(content["slides"])
         ppt=OUT/"local_render"/"proposal.pptx"; docx=OUT/"local_render"/"proposal.docx"; render_ppt(content,ppt); render_docx(content,docx)
         report["local_render"]={"status":"PASS","content_generation":generation,"pptx":{"path":"local_render/proposal.pptx","bytes":ppt.stat().st_size,**ppt_audit(ppt)},"docx":{"path":"local_render/proposal.docx","bytes":docx.stat().st_size,"section_count":len(content["sections"]),"table_count":sum(bool(s.get("table")) for s in content["sections"])} }
     except Exception as exc:
