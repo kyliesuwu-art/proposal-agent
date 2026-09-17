@@ -1,17 +1,17 @@
 # wecom_bot.py
-"""企业微信智能机器人长连接最小验证：收文本消息 → 原样回复 + 打印原始消息体。
+"""企业微信智能机器人长连接 V1：需求澄清、异步 Markdown 生成与确认。
 
 用法：
     uv run python src/wecom_bot.py
 
 功能：
     - 用 .env 里的 Bot ID + Secret 建立 WebSocket 长连接
-    - 收到文本消息时，原样回复 "收到：{消息内容}"
-    - 收到消息时打印完整的原始消息体（JSON），方便确认 from_userid 等字段格式
+    - 文本消息交给独立的 WeCom V1 task service
+    - 使用现有 proposal CLI 生成独立 task 目录内的 Markdown
 """
 
+import argparse
 import asyncio
-import json
 import os
 import signal
 import sys
@@ -20,11 +20,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-from wecom_aibot_sdk import WSClient, WSClientOptions, MessageType, generate_req_id
+from wecom_aibot_sdk import WSClient, WSClientOptions, MessageType
 
-# 确保能 import src 下的模块
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.wecom.adapter import IncomingMessage, SDKTransport, WeComAgentAdapter
+from src.wecom.proposal_runner import ExistingProposalCliRunner
+from src.wecom.store import SQLiteTaskStore
+from src.wecom.task_service import TaskService
 
 
 def _get_env(key: str) -> str:
@@ -36,10 +40,55 @@ def _get_env(key: str) -> str:
     return val
 
 
-async def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="WeCom V1 WebSocket bot")
+    parser.add_argument(
+        "--db-path",
+        type=Path,
+        default=PROJECT_ROOT / "runtime_data" / "wecom_agent.sqlite",
+        help="SQLite task database path",
+    )
+    parser.add_argument(
+        "--output-root",
+        type=Path,
+        default=PROJECT_ROOT / "outputs" / "wecom_tasks",
+        help="per-task output directory",
+    )
+    parser.add_argument(
+        "--disable-proposal",
+        action="store_true",
+        help="accept and clarify messages without starting the proposal runner",
+    )
+    parser.add_argument("--proactive-markdown-chatid", help="confirmed live-test chat ID")
+    parser.add_argument("--proactive-markdown", help="one-time live-test Markdown content")
+    parser.add_argument("--proactive-file-chatid", help="confirmed live-test chat ID")
+    parser.add_argument("--proactive-file-path", type=Path, help="one-time live-test file path")
+    args = parser.parse_args(argv)
+    if bool(args.proactive_markdown_chatid) != bool(args.proactive_markdown):
+        parser.error("--proactive-markdown-chatid and --proactive-markdown must be used together")
+    if bool(args.proactive_file_chatid) != bool(args.proactive_file_path):
+        parser.error("--proactive-file-chatid and --proactive-file-path must be used together")
+    return args
+
+
+def run_mode(disable_proposal: bool) -> str:
+    return "PROPOSAL_DISABLED" if disable_proposal else "PROPOSAL_ENABLED"
+
+
+async def main(
+    *,
+    db_path: Path,
+    output_root: Path,
+    disable_proposal: bool = False,
+    proactive_markdown_chatid: str | None = None,
+    proactive_markdown: str | None = None,
+    proactive_file_chatid: str | None = None,
+    proactive_file_path: Path | None = None,
+) -> None:
     """建立长连接，注册消息回调，等待接收消息。"""
     bot_id = _get_env("AIBOT_BOT_ID")
     secret = _get_env("AIBOT_SECRET")
+    print(f"运行模式：{run_mode(disable_proposal)}")
 
     opts = WSClientOptions(
         bot_id=bot_id,
@@ -51,6 +100,18 @@ async def main() -> None:
     )
 
     client = WSClient(opts)
+    store = SQLiteTaskStore(db_path)
+    service = TaskService(
+        store,
+        ExistingProposalCliRunner(PROJECT_ROOT),
+        output_root=output_root,
+        generation_enabled=not disable_proposal,
+    )
+    adapter = WeComAgentAdapter(service, SDKTransport(client))
+    authenticated = asyncio.Event()
+
+    async def on_authenticated(_frame) -> None:
+        authenticated.set()
 
     # 注册消息回调：收到任何消息类型都会触发
     async def on_message(frame) -> None:
@@ -58,40 +119,47 @@ async def main() -> None:
         body = frame.body
         msg_type = body.get("msgtype", "unknown")
 
-        # 打印完整原始消息体（JSON），方便调试
-        print("\n" + "=" * 60)
-        print("收到原始消息体：")
-        print(json.dumps(body, ensure_ascii=False, indent=2))
-        print("=" * 60)
-
-        # 只处理文本消息，其他类型不回复
-        if msg_type != MessageType.TEXT.value:
-            print(f"收到非文本消息类型: {msg_type}，跳过回复")
-            return
-
-        # 提取关键字段（注意：实际消息体的字段嵌套在 from/text 对象里，
-        # 不是扁平的 from_userid/content，见之前打印的原始消息体）
+        # SDK message shape: from.userid, chatid, msgid, text.content, file.url/aeskey/name.
         from_obj = body.get("from", {})
         from_userid = from_obj.get("userid", "(未知)")
-        chatid = body.get("chatid", "")
-        content = body.get("text", {}).get("content", "")
-
-        print(f"\nfrom.userid: {from_userid}")
-        print(f"chatid: {chatid}")
-        print(f"消息内容: {content}")
-
-        # 用 reply_stream 回复（SDK 的 reply() 发纯 text 会报 40008 错误）
-        reply_text = f"收到：{content}"
-        stream_id = generate_req_id("stream")
-        await client.reply_stream(frame, stream_id, reply_text, finish=True)
-        print(f"已回复: {reply_text}")
+        chatid = body.get("chatid") or from_userid
+        message_id = body.get("msgid")
+        message = IncomingMessage(from_userid, chatid, body.get("text", {}).get("content", ""), message_id)
+        if msg_type == MessageType.TEXT.value:
+            await adapter.handle(message, frame)
+            return
+        if msg_type == MessageType.FILE.value:
+            file_info = body.get("file", {})
+            url, aeskey = file_info.get("url"), file_info.get("aeskey")
+            if not url:
+                await adapter.handle_markdown_upload(message, "", b"", frame)
+                return
+            content, filename = await client.download_file(url, aeskey)
+            await adapter.handle_markdown_upload(message, filename or "upload.md", content, frame)
+            return
+        await adapter.reply(frame, "请发送文字需求，或在 Markdown 生成后上传 .md 文件进行确认。")
 
     client.on("message", on_message)
+    client.on("authenticated", on_authenticated)
 
     # 连接
-    print(f"正在连接企微长连接 (bot_id={bot_id[:10]}...)...")
+    print("正在连接企微长连接...")
     await client.connect_async()
     print("已连接，等待消息...")
+    if proactive_markdown_chatid and proactive_markdown:
+        try:
+            await asyncio.wait_for(authenticated.wait(), timeout=30)
+            await SDKTransport(client).send_text(proactive_markdown_chatid, proactive_markdown)
+            print("主动 Markdown 联调消息已发送")
+        except TimeoutError:
+            print("主动 Markdown 联调未发送：认证超时")
+    if proactive_file_chatid and proactive_file_path:
+        try:
+            await asyncio.wait_for(authenticated.wait(), timeout=30)
+            await SDKTransport(client).send_file(proactive_file_chatid, proactive_file_path)
+            print("主动文件联调消息已发送")
+        except TimeoutError:
+            print("主动文件联调未发送：认证超时")
 
     # 等待 Ctrl+C 退出
     stop_event = asyncio.Event()
@@ -109,9 +177,20 @@ async def main() -> None:
             pass
 
     await stop_event.wait()
-    client.disconnect()
+    service.shutdown()
+    store.close()
+    await client.disconnect()
     print("已断开连接")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    args = parse_args()
+    asyncio.run(main(
+        db_path=args.db_path,
+        output_root=args.output_root,
+        disable_proposal=args.disable_proposal,
+        proactive_markdown_chatid=args.proactive_markdown_chatid,
+        proactive_markdown=args.proactive_markdown,
+        proactive_file_chatid=args.proactive_file_chatid,
+        proactive_file_path=args.proactive_file_path,
+    ))
