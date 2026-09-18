@@ -49,3 +49,20 @@ def extract_markdown_images(markdown: str) -> list[MarkdownImageReference]:
                 line_number=line_number, normalized_reference=normalize_reference(reference),
             ))
     return found
+
+
+def rewrite_markdown_image_references(markdown: str, replacements: dict[str, str]) -> str:
+    """Rewrite only parsed image destinations, preserving prose, titles and fences."""
+    lines, in_fence = [], False
+    for line in markdown.splitlines(keepends=True):
+        if _FENCE.match(line): in_fence = not in_fence; lines.append(line); continue
+        if in_fence: lines.append(line); continue
+        def replace(match: re.Match[str]) -> str:
+            raw = match.group(2) or match.group(3)
+            reference = (match.group(2) or _split_destination(match.group(3))).strip()
+            target = replacements.get(normalize_reference(reference))
+            if target is None: return match.group(0)
+            suffix = "" if match.group(2) else raw[len(reference):]
+            return f"![{match.group(1)}]({target}{suffix})"
+        lines.append(_IMAGE.sub(replace, line))
+    return "".join(lines)

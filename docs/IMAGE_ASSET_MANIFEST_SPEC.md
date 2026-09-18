@@ -21,3 +21,9 @@ Future Word/PPT consumers should obtain a safe local file only by resolving a `V
 ## CLI
 
 `uv run python scripts/build_image_asset_manifest.py --markdown <approved.md> --task-root <task_dir> --output-dir <report_dir>` writes `assets_manifest.json`, `assets_validation_report.md`, and a compact `acceptance_summary.json` that records the source hash before/after its read-only run. `--include-unreferenced` adds eligible task images not mentioned by Markdown. `--deterministic` fixes the timestamp for reproducible tests. Fatal missing, unsafe or corrupt assets exit 1; warnings exit 0 unless `--strict`; parameter errors exit 2.
+
+## V2 validated bundle
+
+V2 consumes a V1 manifest through `ValidatedAssetSet`, rather than scanning images again. Before packaging, each usable source asset is re-resolved below the task root, checked for symlink replacement, SHA-256 change and decoded-format change. A changed input is `ASSET_CHANGED_SINCE_MANIFEST`.
+
+The portable bundle contains `approved.md`, `assets/asset-<stable-id>.<decoded-extension>`, the V1 `assets_manifest.json`, and `bundle_manifest.json`. Only parser-confirmed image destinations are rewritten; text, links, titles and fenced examples remain literal. Exact SHA duplicates are copied once. Strict mode rejects any invalid or changed referenced asset atomically; permissive mode packages verified assets, preserves unresolved Markdown references, and reports `PASS_WITH_WARNINGS`. ZIP entries use fixed timestamps, metadata and sorted paths.
