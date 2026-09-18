@@ -25,3 +25,28 @@ def test_failures_and_existing_target_are_atomic(tmp_path,monkeypatch):
     out=tmp_path/"existing";out.mkdir();(out/"keep").write_text("ok")
     with pytest.raises(BundleError): materialize_asset_bundle(md,tmp_path,m,out,mode="permissive")
     assert (out/"keep").read_text()=="ok"
+
+
+@pytest.mark.parametrize("failure", ["manifest", "zip", "publish", "copied_asset"])
+def test_injected_failures_clean_only_new_staging(tmp_path, monkeypatch, failure):
+    md, m = setup_bundle(tmp_path)
+    # Use a valid-only manifest so each injected point is reached.
+    md.write_text("![ok](ok.png)\n", encoding="utf-8")
+    m.write_text(json.dumps(build_manifest(md, tmp_path, deterministic=True)), encoding="utf-8")
+    import src.artifact_assets.bundle as bundle
+    original_copy = bundle.shutil.copyfile
+    if failure == "manifest":
+        monkeypatch.setattr(bundle.json, "dumps", lambda *_a, **_k: (_ for _ in ()).throw(OSError("manifest")))
+    elif failure == "zip":
+        monkeypatch.setattr(bundle, "_zip_tree", lambda *_a: (_ for _ in ()).throw(OSError("zip")))
+    elif failure == "publish":
+        monkeypatch.setattr(Path, "replace", lambda *_a: (_ for _ in ()).throw(OSError("publish")))
+    else:
+        def corrupt_copy(source, target):
+            original_copy(source, target)
+            if Path(target).suffix == ".png": Path(target).write_bytes(b"corrupt")
+        monkeypatch.setattr(bundle.shutil, "copyfile", corrupt_copy)
+    with pytest.raises((OSError, BundleError)):
+        materialize_asset_bundle(md, tmp_path, m, tmp_path / failure, mode="strict", create_zip=failure == "zip")
+    assert not (tmp_path / failure).exists()
+    assert not list(tmp_path.glob(f".{failure}-*"))
