@@ -24,6 +24,8 @@ This prints `PROPOSAL_DISABLED`. Use new, isolated paths for every acceptance ru
 - After restart, an interrupted `GENERATING_MD` Task becomes `FAILED` with `interrupted_restart`; it is not resumed.
 - Use `scripts/run_wecom_v1_acceptance.py --help` before running the local production-runner acceptance. That script invokes a real proposal and can incur model cost.
 
-## Known limitation
+## Word delivery and controls
 
-Production Runner and real WeCom communication have separately passed. A new combined real-WeCom clear-request-to-full-proposal-to-file test has not been run. Current readiness is `YES_WITH_LIMITATIONS`; V2 has not started.
+An `MD_APPROVED` Task can receive `生成Word`; the Word work is a separate persisted ArtifactJob and never changes the approved content Task to `FAILED`. `重发Word` sends only an existing successful DOCX and does not run a renderer or model. See [WECOM_COMMANDS.md](WECOM_COMMANDS.md) for the complete command matrix.
+
+For an isolated communication-only Word control test, retain `--disable-proposal` and pass isolated `--db-path`, `--output-root`, and `--artifact-output-root` values. Do not use it to regenerate a proposal.

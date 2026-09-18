@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Protocol
 
 from src.wecom.artifact_service import ArtifactService
+from src.wecom.control_service import TaskControlService
 from src.wecom.models import AgentEvent, ArtifactEvent
 from src.wecom.task_service import TaskService
 
@@ -27,15 +28,26 @@ class WeComTransport(Protocol):
 class WeComAgentAdapter:
     """Maps WeCom messages/events to the transport-neutral task service."""
 
-    def __init__(self, service: TaskService, transport: WeComTransport, artifact_service: ArtifactService | None = None) -> None:
+    def __init__(self, service: TaskService, transport: WeComTransport, artifact_service: ArtifactService | None = None, controls: TaskControlService | None = None) -> None:
         self._service, self._transport, self._loop = service, transport, None
         self._artifact_service = artifact_service
+        self._controls = controls
         service.subscribe(self._on_event)
         if artifact_service:
             artifact_service.subscribe(self._on_artifact_event)
 
     async def handle(self, message: IncomingMessage, frame: object) -> None:
         self._loop = asyncio.get_running_loop()
+        control = self._controls.receive(message) if self._controls else None
+        if control is not None:
+            if control.response is not None:
+                await self._transport.reply_text(frame, control.response)
+                if control.send_path is not None:
+                    try:
+                        await self._transport.send_file(message.chatid, control.send_path)
+                    except Exception:
+                        await self._transport.reply_text(frame, "Word 文件当前发送失败，请稍后使用“重发Word”重试。")
+            return
         result = self._artifact_service.receive(message) if self._artifact_service else None
         _, response = result if result is not None else self._service.receive(message)
         await self._transport.reply_text(frame, response)

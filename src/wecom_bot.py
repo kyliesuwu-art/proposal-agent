@@ -27,6 +27,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.wecom.adapter import IncomingMessage, SDKTransport, WeComAgentAdapter
 from src.wecom.artifact_service import ArtifactService
+from src.wecom.control_service import TaskControlService
 from src.wecom.proposal_runner import ExistingProposalCliRunner
 from src.wecom.store import SQLiteTaskStore
 from src.wecom.task_service import TaskService
@@ -120,7 +121,7 @@ async def main(
         store, ProductionWordRunner(PROJECT_ROOT), task_output_root=output_root,
         output_root=artifact_output_root or PROJECT_ROOT / "outputs" / "wecom_artifacts",
     )
-    adapter = WeComAgentAdapter(service, SDKTransport(client), artifacts)
+    adapter = WeComAgentAdapter(service, SDKTransport(client), artifacts, TaskControlService(store, artifacts))
     authenticated = asyncio.Event()
 
     async def on_authenticated(_frame) -> None:

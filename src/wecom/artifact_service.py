@@ -44,6 +44,10 @@ class ArtifactService:
     def subscribe(self, listener: Callable[[ArtifactEvent], None]) -> None:
         self._subscribers.append(listener)
 
+    @property
+    def output_root(self) -> Path:
+        return self._output_root
+
     def _emit(self, name: str, job: ArtifactJob, task: WeComTask) -> None:
         event = ArtifactEvent(name, job, task)
         for listener in tuple(self._subscribers):

@@ -38,6 +38,9 @@ class SQLiteTaskStore:
                 );
                 CREATE INDEX IF NOT EXISTS idx_wecom_artifact_jobs_task_type
                     ON wecom_artifact_jobs(task_id, artifact_type, created_at);
+                CREATE TABLE IF NOT EXISTS wecom_control_messages (
+                    message_id TEXT PRIMARY KEY, command_name TEXT NOT NULL
+                );
             """)
 
     def close(self) -> None:
@@ -153,3 +156,19 @@ class SQLiteTaskStore:
         with self._lock:
             rows = self._connection.execute("SELECT * FROM wecom_artifact_jobs WHERE status=?", (status.value,)).fetchall()
         return [self._artifact_job(row) for row in rows]
+
+    def control_message_seen(self, message_id: str | None) -> bool:
+        if not message_id:
+            return False
+        with self._lock:
+            return self._connection.execute(
+                "SELECT 1 FROM wecom_control_messages WHERE message_id=?", (message_id,),
+            ).fetchone() is not None
+
+    def record_control_message(self, message_id: str | None, command_name: str) -> None:
+        if not message_id:
+            return
+        with self._lock, self._connection:
+            self._connection.execute(
+                "INSERT OR IGNORE INTO wecom_control_messages VALUES (?, ?)", (message_id, command_name),
+            )
