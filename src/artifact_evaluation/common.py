@@ -13,7 +13,7 @@ class OoxmlZipSafetyPolicy:
     max_member_bytes: int = 64 * 1024 * 1024
     max_total_bytes: int = 256 * 1024 * 1024
     max_compression_ratio: int = 100
-    allowed_compression: frozenset[int] = frozenset({zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED, zipfile.ZIP_BZIP2, zipfile.ZIP_LZMA})
+    allowed_compression: frozenset[int] = frozenset({zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED})
     chunk_size: int = 64 * 1024
 
 DEFAULT_OOXML_ZIP_POLICY = OoxmlZipSafetyPolicy()

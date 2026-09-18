@@ -12,7 +12,7 @@ The stable JSON schema contains `EvaluationReport`, `ArtifactReport`, and `Check
 
 ## Checks and limitations
 
-OOXML preflight runs before high-level parsers. Defaults limit archives to 4,096 members, 64 MiB/member, 256 MiB total, and 100:1 compression ratio; members are streamed in 64 KiB chunks for CRC and actual-byte validation. Encryption, unsupported compression, duplicate normalized names and unsafe paths are rejected as FAIL. These are resource limits, not a complete malicious-file sandbox.
+OOXML preflight runs before high-level parsers. Defaults limit archives to 4,096 members, 64 MiB/member, 256 MiB total, and 100:1 compression ratio; members are streamed in 64 KiB chunks for CRC and actual-byte validation. Only stored and deflated members are accepted: this project has no BZIP2/LZMA OOXML requirement, and accepting them expands the parser attack surface. Encryption, unsupported compression, duplicate normalized names and unsafe paths are rejected as FAIL. Reports also reject canonical path collisions with any input. These are resource limits, not a complete malicious-file sandbox.
 
 Markdown checks UTF-8, headings, empty sections, image syntax/path containment/files, and delivery leaks. DOCX checks OOXML, readable document content, headings/tables/media, A4 metadata and text residue. PPTX checks OOXML, slides, blank pages, canvas bounds, image PPI, small fonts and layout repetition. Cross checks currently record input coverage and optional source hash.
 
