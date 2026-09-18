@@ -1,87 +1,72 @@
-"""Validated manifest consumer and deterministic portable Markdown bundler."""
+"""Validated manifest consumer and atomic portable Markdown bundler."""
 from __future__ import annotations
 from dataclasses import dataclass
-import hashlib, json, shutil, tempfile, zipfile
+import json, shutil, tempfile, zipfile
 from pathlib import Path
 from .image_inspector import inspect_image, sha256_file
-from .markdown_parser import rewrite_markdown_image_references, normalize_reference
+from .markdown_parser import extract_markdown_images, normalize_reference, replace_rejected_markdown_images, rewrite_markdown_image_references
 from .models import AssetStatus, AssetValidationProfile
 from .safe_resolver import PathSafetyError, resolve_task_image
 
 class BundleError(ValueError): pass
 _USABLE={AssetStatus.VALID.value,AssetStatus.LOW_RESOLUTION.value,AssetStatus.DUPLICATE.value}
 _EXT={"PNG":"png","JPEG":"jpg","GIF":"gif","BMP":"bmp","TIFF":"tiff","WEBP":"webp"}
-
-def load_manifest(path: str|Path)->dict:
-    try: data=json.loads(Path(path).read_text(encoding="utf-8"))
-    except (OSError,json.JSONDecodeError) as exc: raise BundleError("MANIFEST_INVALID: unreadable JSON") from exc
-    validate_manifest_schema(data); return data
-def validate_manifest_schema(data:dict)->None:
-    if data.get("schema_version")!="image-asset-manifest/v1" or not isinstance(data.get("assets"),list): raise BundleError("MANIFEST_SCHEMA_INCOMPATIBLE")
-    for asset in data["assets"]:
-        if not all(k in asset for k in ("asset_id","normalized_relative_path","status","referenced","reference_count")): raise BundleError("MANIFEST_SCHEMA_INCOMPATIBLE")
-
+def load_manifest(path):
+ try:data=json.loads(Path(path).read_text(encoding="utf-8"))
+ except (OSError,json.JSONDecodeError) as e:raise BundleError("MANIFEST_INVALID") from e
+ validate_manifest_schema(data);return data
+def validate_manifest_schema(data):
+ if data.get("schema_version")!="image-asset-manifest/v1" or not isinstance(data.get("assets"),list):raise BundleError("MANIFEST_SCHEMA_INCOMPATIBLE")
+ if any(not all(k in a for k in ("asset_id","normalized_relative_path","status","referenced","reference_count")) for a in data["assets"]):raise BundleError("MANIFEST_SCHEMA_INCOMPATIBLE")
 @dataclass
 class ValidatedAssetSet:
-    manifest:dict; task_root:Path; valid_assets:list[dict]; rejected_assets:list[dict]
-    def resolve_asset_by_id(self, asset_id:str): return next((x for x in self.manifest["assets"] if x["asset_id"]==asset_id),None)
-    def resolve_asset_by_reference(self, reference:str):
-        key=normalize_reference(reference)
-        return next((x for x in self.manifest["assets"] if x.get("normalized_relative_path")==key),None)
-
-def build_validated_asset_set(manifest:dict, task_root:str|Path)->ValidatedAssetSet:
-    validate_manifest_schema(manifest); root=Path(task_root).resolve(strict=True)
-    valid=[a for a in manifest["assets"] if a["status"] in _USABLE and a.get("referenced")]
-    rejected=[a for a in manifest["assets"] if a.get("referenced") and a["status"] not in _USABLE]
-    return ValidatedAssetSet(manifest,root,valid,rejected)
-
-def _verify(asset:dict, root:Path)->tuple[Path,str|None]:
-    try: source=resolve_task_image(root,asset["normalized_relative_path"]).path
-    except PathSafetyError: return root,"ASSET_UNSAFE_SINCE_MANIFEST"
-    if not source.exists(): return source,"ASSET_MISSING_SINCE_MANIFEST"
-    if source.is_symlink(): return source,"ASSET_UNSAFE_SINCE_MANIFEST"
-    info=inspect_image(source,AssetValidationProfile())
-    if info.get("error") or info.get("sha256")!=asset.get("sha256") or info.get("detected_format")!=asset.get("detected_format"): return source,"ASSET_CHANGED_SINCE_MANIFEST"
-    return source,None
-
+ manifest:dict;task_root:Path;valid_assets:list[dict];rejected_assets:list[dict]
+ def resolve_asset_by_id(self,id):return next((a for a in self.manifest["assets"] if a["asset_id"]==id),None)
+ def resolve_asset_by_reference(self,ref):return next((a for a in self.manifest["assets"] if a.get("normalized_relative_path")==normalize_reference(ref)),None)
+def build_validated_asset_set(manifest,task_root):
+ validate_manifest_schema(manifest);root=Path(task_root).resolve(strict=True)
+ return ValidatedAssetSet(manifest,root,[a for a in manifest["assets"] if a.get("referenced") and a["status"] in _USABLE],[a for a in manifest["assets"] if a.get("referenced") and a["status"] not in _USABLE])
+def _verify(a,root):
+ try:p=resolve_task_image(root,a["normalized_relative_path"]).path
+ except PathSafetyError:return root,"ASSET_UNSAFE_SINCE_MANIFEST"
+ if not p.exists():return p,"ASSET_MISSING_SINCE_MANIFEST"
+ i=inspect_image(p,AssetValidationProfile())
+ return (p,None) if not i.get("error") and i.get("sha256")==a.get("sha256") and i.get("detected_format")==a.get("detected_format") else (p,"ASSET_CHANGED_SINCE_MANIFEST")
+def _zip_tree(bundle,destination):
+ with zipfile.ZipFile(destination,"x",zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+  for p in sorted(bundle.rglob("*"),key=lambda x:x.relative_to(bundle).as_posix()):
+   if p.is_file():
+    i=zipfile.ZipInfo(p.relative_to(bundle).as_posix(),(1980,1,1,0,0,0));i.compress_type=zipfile.ZIP_DEFLATED;i.external_attr=0o100644<<16;z.writestr(i,p.read_bytes(),compress_type=zipfile.ZIP_DEFLATED,compresslevel=9)
 @dataclass(frozen=True)
-class BundleResult: bundle_dir:Path; zip_path:Path|None; overall_status:str; rejected:list[dict]
-
-def _zip_tree(bundle:Path, destination:Path):
-    with zipfile.ZipFile(destination,"w",zipfile.ZIP_DEFLATED,compresslevel=9) as archive:
-        for path in sorted(bundle.rglob("*"),key=lambda p:p.relative_to(bundle).as_posix()):
-            if path.is_file():
-                entry=zipfile.ZipInfo(path.relative_to(bundle).as_posix(),(1980,1,1,0,0,0)); entry.compress_type=zipfile.ZIP_DEFLATED; entry.external_attr=0o100644<<16
-                archive.writestr(entry,path.read_bytes(),compress_type=zipfile.ZIP_DEFLATED,compresslevel=9)
-
-def materialize_asset_bundle(markdown_path, task_root, manifest_path, output_dir, *, mode="strict", create_zip=False)->BundleResult:
-    if mode not in {"strict","permissive"}: raise BundleError("MODE_INVALID")
-    manifest=load_manifest(manifest_path); aset=build_validated_asset_set(manifest,task_root); md=Path(markdown_path).resolve(strict=True); source_hash=sha256_file(md)
-    if source_hash!=manifest.get("source_markdown_sha256"): raise BundleError("MARKDOWN_CHANGED_SINCE_MANIFEST")
-    rejected=list(aset.rejected_assets); verified=[]
-    for asset in aset.valid_assets:
-        source,reason=_verify(asset,aset.task_root)
-        if reason: rejected.append({**asset,"status":reason,"reason_code":reason,"message":"Asset changed or became unsafe after manifest generation."})
-        else: verified.append((asset,source))
-    if rejected and mode=="strict": raise BundleError(rejected[0].get("reason_code") or rejected[0]["status"])
-    out=Path(output_dir); final=out/"bundle"
-    if final.exists(): raise BundleError("OUTPUT_ALREADY_EXISTS")
-    out.mkdir(parents=True,exist_ok=True); temp=Path(tempfile.mkdtemp(prefix=".bundle-",dir=out))
-    try:
-        canonical={}; replacements={}; mappings=[]
-        for asset,source in sorted(verified,key=lambda x:x[0]["asset_id"]):
-            owner=canonical.setdefault(asset["sha256"],asset); ext=_EXT[asset["detected_format"]]; packaged=f"assets/{owner['asset_id']}.{ext}"
-            replacements[asset["normalized_relative_path"]]=packaged
-            mappings.append({"markdown_reference":asset["normalized_relative_path"],"asset_id":asset["asset_id"],"packaged_relative_path":packaged,"sha256":asset["sha256"],"decoded_format":asset["detected_format"],"byte_size":asset["file_size"],"status":asset["status"],"warnings":asset["warnings"]})
-        (temp/"assets").mkdir();
-        for digest,owner in canonical.items(): shutil.copyfile(next(src for a,src in verified if a["asset_id"]==owner["asset_id"]),temp/f"assets/{owner['asset_id']}.{_EXT[owner['detected_format']]}")
-        rewritten=rewrite_markdown_image_references(md.read_text(encoding="utf-8"),replacements); (temp/"approved.md").write_text(rewritten,encoding="utf-8")
-        shutil.copyfile(manifest_path,temp/"assets_manifest.json")
-        bundle={"schema_version":"portable-markdown-asset-bundle/v2","source_markdown_filename":"approved.md","source_markdown_sha256":source_hash,"asset_manifest_sha256":sha256_file(Path(manifest_path)),"mode":mode,"reference_count":manifest["summary"]["total_references"],"unique_asset_count":len(aset.valid_assets),"packaged_asset_count":len(canonical),"rejected_asset_count":len(rejected),"markdown_reference_mapping":mappings,"overall_status":"PASS_WITH_WARNINGS" if rejected else "PASS"}
-        (temp/"bundle_manifest.json").write_text(json.dumps(bundle,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
-        temp.replace(final); zip_path=out/"approved_assets_bundle.zip" if create_zip else None
-        if zip_path: _zip_tree(final,zip_path)
-        return BundleResult(final,zip_path,bundle["overall_status"],rejected)
-    except Exception:
-        if temp.exists(): shutil.rmtree(temp)
-        raise
+class BundleResult:bundle_dir:Path;zip_path:Path|None;overall_status:str;rejected:list[dict]
+def materialize_asset_bundle(markdown_path,task_root,manifest_path,output_dir,*,mode="strict",create_zip=False):
+ if mode not in {"strict","permissive"}:raise BundleError("MODE_INVALID")
+ out=Path(output_dir)
+ if out.exists():raise BundleError("OUTPUT_ALREADY_EXISTS")
+ m=load_manifest(manifest_path);aset=build_validated_asset_set(m,task_root);md=Path(markdown_path).resolve(strict=True)
+ if sha256_file(md)!=m.get("source_markdown_sha256"):raise BundleError("MARKDOWN_CHANGED_SINCE_MANIFEST")
+ rejected=list(aset.rejected_assets);verified=[]
+ for a in aset.valid_assets:
+  p,r=_verify(a,aset.task_root)
+  if r:rejected.append({**a,"status":r,"reason_code":r,"message":"Asset excluded after manifest revalidation."})
+  else:verified.append((a,p))
+ if rejected and mode=="strict":raise BundleError(rejected[0].get("reason_code") or rejected[0]["status"])
+ out.parent.mkdir(parents=True,exist_ok=True);stage=Path(tempfile.mkdtemp(prefix=f".{out.name}-",dir=out.parent))
+ try:
+  bundle=stage/"bundle";(bundle/"assets").mkdir(parents=True);canonical={};refs={};mapping=[]
+  for a,p in sorted(verified,key=lambda x:x[0]["asset_id"]):
+   owner=canonical.setdefault(a["sha256"],a);pack=f"assets/{owner['asset_id']}.{_EXT[owner['detected_format']]}";refs[a["normalized_relative_path"]]=pack
+   mapping.append({"markdown_reference":a["normalized_relative_path"],"asset_id":a["asset_id"],"packaged_relative_path":pack,"sha256":a["sha256"],"decoded_format":a["detected_format"],"byte_size":a["file_size"],"status":a["status"],"warnings":a["warnings"],"handling":"packaged"})
+  for r in rejected:mapping.append({"markdown_reference":r.get("normalized_relative_path"),"asset_id":r.get("asset_id"),"packaged_relative_path":None,"sha256":r.get("sha256"),"status":r["status"],"reason_code":r.get("reason_code",r["status"]),"handling":"replaced_with_text"})
+  for owner in canonical.values():
+   source=next(p for a,p in verified if a["asset_id"]==owner["asset_id"]);target=bundle/f"assets/{owner['asset_id']}.{_EXT[owner['detected_format']]}";shutil.copyfile(source,target);i=inspect_image(target,AssetValidationProfile())
+   if i.get("error") or i.get("sha256")!=owner["sha256"] or i.get("detected_format")!=owner["detected_format"]:raise BundleError("COPIED_ASSET_VERIFICATION_FAILED")
+  text=replace_rejected_markdown_images(rewrite_markdown_image_references(md.read_text(encoding="utf-8"),refs),{r["normalized_relative_path"]:r.get("reason_code",r["status"]) for r in rejected});(bundle/"approved.md").write_text(text,encoding="utf-8")
+  shutil.copyfile(manifest_path,bundle/"assets_manifest.json")
+  payload={"schema_version":"portable-markdown-asset-bundle/v2","source_markdown_filename":"approved.md","source_markdown_sha256":sha256_file(md),"asset_manifest_sha256":sha256_file(Path(manifest_path)),"mode":mode,"reference_count":m["summary"]["total_references"],"unique_asset_count":len(aset.valid_assets),"packaged_asset_count":len(canonical),"rejected_asset_count":len(rejected),"markdown_reference_mapping":sorted(mapping,key=lambda x:(x["markdown_reference"] or "",x["asset_id"] or "")),"overall_status":"PASS_WITH_WARNINGS" if rejected else "PASS"};(bundle/"bundle_manifest.json").write_text(json.dumps(payload,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+  if any(not (bundle/x.reference).is_file() for x in extract_markdown_images(text)):raise BundleError("BUNDLE_REFERENCE_VERIFICATION_FAILED")
+  if create_zip:_zip_tree(bundle,stage/"approved_assets_bundle.zip")
+  stage.replace(out);return BundleResult(out/"bundle",out/"approved_assets_bundle.zip" if create_zip else None,payload["overall_status"],rejected)
+ except Exception:
+  if stage.exists():shutil.rmtree(stage)
+  raise

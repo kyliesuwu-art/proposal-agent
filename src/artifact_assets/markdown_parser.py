@@ -66,3 +66,17 @@ def rewrite_markdown_image_references(markdown: str, replacements: dict[str, str
             return f"![{match.group(1)}]({target}{suffix})"
         lines.append(_IMAGE.sub(replace, line))
     return "".join(lines)
+
+
+def replace_rejected_markdown_images(markdown: str, rejected: dict[str, str]) -> str:
+    """Replace rejected image nodes with safe plain-text diagnostics."""
+    lines, in_fence = [], False
+    for line in markdown.splitlines(keepends=True):
+        if _FENCE.match(line): in_fence = not in_fence; lines.append(line); continue
+        if in_fence: lines.append(line); continue
+        def replace(match: re.Match[str]) -> str:
+            reference = (match.group(2) or _split_destination(match.group(3))).strip()
+            code = rejected.get(normalize_reference(reference))
+            return match.group(0) if code is None else f"[Image excluded: {match.group(1) or 'image'} — {code}]"
+        lines.append(_IMAGE.sub(replace, line))
+    return "".join(lines)

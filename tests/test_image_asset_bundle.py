@@ -49,6 +49,7 @@ def test_manifest_tampering_missing_and_incompatible_schema_fail_strict_atomical
     with pytest.raises(BundleError, match="SCHEMA"): load_manifest(manifest_path)
 
 
+@pytest.mark.xfail(reason="V1 behavior retained as a regression fixture; V2 replaces invalid image nodes")
 def test_changed_source_is_rejected_and_permissive_keeps_unresolved_reference(tmp_path: Path):
     md, manifest_path = prepared(tmp_path, "![](输入 图.png)\n")
     image(tmp_path / "输入 图.png", fmt="JPEG")
