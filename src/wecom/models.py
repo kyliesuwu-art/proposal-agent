@@ -15,6 +15,19 @@ class TaskStatus(StrEnum):
     FAILED = "FAILED"
 
 
+class ArtifactType(StrEnum):
+    WORD = "WORD"
+    PPT = "PPT"
+
+
+class ArtifactJobStatus(StrEnum):
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    READY = "READY"
+    DELIVERED = "DELIVERED"
+    FAILED = "FAILED"
+
+
 @dataclass(frozen=True)
 class WeComTask:
     task_id: str
@@ -39,4 +52,35 @@ class WeComTask:
 @dataclass(frozen=True)
 class AgentEvent:
     name: str
+    task: WeComTask
+
+
+@dataclass(frozen=True)
+class ArtifactJob:
+    job_id: str
+    task_id: str
+    artifact_type: ArtifactType
+    status: ArtifactJobStatus
+    source_md_path: str
+    source_md_sha256: str
+    output_dir: str
+    primary_artifact_path: str | None
+    preview_artifact_path: str | None
+    error_stage: str | None
+    error_message: str | None
+    created_at: str
+    updated_at: str
+    delivered_at: str | None = None
+
+    def payload(self) -> dict[str, Any]:
+        data = asdict(self)
+        data["artifact_type"] = self.artifact_type.value
+        data["status"] = self.status.value
+        return data
+
+
+@dataclass(frozen=True)
+class ArtifactEvent:
+    name: str
+    job: ArtifactJob
     task: WeComTask

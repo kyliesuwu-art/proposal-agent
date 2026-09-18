@@ -26,9 +26,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.wecom.adapter import IncomingMessage, SDKTransport, WeComAgentAdapter
+from src.wecom.artifact_service import ArtifactService
 from src.wecom.proposal_runner import ExistingProposalCliRunner
 from src.wecom.store import SQLiteTaskStore
 from src.wecom.task_service import TaskService
+from src.wecom.word_runner import ProductionWordRunner
 
 
 def _get_env(key: str) -> str:
@@ -55,6 +57,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="per-task output directory",
     )
     parser.add_argument(
+        "--artifact-output-root",
+        type=Path,
+        default=PROJECT_ROOT / "outputs" / "wecom_artifacts",
+        help="per-artifact output directory",
+    )
+    parser.add_argument(
         "--disable-proposal",
         action="store_true",
         help="accept and clarify messages without starting the proposal runner",
@@ -79,6 +87,7 @@ async def main(
     *,
     db_path: Path,
     output_root: Path,
+    artifact_output_root: Path | None = None,
     disable_proposal: bool = False,
     proactive_markdown_chatid: str | None = None,
     proactive_markdown: str | None = None,
@@ -107,7 +116,11 @@ async def main(
         output_root=output_root,
         generation_enabled=not disable_proposal,
     )
-    adapter = WeComAgentAdapter(service, SDKTransport(client))
+    artifacts = ArtifactService(
+        store, ProductionWordRunner(PROJECT_ROOT), task_output_root=output_root,
+        output_root=artifact_output_root or PROJECT_ROOT / "outputs" / "wecom_artifacts",
+    )
+    adapter = WeComAgentAdapter(service, SDKTransport(client), artifacts)
     authenticated = asyncio.Event()
 
     async def on_authenticated(_frame) -> None:
@@ -178,6 +191,7 @@ async def main(
 
     await stop_event.wait()
     service.shutdown()
+    artifacts.shutdown()
     store.close()
     await client.disconnect()
     print("已断开连接")
@@ -188,6 +202,7 @@ if __name__ == "__main__":
     asyncio.run(main(
         db_path=args.db_path,
         output_root=args.output_root,
+        artifact_output_root=args.artifact_output_root,
         disable_proposal=args.disable_proposal,
         proactive_markdown_chatid=args.proactive_markdown_chatid,
         proactive_markdown=args.proactive_markdown,

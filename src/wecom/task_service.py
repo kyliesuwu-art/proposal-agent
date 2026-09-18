@@ -147,7 +147,7 @@ class TaskService:
         shutil.copyfile(task.proposal_md_path, approved)
         saved = self._save(replace(task, status=TaskStatus.MD_APPROVED, approved_md_path=str(approved), updated_at=_now()))
         self._emit("MD_APPROVED", saved)
-        return saved, f"Markdown 已确认。任务编号：{saved.task_id}"
+        return saved, f"Markdown 内容已确认。如需生成 Word，请回复“生成Word”。任务编号：{saved.task_id}"
 
     def approve_uploaded_markdown(
         self,

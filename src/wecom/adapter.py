@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from src.wecom.models import AgentEvent
+from src.wecom.artifact_service import ArtifactService
+from src.wecom.models import AgentEvent, ArtifactEvent
 from src.wecom.task_service import TaskService
 
 
@@ -26,13 +27,17 @@ class WeComTransport(Protocol):
 class WeComAgentAdapter:
     """Maps WeCom messages/events to the transport-neutral task service."""
 
-    def __init__(self, service: TaskService, transport: WeComTransport) -> None:
+    def __init__(self, service: TaskService, transport: WeComTransport, artifact_service: ArtifactService | None = None) -> None:
         self._service, self._transport, self._loop = service, transport, None
+        self._artifact_service = artifact_service
         service.subscribe(self._on_event)
+        if artifact_service:
+            artifact_service.subscribe(self._on_artifact_event)
 
     async def handle(self, message: IncomingMessage, frame: object) -> None:
         self._loop = asyncio.get_running_loop()
-        _, response = self._service.receive(message)
+        result = self._artifact_service.receive(message) if self._artifact_service else None
+        _, response = result if result is not None else self._service.receive(message)
         await self._transport.reply_text(frame, response)
 
     async def handle_markdown_upload(self, message: IncomingMessage, filename: str, content: bytes, frame: object) -> None:
@@ -63,6 +68,24 @@ class WeComAgentAdapter:
             await self._transport.send_text(task.chatid, f"方案生成失败。失败阶段：proposal_generation。任务编号：{task.task_id}")
         elif event.name == "MD_APPROVED":
             await self._transport.send_text(task.chatid, f"Markdown 已确认。任务编号：{task.task_id}")
+
+
+    def _on_artifact_event(self, event: ArtifactEvent) -> None:
+        if self._loop and not self._loop.is_closed():
+            self._loop.call_soon_threadsafe(lambda: asyncio.create_task(self._deliver_artifact_event(event)))
+
+    async def _deliver_artifact_event(self, event: ArtifactEvent) -> None:
+        if event.name == "WORD_GENERATION_READY":
+            try:
+                await self._transport.send_file(event.task.chatid, Path(event.job.primary_artifact_path or ""))
+            except Exception:
+                self._artifact_service.mark_delivery_failed(event.job.job_id)
+                await self._transport.send_text(event.task.chatid, f"Word 文档生成失败。任务编号：{event.task.task_id}")
+                return
+            self._artifact_service.mark_delivered(event.job.job_id)
+            await self._transport.send_text(event.task.chatid, f"Word 文档已生成并发送。任务编号：{event.task.task_id}")
+        elif event.name == "WORD_GENERATION_FAILED":
+            await self._transport.send_text(event.task.chatid, f"Word 文档生成失败。任务编号：{event.task.task_id}")
 
 
 class SDKTransport:

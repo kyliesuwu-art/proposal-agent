@@ -4,7 +4,7 @@ import sqlite3
 import threading
 from pathlib import Path
 
-from src.wecom.models import TaskStatus, WeComTask
+from src.wecom.models import ArtifactJob, ArtifactJobStatus, ArtifactType, TaskStatus, WeComTask
 
 
 class SQLiteTaskStore:
@@ -29,6 +29,15 @@ class SQLiteTaskStore:
                 CREATE TABLE IF NOT EXISTS wecom_messages (
                     message_id TEXT PRIMARY KEY, task_id TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS wecom_artifact_jobs (
+                    job_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, artifact_type TEXT NOT NULL,
+                    status TEXT NOT NULL, source_md_path TEXT NOT NULL, source_md_sha256 TEXT NOT NULL,
+                    output_dir TEXT NOT NULL, primary_artifact_path TEXT, preview_artifact_path TEXT,
+                    error_stage TEXT, error_message TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    delivered_at TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_wecom_artifact_jobs_task_type
+                    ON wecom_artifact_jobs(task_id, artifact_type, created_at);
             """)
 
     def close(self) -> None:
@@ -97,3 +106,50 @@ class SQLiteTaskStore:
                 "INSERT OR IGNORE INTO wecom_messages VALUES (?, ?)",
                 (message_id, task_id),
             )
+
+    @staticmethod
+    def _artifact_job(row: sqlite3.Row) -> ArtifactJob:
+        data = dict(row)
+        data["artifact_type"] = ArtifactType(data["artifact_type"])
+        data["status"] = ArtifactJobStatus(data["status"])
+        return ArtifactJob(**data)
+
+    def create_artifact_job(self, job: ArtifactJob) -> ArtifactJob:
+        with self._lock, self._connection:
+            self._connection.execute("""INSERT INTO wecom_artifact_jobs VALUES
+                (:job_id, :task_id, :artifact_type, :status, :source_md_path, :source_md_sha256,
+                 :output_dir, :primary_artifact_path, :preview_artifact_path, :error_stage,
+                 :error_message, :created_at, :updated_at, :delivered_at)""", job.payload())
+        return job
+
+    def update_artifact_job(self, job: ArtifactJob) -> ArtifactJob:
+        with self._lock, self._connection:
+            self._connection.execute("""UPDATE wecom_artifact_jobs SET
+                status=:status, source_md_path=:source_md_path, source_md_sha256=:source_md_sha256,
+                output_dir=:output_dir, primary_artifact_path=:primary_artifact_path,
+                preview_artifact_path=:preview_artifact_path, error_stage=:error_stage,
+                error_message=:error_message, updated_at=:updated_at, delivered_at=:delivered_at
+                WHERE job_id=:job_id""", job.payload())
+        return job
+
+    def get_artifact_job(self, job_id: str) -> ArtifactJob:
+        with self._lock:
+            row = self._connection.execute("SELECT * FROM wecom_artifact_jobs WHERE job_id=?", (job_id,)).fetchone()
+        if row is None:
+            raise KeyError(job_id)
+        return self._artifact_job(row)
+
+    def artifact_jobs_for(self, task_id: str, artifact_type: ArtifactType | None = None) -> list[ArtifactJob]:
+        sql, values = "SELECT * FROM wecom_artifact_jobs WHERE task_id=?", [task_id]
+        if artifact_type is not None:
+            sql += " AND artifact_type=?"
+            values.append(artifact_type.value)
+        sql += " ORDER BY created_at"
+        with self._lock:
+            rows = self._connection.execute(sql, values).fetchall()
+        return [self._artifact_job(row) for row in rows]
+
+    def artifact_jobs_with_status(self, status: ArtifactJobStatus) -> list[ArtifactJob]:
+        with self._lock:
+            rows = self._connection.execute("SELECT * FROM wecom_artifact_jobs WHERE status=?", (status.value,)).fetchall()
+        return [self._artifact_job(row) for row in rows]
