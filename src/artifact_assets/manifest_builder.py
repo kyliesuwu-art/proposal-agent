@@ -35,6 +35,7 @@ def _base_record(relative: str, refs: list[MarkdownImageReference], referenced: 
         "extension": Path(relative).suffix.lower(), "detected_format": None, "mime_type": None,
         "width_px": None, "height_px": None, "aspect_ratio": None, "color_mode": None,
         "has_alpha": None, "dpi": None, "status": AssetStatus.VALID.value, "warnings": [],
+        "frame_count": None, "cumulative_frame_pixels": None,
         "duplicate_of": None, "referenced": referenced, "reference_count": len(refs),
         "line_numbers": [item.line_number for item in refs],
         "word_compatible": False, "ppt_compatible": False, "wecom_compatible": False,
@@ -127,7 +128,7 @@ def build_manifest(markdown_path: str | Path, task_root: str | Path, *, include_
         "low_resolution_assets": sum(AssetStatus.LOW_RESOLUTION.value in item["warnings"] for item in records),
         "unreferenced_assets": sum(not item["referenced"] for item in records),
     }
-    return {"schema_version": SCHEMA_VERSION, "generated_at": "1970-01-01T00:00:00Z" if deterministic else datetime.now(timezone.utc).isoformat(),
+    return {"schema_version": SCHEMA_VERSION, "generated_at": "1970-01-01T00:00:00Z" if deterministic else datetime.now(timezone.utc).isoformat(), "resource_policy": profile.resource_policy(),
             "task_root_label": root.name, "source_markdown": source_relative, "source_markdown_sha256": sha256_file(markdown),
             "assets": records, "summary": summary,
             "limitations": ["V1 performs source-file validation only, not layout-quality assessment.", "V1 detects exact SHA-256 duplicates only; it does not perform perceptual comparison.", "SVG is intentionally unsupported and is never parsed or executed."]}

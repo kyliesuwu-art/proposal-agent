@@ -24,9 +24,20 @@ class AssetValidationProfile:
     low_resolution_total_pixels: int = 90_000
     max_file_size_bytes: int = 50 * 1024 * 1024
     max_pixels: int = 100_000_000
+    max_width_px: int = 32_768
+    max_height_px: int = 32_768
+    max_frames: int = 256
+    max_cumulative_frame_pixels: int = 200_000_000
+    resource_policy_version: str = "image-resource-policy/v1"
     supported_formats: frozenset[str] = field(default_factory=lambda: frozenset({
         "PNG", "JPEG", "GIF", "BMP", "TIFF", "WEBP",
     }))
+
+    def resource_policy(self) -> dict[str, int | str]:
+        return {"version": self.resource_policy_version, "max_file_size_bytes": self.max_file_size_bytes,
+                "max_width_px": self.max_width_px, "max_height_px": self.max_height_px,
+                "max_frame_pixels": self.max_pixels, "max_frames": self.max_frames,
+                "max_cumulative_frame_pixels": self.max_cumulative_frame_pixels}
 
 
 FORMAT_EXTENSIONS = {

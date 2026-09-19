@@ -30,22 +30,43 @@ def inspect_image(path: Path, profile: AssetValidationProfile) -> dict:
             with Image.open(path) as image:
                 detected_format = image.format or "UNKNOWN"
                 width, height = image.size
+                if width > profile.max_width_px or height > profile.max_height_px:
+                    return {"file_size": size, "sha256": sha256_file(path), "error": "IMAGE_DIMENSION_EXCEEDED"}
                 if width * height > profile.max_pixels:
-                    return {"file_size": size, "sha256": sha256_file(path), "error": "PIXEL_LIMIT"}
+                    return {"file_size": size, "sha256": sha256_file(path), "error": "IMAGE_FRAME_PIXELS_EXCEEDED"}
+                frame_count = getattr(image, "n_frames", 1)
+                if frame_count > profile.max_frames:
+                    return {"file_size": size, "sha256": sha256_file(path), "error": "IMAGE_FRAME_COUNT_EXCEEDED", "frame_count": frame_count}
                 image.verify()
             with Image.open(path) as image:
-                image.load()
+                cumulative_pixels = 0
+                for frame_index in range(frame_count):
+                    image.seek(frame_index)
+                    frame_width, frame_height = image.size
+                    if frame_width > profile.max_width_px or frame_height > profile.max_height_px:
+                        return {"file_size": size, "sha256": sha256_file(path), "error": "IMAGE_DIMENSION_EXCEEDED", "frame_count": frame_count}
+                    frame_pixels = frame_width * frame_height
+                    if frame_pixels > profile.max_pixels:
+                        return {"file_size": size, "sha256": sha256_file(path), "error": "IMAGE_FRAME_PIXELS_EXCEEDED", "frame_count": frame_count}
+                    cumulative_pixels += frame_pixels
+                    if cumulative_pixels > profile.max_cumulative_frame_pixels:
+                        return {"file_size": size, "sha256": sha256_file(path), "error": "IMAGE_CUMULATIVE_PIXELS_EXCEEDED", "frame_count": frame_count}
+                    image.load()
                 mode = image.mode
                 dpi = image.info.get("dpi")
                 has_alpha = "A" in mode or "transparency" in image.info
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning):
-        return {"file_size": size, "sha256": sha256_file(path), "error": "CORRUPT"}
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning):
+        return {"file_size": size, "sha256": sha256_file(path), "error": "IMAGE_DECOMPRESSION_BOMB"}
+    except (UnidentifiedImageError, OSError, ValueError):
+        return {"file_size": size, "sha256": sha256_file(path), "error": "IMAGE_FRAME_DECODE_FAILED"}
     extension = path.suffix.lower()
     return {
         "file_size": size, "sha256": sha256_file(path), "detected_format": detected_format,
         "mime_type": MIME_TYPES.get(detected_format), "width_px": width, "height_px": height,
         "aspect_ratio": round(width / height, 6) if height else None, "color_mode": mode,
         "has_alpha": has_alpha, "dpi": list(dpi) if isinstance(dpi, tuple) else dpi,
+        "frame_count": frame_count, "cumulative_frame_pixels": cumulative_pixels,
+        "resource_policy": profile.resource_policy(),
         "extension_matches": extension in FORMAT_EXTENSIONS.get(detected_format, set()),
         "word_compatible": detected_format in WORD_FORMATS,
         "ppt_compatible": detected_format in PPT_FORMATS,
