@@ -33,6 +33,14 @@ def check(code: str, status: EvaluationStatus, severity: Severity, artifact: str
     if evidence: evidence = str(evidence).replace("\n", " ")[:200]
     return CheckResult(code, status, severity, artifact, message, evidence=evidence, **kwargs)
 
+def _stream_member(stream, policy: OoxmlZipSafetyPolicy, member_total: int, archive_total: int) -> tuple[bool, int, int, str | None]:
+    """Bounded reader kept separate for deterministic counter tests."""
+    while block := stream.read(policy.chunk_size):
+        member_total += len(block); archive_total += len(block)
+        if member_total > policy.max_member_bytes: return False, member_total, archive_total, "actual_member_too_large"
+        if archive_total > policy.max_total_bytes: return False, member_total, archive_total, "actual_total_too_large"
+    return True, member_total, archive_total, None
+
 def zip_is_safe(path: Path, expected: str, policy: OoxmlZipSafetyPolicy = DEFAULT_OOXML_ZIP_POLICY) -> tuple[bool, str]:
     try:
         with zipfile.ZipFile(path) as archive:
@@ -56,10 +64,8 @@ def zip_is_safe(path: Path, expected: str, policy: OoxmlZipSafetyPolicy = DEFAUL
             for item in infos:
                 actual_member = 0
                 with archive.open(item, "r") as stream:
-                    while block := stream.read(policy.chunk_size):
-                        actual_member += len(block); actual_total += len(block)
-                        if actual_member > policy.max_member_bytes: return False, "actual_member_too_large"
-                        if actual_total > policy.max_total_bytes: return False, "actual_total_too_large"
+                    ok, actual_member, actual_total, reason = _stream_member(stream, policy, actual_member, actual_total)
+                    if not ok: return False, reason or "corrupt_or_truncated_zip"
         return True, "valid OOXML package"
     except (OSError, EOFError, RuntimeError, zipfile.BadZipFile) as exc: return False, "corrupt_or_truncated_zip"
 

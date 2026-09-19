@@ -1,6 +1,6 @@
-import zipfile
+import io, zipfile
 from pathlib import Path
-from src.artifact_evaluation.common import OoxmlZipSafetyPolicy, zip_is_safe
+from src.artifact_evaluation.common import OoxmlZipSafetyPolicy, _stream_member, zip_is_safe
 
 def make_zip(path: Path, entries, expected="word/document.xml"):
     with zipfile.ZipFile(path,"w",zipfile.ZIP_DEFLATED) as z:
@@ -46,3 +46,25 @@ def test_docx_and_pptx_preflight_blocks_parsers(tmp_path, monkeypatch):
     monkeypatch.setattr(pptx_module,"Presentation",lambda *_:calls.append("pptx"))
     evaluate_docx(bad,get_profile("client-delivery"));evaluate_pptx(bad,get_profile("client-delivery"))
     assert calls==[]
+
+def test_metadata_zero_compressed_size_is_rejected(tmp_path, monkeypatch):
+    path=tmp_path/"x.docx";make_zip(path,[("word/document.xml",b"x")]);original=zipfile.ZipFile.infolist
+    def zero(self):
+        info=original(self);info[0].compress_size=0;return info
+    monkeypatch.setattr(zipfile.ZipFile,"infolist",zero)
+    assert zip_is_safe(path,"word/document.xml")[1]=="suspicious_compression_ratio"
+
+def test_stream_counter_limits_and_boundary():
+    policy=OoxmlZipSafetyPolicy(max_member_bytes=8,max_total_bytes=12,chunk_size=3)
+    assert _stream_member(io.BytesIO(b"12345678"),policy,0,0)[0]
+    assert _stream_member(io.BytesIO(b"123456789"),policy,0,0)[3]=="actual_member_too_large"
+    assert _stream_member(io.BytesIO(b"12345"),policy,0,8)[3]=="actual_total_too_large"
+
+def test_crc_corruption_is_mapped_to_safe_failure(tmp_path):
+    path=tmp_path/"crc.docx"
+    with zipfile.ZipFile(path,"w",zipfile.ZIP_DEFLATED) as z:z.writestr("word/document.xml",b"hello crc data")
+    raw=bytearray(path.read_bytes());marker=raw.index(b"hello crc data") if b"hello crc data" in raw else -1
+    if marker >= 0: raw[marker]^=1
+    else: raw[40]^=1
+    path.write_bytes(raw)
+    assert zip_is_safe(path,"word/document.xml")[0] is False
