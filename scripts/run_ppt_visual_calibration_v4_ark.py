@@ -218,15 +218,15 @@ def compare(v4: list[Path]) -> Path:
     target = OUT / "comparison_v2_v3_v4.png"; result.save(target); return target
 
 
-def critic(direction: dict, sheet: Path) -> dict:
+def critic(direction: dict, sheet: Path, *, max_pages: int = 4) -> dict:
     target = OUT / "visual_critic.json"
     if target.is_file(): return json.loads(target.read_text(encoding="utf-8"))
-    content = [{"type": "text", "text": "You are the Visual Critic. Compare the attached V2/V3/V4 3-column sheet and real COMKING company-deck contact sheet. V4 is Ark-created. Select no more than four V4 page numbers for a single targeted revision only if genuinely needed."}]
+    content = [{"type": "text", "text": f"You are the Visual Critic. Compare the attached V2/V3/V4 3-column sheet and real COMKING company-deck contact sheet. V4 is Ark-created. Select no more than {max_pages} V4 page numbers for a single targeted revision only if genuinely needed."}]
     content.extend(image_part(sheet, "V2 / V3 / V4 comparison: each row is an original page number"))
     content.extend(image_part(REFERENCE_SHEETS[0], "Real COMKING reference visual language"))
     content.append({"type": "text", "text": json.dumps({"global_direction": direction, "required": {"v4_better_than_v2_v3": "boolean", "selected_pages": "list of max 4 page numbers from [1,2,3,5,6,14,19,20]", "pages": "per-page critique", "revision_briefs": "page-specific defect / retain / target / locked-facts", "overall_verdict": "PASS or NEEDS_ONE_MORE_PASS"}}, ensure_ascii=False)})
     value, _ = ask_json(call_id="visual_critic", system="Return only the requested JSON Visual Critic report. Judge actual attached rendering, not intentions.", content=content, raw_file=OUT / "visual_critic_raw.json", max_tokens=6500)
-    selected = [int(x) for x in value.get("selected_pages", []) if str(x).isdigit() and int(x) in PICK][:4]
+    selected = [int(x) for x in value.get("selected_pages", []) if str(x).isdigit() and int(x) in PICK][:max_pages]
     value["selected_pages"] = selected; target.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8"); return value
 
 
