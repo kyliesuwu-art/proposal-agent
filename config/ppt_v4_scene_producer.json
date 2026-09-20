@@ -8,6 +8,8 @@
   "${OUTPUT_DIR}",
   "--scene-dir",
   "${SCENE_DIR}",
+  "--visual-reference-root",
+  "${VISUAL_REFERENCE_ROOT}",
   "--manifest-path",
   "${OUTPUT_DIR}/producer_manifest.json",
   "--model-max-calls",

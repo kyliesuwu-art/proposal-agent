@@ -47,6 +47,7 @@ class ProductionPptRunner:
         model_enabled: bool = False,
         model_scene_command: Sequence[str] | None = None,
         model_max_calls: int | None = None,
+        visual_reference_root: Path | None = None,
     ) -> None:
         self._project_root = project_root
         self._existing_scene_dir = existing_scene_dir
@@ -56,8 +57,9 @@ class ProductionPptRunner:
         self._model_enabled = model_enabled
         self._model_scene_command = tuple(model_scene_command or ())
         self._model_max_calls = model_max_calls
-        if model_enabled and (not self._model_scene_command or not isinstance(model_max_calls, int) or model_max_calls <= 0):
-            raise ValueError("enabled PPT model requires a producer argv and positive model_max_calls")
+        self._visual_reference_root = visual_reference_root.resolve() if visual_reference_root else None
+        if model_enabled and (not self._model_scene_command or not isinstance(model_max_calls, int) or model_max_calls <= 0 or not self._visual_reference_root):
+            raise ValueError("enabled PPT model requires a producer argv, visual reference root, and positive model_max_calls")
 
     @property
     def model_enabled(self) -> bool:
@@ -70,6 +72,10 @@ class ProductionPptRunner:
     @property
     def model_max_calls(self) -> int | None:
         return self._model_max_calls
+
+    @property
+    def visual_reference_root(self) -> Path | None:
+        return self._visual_reference_root
 
     @staticmethod
     def _redact(text: str) -> str:
@@ -96,7 +102,7 @@ class ProductionPptRunner:
             "--max-revisions", str(self._max_revisions),
         ]
         if self._model_enabled:
-            command.extend(("--enable-model", "--model-scene-command-json", json.dumps(self._model_scene_command), "--model-max-calls", str(self._model_max_calls)))
+            command.extend(("--enable-model", "--model-scene-command-json", json.dumps(self._model_scene_command), "--model-max-calls", str(self._model_max_calls), "--visual-reference-root", str(self._visual_reference_root)))
         else:
             # Offline and ordinary local re-renders may only consume an existing
             # Scene Graph.  This makes accidental model invocation impossible.
@@ -108,7 +114,7 @@ class ProductionPptRunner:
         if self._visual_critic:
             command.append("--enable-visual-critic")
         started = datetime.now().astimezone()
-        completed = subprocess.run(command, cwd=self._project_root, check=False, capture_output=True, text=True)
+        completed = subprocess.run(command, cwd=self._project_root, check=False, capture_output=True, text=True, shell=False)
         finished = datetime.now().astimezone()
         (output_dir / "ppt_runner.stdout.log").write_text(self._redact(completed.stdout or ""), encoding="utf-8")
         (output_dir / "ppt_runner.stderr.log").write_text(self._redact(completed.stderr or ""), encoding="utf-8")

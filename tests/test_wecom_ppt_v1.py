@@ -150,7 +150,7 @@ def test_production_runner_uses_disable_model_only_for_offline_rerender(tmp_path
     approved = tmp_path / "approved.md"; approved.write_text("# x", encoding="utf-8")
     offline = ProductionPptRunner(tmp_path, existing_scene_dir=tmp_path / "scene")
     offline.run(approved, tmp_path, tmp_path / "offline", "task", "job")
-    live = ProductionPptRunner(tmp_path, model_enabled=True, model_scene_command=["approved-scene-producer", "${MODEL_MAX_CALLS}"], model_max_calls=1)
+    live = ProductionPptRunner(tmp_path, model_enabled=True, model_scene_command=["approved-scene-producer", "${VISUAL_REFERENCE_ROOT}", "${MODEL_MAX_CALLS}"], model_max_calls=1, visual_reference_root=tmp_path)
     live.run(approved, tmp_path, tmp_path / "live", "task", "job2")
     assert "--disable-model" in captured[0] and "--enable-model" not in captured[0]
     assert "--enable-model" in captured[1] and "--disable-model" not in captured[1]
@@ -162,5 +162,5 @@ def test_live_scene_generation_requires_manual_gate(monkeypatch, tmp_path):
     monkeypatch.delenv("PPT_MODEL_LIVE_APPROVED", raising=False)
     monkeypatch.setattr("scripts.run_ppt_production.subprocess.run", lambda *_a, **_k: called.append(True))
     with pytest.raises(RuntimeError, match="PPT_MODEL_LIVE_APPROVED"):
-        generate_scene_graph("never-run", tmp_path / "approved.md", tmp_path, tmp_path / "out", 20)
+        generate_scene_graph("never-run", tmp_path / "approved.md", tmp_path, tmp_path / "out", tmp_path, 20)
     assert not called

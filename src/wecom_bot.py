@@ -58,15 +58,19 @@ def build_ppt_runner_from_args(args: argparse.Namespace, *, environ: dict[str, s
         raise ValueError("--ppt-model-scene-command-json must be a JSON argv list") from exc
     if not isinstance(producer, list) or not producer or not all(isinstance(item, str) and item for item in producer):
         raise ValueError("--ppt-model-scene-command-json must be a non-empty argv list")
-    allowed = {"${PYTHON_EXECUTABLE}", "${INPUT_MD}", "${TASK_ROOT}", "${OUTPUT_DIR}", "${SCENE_DIR}", "${MODEL_MAX_CALLS}"}
+    allowed = {"${PYTHON_EXECUTABLE}", "${INPUT_MD}", "${TASK_ROOT}", "${OUTPUT_DIR}", "${SCENE_DIR}", "${VISUAL_REFERENCE_ROOT}", "${MODEL_MAX_CALLS}"}
     unknown = {token for item in producer for token in re.findall(r"\$\{[^}]+\}", item)} - allowed
     if unknown:
         raise ValueError("producer argv contains an unknown placeholder")
     if not any("${MODEL_MAX_CALLS}" in item for item in producer):
         raise ValueError("producer argv must include ${MODEL_MAX_CALLS}")
+    if not any("${VISUAL_REFERENCE_ROOT}" in item for item in producer):
+        raise ValueError("producer argv must include ${VISUAL_REFERENCE_ROOT}")
     if not isinstance(args.ppt_model_max_calls, int) or args.ppt_model_max_calls <= 0:
         raise ValueError("--enable-ppt-model requires a positive --ppt-model-max-calls")
-    return ProductionPptRunner(PROJECT_ROOT, model_enabled=True, model_scene_command=producer, model_max_calls=args.ppt_model_max_calls)
+    if not args.ppt_visual_reference_root or not args.ppt_visual_reference_root.is_dir():
+        raise ValueError("--enable-ppt-model requires an existing --ppt-visual-reference-root")
+    return ProductionPptRunner(PROJECT_ROOT, model_enabled=True, model_scene_command=producer, model_max_calls=args.ppt_model_max_calls, visual_reference_root=args.ppt_visual_reference_root)
 
 
 def _get_env(key: str) -> str:
@@ -107,6 +111,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--enable-ppt-model", action="store_true", help="explicitly enable the guarded live PPT model path")
     parser.add_argument("--ppt-model-scene-command-json", help="JSON argv list for the approved Scene Graph producer")
     parser.add_argument("--ppt-model-max-calls", type=int, help="positive Ark-call budget for the producer")
+    parser.add_argument("--ppt-visual-reference-root", type=Path, help="explicit root containing the approved V4 visual reference resources")
     parser.add_argument("--proactive-markdown-chatid", help="confirmed live-test chat ID")
     parser.add_argument("--proactive-markdown", help="one-time live-test Markdown content")
     parser.add_argument("--proactive-file-chatid", help="confirmed live-test chat ID")

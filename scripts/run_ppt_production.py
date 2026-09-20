@@ -170,11 +170,11 @@ def render(scene_dir: Path, output: Path, asset_set, approved_text: str, target_
 
 
 _PRODUCER_PLACEHOLDERS = {
-    "${PYTHON_EXECUTABLE}", "${INPUT_MD}", "${TASK_ROOT}", "${OUTPUT_DIR}", "${SCENE_DIR}", "${MODEL_MAX_CALLS}",
+    "${PYTHON_EXECUTABLE}", "${INPUT_MD}", "${TASK_ROOT}", "${OUTPUT_DIR}", "${SCENE_DIR}", "${VISUAL_REFERENCE_ROOT}", "${MODEL_MAX_CALLS}",
 }
 
 
-def _producer_argv(command_json: str, *, input_md: Path, task_root: Path, output_dir: Path, scene_dir: Path, model_max_calls: int) -> list[str]:
+def _producer_argv(command_json: str, *, input_md: Path, task_root: Path, output_dir: Path, scene_dir: Path, visual_reference_root: Path, model_max_calls: int) -> list[str]:
     try:
         values = json.loads(command_json)
     except json.JSONDecodeError as exc:
@@ -183,9 +183,11 @@ def _producer_argv(command_json: str, *, input_md: Path, task_root: Path, output
         raise RuntimeError("--model-scene-command-json must be a non-empty argv list of strings")
     if not any("${MODEL_MAX_CALLS}" in item for item in values):
         raise RuntimeError("producer argv must receive ${MODEL_MAX_CALLS}")
+    if not any("${VISUAL_REFERENCE_ROOT}" in item for item in values):
+        raise RuntimeError("producer argv must receive ${VISUAL_REFERENCE_ROOT}")
     replacements = {
         "${PYTHON_EXECUTABLE}": sys.executable, "${INPUT_MD}": str(input_md), "${TASK_ROOT}": str(task_root), "${OUTPUT_DIR}": str(output_dir),
-        "${SCENE_DIR}": str(scene_dir), "${MODEL_MAX_CALLS}": str(model_max_calls),
+        "${SCENE_DIR}": str(scene_dir), "${VISUAL_REFERENCE_ROOT}": str(visual_reference_root), "${MODEL_MAX_CALLS}": str(model_max_calls),
     }
     argv: list[str] = []
     for item in values:
@@ -198,7 +200,7 @@ def _producer_argv(command_json: str, *, input_md: Path, task_root: Path, output
     return argv
 
 
-def generate_scene_graph(command_json: str, input_md: Path, task_root: Path, output_dir: Path, model_max_calls: int) -> Path:
+def generate_scene_graph(command_json: str, input_md: Path, task_root: Path, output_dir: Path, visual_reference_root: Path, model_max_calls: int) -> Path:
     """Run the explicitly approved live Scene Graph producer.
 
     This seam deliberately does not know credentials or a model endpoint.  A
@@ -209,12 +211,14 @@ def generate_scene_graph(command_json: str, input_md: Path, task_root: Path, out
         raise RuntimeError("--enable-model requires PPT_MODEL_LIVE_APPROVED=1")
     if model_max_calls <= 0:
         raise RuntimeError("--model-max-calls must be positive")
+    if not visual_reference_root.is_dir():
+        raise RuntimeError("--visual-reference-root must be an existing directory")
     scene_dir = output_dir / "generated_scene_graph"
     if scene_dir.exists():
         raise RuntimeError("model-enabled production refuses an existing Scene Graph directory")
     scene_dir.mkdir(parents=True)
     started = datetime.now().timestamp()
-    args = _producer_argv(command_json, input_md=input_md, task_root=task_root, output_dir=output_dir, scene_dir=scene_dir, model_max_calls=model_max_calls)
+    args = _producer_argv(command_json, input_md=input_md, task_root=task_root, output_dir=output_dir, scene_dir=scene_dir, visual_reference_root=visual_reference_root, model_max_calls=model_max_calls)
     completed = subprocess.run(args, check=False, capture_output=True, text=True, shell=False)
     (output_dir / "model_scene_generator.stdout.log").write_text(completed.stdout or "", encoding="utf-8")
     (output_dir / "model_scene_generator.stderr.log").write_text(completed.stderr or "", encoding="utf-8")
@@ -231,18 +235,18 @@ def main() -> int:
     model_mode = parser.add_mutually_exclusive_group(required=True)
     model_mode.add_argument("--disable-model", action="store_true", help="offline re-render using --existing-scene-dir only")
     model_mode.add_argument("--enable-model", action="store_true", help="run the separately approved Scene Graph producer")
-    parser.add_argument("--existing-scene-dir", type=Path); parser.add_argument("--model-scene-command-json"); parser.add_argument("--model-max-calls", type=int)
+    parser.add_argument("--existing-scene-dir", type=Path); parser.add_argument("--model-scene-command-json"); parser.add_argument("--model-max-calls", type=int); parser.add_argument("--visual-reference-root", type=Path)
     parser.add_argument("--enable-visual-critic", action="store_true"); parser.add_argument("--max-revisions", type=int, default=0)
     parser.add_argument("--task-id", default=""); parser.add_argument("--job-id", default="")
     args = parser.parse_args()
     if args.disable_model and not args.existing_scene_dir:
         raise RuntimeError("--existing-scene-dir is required for model-disabled production")
-    if args.enable_model and (args.existing_scene_dir or not args.model_scene_command_json or not args.model_max_calls):
-        raise RuntimeError("--enable-model requires producer argv, positive model call limit, and cannot reuse an existing Scene Graph")
+    if args.enable_model and (args.existing_scene_dir or not args.model_scene_command_json or not args.model_max_calls or not args.visual_reference_root):
+        raise RuntimeError("--enable-model requires producer argv, visual reference root, positive model call limit, and cannot reuse an existing Scene Graph")
     before = hashlib.sha256(args.input_md.read_bytes()).hexdigest()
     manifest = build_manifest(args.input_md, args.task_root); args.output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = args.output_dir / "assets_manifest.json"; manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    scene_dir = args.existing_scene_dir or generate_scene_graph(args.model_scene_command_json, args.input_md, args.task_root, args.output_dir, args.model_max_calls)
+    scene_dir = args.existing_scene_dir or generate_scene_graph(args.model_scene_command_json, args.input_md, args.task_root, args.output_dir, args.visual_reference_root, args.model_max_calls)
     warnings, page_count = render(scene_dir, args.output_pptx, build_validated_asset_set(manifest, args.task_root), args.input_md.read_text(encoding="utf-8"), args.target_slides)
     report = evaluate(profile="client-delivery", markdown=str(args.input_md), pptx=str(args.output_pptx), expected_source_hash=before)
     write_report(report, args.output_dir / "artifact_evaluation")

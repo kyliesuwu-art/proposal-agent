@@ -17,7 +17,7 @@ def args(*extra: str) -> argparse.Namespace:
 
 
 def valid_command() -> str:
-    return json.dumps(["${PYTHON_EXECUTABLE}", "producer", "--output", "${SCENE_DIR}", "--budget", "${MODEL_MAX_CALLS}"])
+    return json.dumps(["${PYTHON_EXECUTABLE}", "producer", "--output", "${SCENE_DIR}", "--references", "${VISUAL_REFERENCE_ROOT}", "--budget", "${MODEL_MAX_CALLS}"])
 
 
 def test_default_bot_runner_keeps_model_disabled():
@@ -42,7 +42,8 @@ def test_requested_live_model_requires_gate(monkeypatch, extra, message):
 
 @pytest.mark.parametrize("extra, message", [
     (("--enable-ppt-model", "--ppt-model-max-calls", "1"), "scene-command"),
-    (("--enable-ppt-model", "--ppt-model-scene-command-json", valid_command()), "max-calls"),
+    (("--enable-ppt-model", "--ppt-model-scene-command-json", valid_command(), "--ppt-model-max-calls", "1"), "visual-reference-root"),
+    (("--enable-ppt-model", "--ppt-model-scene-command-json", valid_command(), "--ppt-visual-reference-root", "."), "max-calls"),
     (("--enable-ppt-model", "--ppt-model-scene-command-json", valid_command(), "--ppt-model-max-calls", "0"), "positive"),
     (("--enable-ppt-model", "--ppt-model-scene-command-json", valid_command(), "--ppt-model-max-calls", "-1"), "positive"),
     (("--enable-ppt-model", "--ppt-model-scene-command-json", json.dumps(["producer", "${UNKNOWN}", "${MODEL_MAX_CALLS}"]), "--ppt-model-max-calls", "1"), "unknown placeholder"),
@@ -55,21 +56,21 @@ def test_requested_live_model_rejects_incomplete_or_unsafe_config(monkeypatch, e
 
 def test_live_runner_receives_validated_argv_and_budget(monkeypatch):
     monkeypatch.setenv("PPT_MODEL_LIVE_APPROVED", "1")
-    runner = bot.build_ppt_runner_from_args(args("--enable-ppt-model", "--ppt-model-scene-command-json", valid_command(), "--ppt-model-max-calls", "7"))
-    assert runner.model_enabled and runner.model_scene_command[1] == "producer" and runner.model_max_calls == 7
+    runner = bot.build_ppt_runner_from_args(args("--enable-ppt-model", "--ppt-model-scene-command-json", valid_command(), "--ppt-visual-reference-root", ".", "--ppt-model-max-calls", "7"))
+    assert runner.model_enabled and runner.model_scene_command[1] == "producer" and runner.model_max_calls == 7 and runner.visual_reference_root == Path(".").resolve()
 
 
 def test_producer_argv_rejects_unknown_placeholder_and_never_uses_shell(tmp_path, monkeypatch):
     import scripts.run_ppt_production as production
     with pytest.raises(RuntimeError, match="unknown placeholder"):
-        production._producer_argv(json.dumps(["producer", "${NOPE}", "${MODEL_MAX_CALLS}"]), input_md=tmp_path / "a.md", task_root=tmp_path, output_dir=tmp_path / "out", scene_dir=tmp_path / "scene", model_max_calls=1)
+        production._producer_argv(json.dumps(["producer", "${NOPE}", "${VISUAL_REFERENCE_ROOT}", "${MODEL_MAX_CALLS}"]), input_md=tmp_path / "a.md", task_root=tmp_path, output_dir=tmp_path / "out", scene_dir=tmp_path / "scene", visual_reference_root=tmp_path, model_max_calls=1)
     calls = []
     def fake_run(argv, **kwargs):
         calls.append((argv, kwargs)); (tmp_path / "out" / "generated_scene_graph" / "page_01.json").write_text("{}", encoding="utf-8")
         return type("Done", (), {"returncode": 0, "stdout": "", "stderr": ""})()
     monkeypatch.setenv("PPT_MODEL_LIVE_APPROVED", "1")
     monkeypatch.setattr(production.subprocess, "run", fake_run)
-    production.generate_scene_graph(valid_command(), tmp_path / "a.md", tmp_path, tmp_path / "out", 1)
+    production.generate_scene_graph(valid_command(), tmp_path / "a.md", tmp_path, tmp_path / "out", tmp_path, 1)
     assert calls[0][1]["shell"] is False and "${SCENE_DIR}" not in calls[0][0]
 
 
@@ -78,7 +79,7 @@ def test_model_enabled_rejects_existing_scene_directory(tmp_path, monkeypatch):
     monkeypatch.setenv("PPT_MODEL_LIVE_APPROVED", "1")
     (tmp_path / "out" / "generated_scene_graph").mkdir(parents=True)
     with pytest.raises(RuntimeError, match="refuses an existing"):
-        production.generate_scene_graph(valid_command(), tmp_path / "a.md", tmp_path, tmp_path / "out", 1)
+        production.generate_scene_graph(valid_command(), tmp_path / "a.md", tmp_path, tmp_path / "out", tmp_path, 1)
 
 
 def test_v4_budget_stops_before_second_network_call(monkeypatch, tmp_path):
@@ -101,20 +102,20 @@ def test_production_runner_serializes_live_argv_without_secret(tmp_path, monkeyp
         report = output.parent / "artifact_evaluation" / "evaluation_report.json"; report.parent.mkdir(); report.write_text('{"overall_status":"PASS","limitations":[]}', encoding="utf-8")
         return type("Done", (), {"returncode": 0, "stdout": "", "stderr": ""})()
     monkeypatch.setattr("src.wecom.ppt_runner.subprocess.run", fake_run)
-    runner = ProductionPptRunner(tmp_path, model_enabled=True, model_scene_command=json.loads(valid_command()), model_max_calls=2)
+    runner = ProductionPptRunner(tmp_path, model_enabled=True, model_scene_command=json.loads(valid_command()), model_max_calls=2, visual_reference_root=tmp_path)
     source = tmp_path / "approved.md"; source.write_text("# x", encoding="utf-8")
     runner.run(source, tmp_path, tmp_path / "out", "task", "job")
-    assert "--enable-model" in seen[0][0] and "--disable-model" not in seen[0][0] and seen[0][1].get("shell") is None
+    assert "--enable-model" in seen[0][0] and "--disable-model" not in seen[0][0] and seen[0][1]["shell"] is False
 
 
 def test_fake_producer_dry_run_writes_fresh_scene_graph_in_job_dir(tmp_path):
     import scripts.run_ppt_production as production
-    output = tmp_path / "job output"
-    command = json.dumps([sys.executable, "-c", "import pathlib,sys; p=pathlib.Path(sys.argv[1]); p.joinpath('page_01.json').write_text('{}')", "${SCENE_DIR}", "${MODEL_MAX_CALLS}"])
+    output = tmp_path / "任务 输出"
+    command = json.dumps([sys.executable, "-c", "import pathlib,sys; p=pathlib.Path(sys.argv[1]); p.joinpath('page_01.json').write_text('{}')", "${SCENE_DIR}", "${VISUAL_REFERENCE_ROOT}", "${MODEL_MAX_CALLS}"])
     import os
     old = os.environ.get("PPT_MODEL_LIVE_APPROVED"); os.environ["PPT_MODEL_LIVE_APPROVED"] = "1"
     try:
-        scene = production.generate_scene_graph(command, tmp_path / "approved.md", tmp_path, output, 3)
+        scene = production.generate_scene_graph(command, tmp_path / "approved.md", tmp_path, output, tmp_path, 3)
     finally:
         if old is None: os.environ.pop("PPT_MODEL_LIVE_APPROVED", None)
         else: os.environ["PPT_MODEL_LIVE_APPROVED"] = old
@@ -124,3 +125,9 @@ def test_fake_producer_dry_run_writes_fresh_scene_graph_in_job_dir(tmp_path):
 def test_v4_producer_budget_contract_is_26_calls():
     import scripts.run_ppt_v4_ark_full20 as producer
     assert producer.MAX_MODEL_CALLS == 26
+
+
+def test_v4_producer_requires_explicit_complete_visual_reference_root(tmp_path):
+    import scripts.run_ppt_v4_ark_full20 as producer
+    with pytest.raises(RuntimeError, match="visual resources"):
+        producer.configure_production_visual_resources(tmp_path)

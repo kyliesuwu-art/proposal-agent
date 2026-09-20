@@ -27,6 +27,34 @@ def set_context() -> None:
     v4.NAMES = NAMES
 
 
+def configure_production_visual_resources(visual_reference_root: Path) -> None:
+    """Bind producer-only visual inputs from an explicit, read-only root.
+
+    The legacy calibration paths above remain available only to the historical
+    maintenance commands.  A fresh ArtifactJob must never discover a prior
+    task or experiment directory implicitly.
+    """
+    root = visual_reference_root.resolve()
+    full15 = root / "outputs" / "ppt_pure_art_director" / "full15"
+    references = (
+        root / "outputs" / "ppt_template_library_v1" / "source_analysis" / "comking_company" / "contact_sheet.png",
+        root / "outputs" / "ppt_template_library_v1" / "source_analysis" / "fujian" / "contact_sheet.png",
+        root / "outputs" / "ppt_template_library_v1" / "source_analysis" / "industrial_park" / "contact_sheet.png",
+        root / "outputs" / "ppt_template_library_v1" / "source_analysis" / "jiamusi" / "contact_sheet.png",
+    )
+    base = full15 / "mainline_expanded_v2"
+    v3 = full15 / "visual_calibration_v3"
+    logo = root / "files" / "工业园综合智慧能源解决方案.pptx"
+    required = (base / "contact_sheet.png", v3 / "contact_sheet.png", *references, logo)
+    if not root.is_dir() or any(not path.is_file() for path in required):
+        raise RuntimeError("required production visual resources are unavailable")
+    v4.FULL15 = full15
+    v4.BASE = base
+    v4.V3 = v3
+    v4.REFERENCE_SHEETS = references
+    v4.EDITORIAL.FORMAL_LOGO_DECK = logo
+
+
 def prepare() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for item in ("global_art_direction.json", "global_art_direction_raw.json"):
@@ -64,7 +92,7 @@ def finish() -> None:
     (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def produce(input_md: Path, output_dir: Path, scene_dir: Path, manifest_path: Path, model_max_calls: int) -> int:
+def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_root: Path, manifest_path: Path, model_max_calls: int) -> int:
     """Fresh, job-scoped producer entry point used by ArtifactService.
 
     The producer never copies a prior Scene Graph.  Existing V4 rendered PNGs
@@ -83,6 +111,7 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, manifest_path: Pa
     else:
         scene_dir.mkdir(parents=True, exist_ok=False)
     output_dir.mkdir(parents=True, exist_ok=True)
+    configure_production_visual_resources(visual_reference_root)
     set_context(); v4.OUT = output_dir; v4.APPROVED_TEXT = input_md.read_text(encoding="utf-8")
     v4.configure_model_call_budget(model_max_calls)
     direction = v4.art_direction()
@@ -101,18 +130,18 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, manifest_path: Pa
     manifest = {
         "schema": "ppt-scene-producer/v1", "approved_md_sha256": hashlib.sha256(input_md.read_bytes()).hexdigest(),
         "model_max_calls": model_max_calls, "model_calls_used": v4.MODEL_CALL_BUDGET.used if v4.MODEL_CALL_BUDGET else None,
-        "scene_graph_dir": str(scene_dir), "pages": 20, "critic_selected_pages": critic_result.get("selected_pages", []),
+        "scene_graph_dir": str(scene_dir), "visual_reference_root_configured": True, "pages": 20, "critic_selected_pages": critic_result.get("selected_pages", []),
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True); manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(); parser.add_argument("--generate-missing", action="store_true"); parser.add_argument("--finish", action="store_true"); parser.add_argument("--produce", action="store_true"); parser.add_argument("--input-md", type=Path); parser.add_argument("--output-dir", type=Path); parser.add_argument("--scene-dir", type=Path); parser.add_argument("--manifest-path", type=Path); parser.add_argument("--model-max-calls", type=int); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument("--generate-missing", action="store_true"); parser.add_argument("--finish", action="store_true"); parser.add_argument("--produce", action="store_true"); parser.add_argument("--input-md", type=Path); parser.add_argument("--output-dir", type=Path); parser.add_argument("--scene-dir", type=Path); parser.add_argument("--visual-reference-root", type=Path); parser.add_argument("--manifest-path", type=Path); parser.add_argument("--model-max-calls", type=int); args = parser.parse_args()
     if args.produce:
-        if not all((args.input_md, args.output_dir, args.scene_dir, args.manifest_path, args.model_max_calls)):
-            parser.error("--produce requires input, output, scene, manifest, and positive model-max-calls")
-        produce(args.input_md, args.output_dir, args.scene_dir, args.manifest_path, args.model_max_calls)
+        if not all((args.input_md, args.output_dir, args.scene_dir, args.visual_reference_root, args.manifest_path, args.model_max_calls)):
+            parser.error("--produce requires input, output, scene, visual-reference-root, manifest, and positive model-max-calls")
+        produce(args.input_md, args.output_dir, args.scene_dir, args.visual_reference_root, args.manifest_path, args.model_max_calls)
     elif args.generate_missing: generate_missing()
     elif args.finish: finish()
     else: parser.error("choose --generate-missing or --finish")

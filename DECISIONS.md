@@ -4,7 +4,7 @@
 
 Decision: The WeCom bot keeps PPT generation offline by default. A live PPT run must receive an explicit CLI enable flag, a positive `PPT_MODEL_LIVE_APPROVED=1` gate, a JSON argv producer command, and a positive model-call budget. The producer inherits credentials only through the process environment; it receives no secrets as argv. Unknown placeholders and pre-existing job Scene Graph folders fail closed.
 
-Impact: A historical experiment Scene Graph cannot be reused to claim a live ArtifactJob. The V4 request wrapper consumes its call budget before each Ark request, including critic and revision calls.
+Impact: A historical experiment Scene Graph cannot be reused to claim a live ArtifactJob. The V4 request wrapper consumes its call budget before each Ark request, including critic and revision calls. The production producer also requires an explicit, read-only visual-reference root; it validates the approved logo and reference sheets before its first Ark request, rather than discovering a historical task directory implicitly.
 
 此处只记录长期架构或产品决策：即系统重构或长期工作方向调整时，仍需理解其取舍原因的选择。
 
