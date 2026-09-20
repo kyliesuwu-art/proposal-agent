@@ -87,17 +87,19 @@ class WeComAgentAdapter:
             self._loop.call_soon_threadsafe(lambda: asyncio.create_task(self._deliver_artifact_event(event)))
 
     async def _deliver_artifact_event(self, event: ArtifactEvent) -> None:
-        if event.name == "WORD_GENERATION_READY":
+        if event.name in {"WORD_GENERATION_READY", "PPT_GENERATION_READY"}:
+            label = "Word" if event.name.startswith("WORD") else "PPT"
             try:
                 await self._transport.send_file(event.task.chatid, Path(event.job.primary_artifact_path or ""))
             except Exception:
                 self._artifact_service.mark_delivery_failed(event.job.job_id)
-                await self._transport.send_text(event.task.chatid, f"Word 文档生成失败。任务编号：{event.task.task_id}")
+                await self._transport.send_text(event.task.chatid, f"{label} 文件发送失败。任务编号：{event.task.task_id}")
                 return
             self._artifact_service.mark_delivered(event.job.job_id)
-            await self._transport.send_text(event.task.chatid, f"Word 文档已生成并发送。任务编号：{event.task.task_id}")
-        elif event.name == "WORD_GENERATION_FAILED":
-            await self._transport.send_text(event.task.chatid, f"Word 文档生成失败。任务编号：{event.task.task_id}")
+            await self._transport.send_text(event.task.chatid, f"{label} 文件已生成并发送。任务编号：{event.task.task_id}")
+        elif event.name in {"WORD_GENERATION_FAILED", "PPT_GENERATION_FAILED"}:
+            label = "Word" if event.name.startswith("WORD") else "PPT"
+            await self._transport.send_text(event.task.chatid, f"{label} 文件生成失败。任务编号：{event.task.task_id}")
 
 
 class SDKTransport:

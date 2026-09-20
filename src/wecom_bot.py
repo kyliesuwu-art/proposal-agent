@@ -32,6 +32,7 @@ from src.wecom.proposal_runner import ExistingProposalCliRunner
 from src.wecom.store import SQLiteTaskStore
 from src.wecom.task_service import TaskService
 from src.wecom.word_runner import ProductionWordRunner
+from src.wecom.ppt_runner import ProductionPptRunner
 
 
 def _get_env(key: str) -> str:
@@ -118,7 +119,7 @@ async def main(
         generation_enabled=not disable_proposal,
     )
     artifacts = ArtifactService(
-        store, ProductionWordRunner(PROJECT_ROOT), task_output_root=output_root,
+        store, ProductionWordRunner(PROJECT_ROOT), ProductionPptRunner(PROJECT_ROOT), task_output_root=output_root,
         output_root=artifact_output_root or PROJECT_ROOT / "outputs" / "wecom_artifacts",
     )
     adapter = WeComAgentAdapter(service, SDKTransport(client), artifacts, TaskControlService(store, artifacts))

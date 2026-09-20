@@ -17,7 +17,7 @@ class TaskStatus(StrEnum):
 
 class ArtifactType(StrEnum):
     WORD = "WORD"
-    PPT = "PPT"
+    PPTX = "PPTX"
 
 
 class ArtifactJobStatus(StrEnum):
