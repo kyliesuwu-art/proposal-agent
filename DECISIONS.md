@@ -108,3 +108,9 @@ PPT 从已交付 Markdown 和溯源资料构建。正式 briefing 为 15–25 �
 
 影响：
 数据库检查默认只读。SQLite 使用 URI `mode=ro`；Chroma 验证在完整临时副本上运行，因为 `PersistentClient` 可能维护本地文件。
+
+## 2026-09 — PPT live producer command files remain data-only
+
+Decision: The guarded WeCom PPT entry point accepts exactly one producer argv source: the existing inline JSON option or a UTF-8 JSON file. File inputs must be regular, readable files no larger than 64 KiB; their top level must be a non-empty string array and they pass the same placeholder validation as inline argv.
+
+Impact: PowerShell callers can pass a single path containing spaces or Chinese characters without command-line JSON quoting risk. The bot never expands a shell, evaluates configuration, or logs the configuration content; the downstream process continues to receive an argv list with shell=False.

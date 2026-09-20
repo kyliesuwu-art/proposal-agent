@@ -20,6 +20,16 @@ def valid_command() -> str:
     return json.dumps(["${PYTHON_EXECUTABLE}", "producer", "--output", "${SCENE_DIR}", "--references", "${VISUAL_REFERENCE_ROOT}", "--budget", "${MODEL_MAX_CALLS}"])
 
 
+def write_producer_file(path: Path, content: str | bytes | None = None) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content if isinstance(content, bytes) else (content or valid_command()).encode("utf-8"))
+    return path
+
+
+def enabled_file_args(path: Path, reference_root: Path) -> argparse.Namespace:
+    return args("--enable-ppt-model", "--ppt-model-scene-command-file", str(path), "--ppt-visual-reference-root", str(reference_root), "--ppt-model-max-calls", "26")
+
+
 def test_default_bot_runner_keeps_model_disabled():
     runner = bot.build_ppt_runner_from_args(args())
     assert runner.model_enabled is False and runner.model_scene_command == () and runner.model_max_calls is None
@@ -58,6 +68,70 @@ def test_live_runner_receives_validated_argv_and_budget(monkeypatch):
     monkeypatch.setenv("PPT_MODEL_LIVE_APPROVED", "1")
     runner = bot.build_ppt_runner_from_args(args("--enable-ppt-model", "--ppt-model-scene-command-json", valid_command(), "--ppt-visual-reference-root", ".", "--ppt-model-max-calls", "7"))
     assert runner.model_enabled and runner.model_scene_command[1] == "producer" and runner.model_max_calls == 7 and runner.visual_reference_root == Path(".").resolve()
+
+
+def test_file_command_constructs_model_enabled_runner_with_windows_style_unicode_path(tmp_path, monkeypatch):
+    monkeypatch.setenv("PPT_MODEL_LIVE_APPROVED", "1")
+    producer_file = write_producer_file(tmp_path / "配置 空格" / "中文 producer.json")
+    parsed = enabled_file_args(producer_file, tmp_path)
+    assert parsed.ppt_model_scene_command_file == producer_file
+    runner = bot.build_ppt_runner_from_args(parsed)
+    assert runner.model_enabled is True
+    assert runner.model_scene_command == tuple(json.loads(valid_command()))
+    assert runner.model_max_calls == 26
+    assert runner.visual_reference_root == tmp_path.resolve()
+
+
+@pytest.mark.parametrize("content, message", [
+    (b"\xff\xfe", "UTF-8"),
+    ("{TOP_SECRET:not-json}", "JSON argv list"),
+    (json.dumps({"argv": []}), "JSON array"),
+    (json.dumps(["producer", 7]), "array of strings"),
+    (json.dumps(["${UNKNOWN}", "${MODEL_MAX_CALLS}", "${VISUAL_REFERENCE_ROOT} "]), "unknown placeholder"),
+])
+def test_file_command_rejects_invalid_or_unsafe_contents_without_leaking_content(tmp_path, monkeypatch, content, message):
+    monkeypatch.setenv("PPT_MODEL_LIVE_APPROVED", "1")
+    producer_file = write_producer_file(tmp_path / "producer.json", content)
+    with pytest.raises(ValueError, match=message) as exc_info:
+        bot.build_ppt_runner_from_args(enabled_file_args(producer_file, tmp_path))
+    assert "TOP_SECRET" not in str(exc_info.value)
+
+
+@pytest.mark.parametrize("path_factory, message", [(lambda root: root / "missing.json", "existing regular file"), (lambda root: root, "existing regular file")])
+def test_file_command_rejects_missing_and_directory_paths(tmp_path, monkeypatch, path_factory, message):
+    monkeypatch.setenv("PPT_MODEL_LIVE_APPROVED", "1")
+    with pytest.raises(ValueError, match=message):
+        bot.build_ppt_runner_from_args(enabled_file_args(path_factory(tmp_path), tmp_path))
+
+
+def test_file_command_rejects_oversized_and_unreadable_files(tmp_path, monkeypatch):
+    monkeypatch.setenv("PPT_MODEL_LIVE_APPROVED", "1")
+    oversized = write_producer_file(tmp_path / "large.json", " " * (64 * 1024 + 1))
+    with pytest.raises(ValueError, match="64 KiB"):
+        bot.build_ppt_runner_from_args(enabled_file_args(oversized, tmp_path))
+    unreadable = write_producer_file(tmp_path / "unreadable.json")
+    monkeypatch.setattr(Path, "read_bytes", lambda _self: (_ for _ in ()).throw(OSError("denied")))
+    with pytest.raises(ValueError, match="readable"):
+        bot.build_ppt_runner_from_args(enabled_file_args(unreadable, tmp_path))
+
+
+def test_file_and_inline_command_are_mutually_exclusive(tmp_path):
+    producer_file = write_producer_file(tmp_path / "producer.json")
+    with pytest.raises(SystemExit):
+        args("--ppt-model-scene-command-json", valid_command(), "--ppt-model-scene-command-file", str(producer_file))
+
+
+def test_live_model_requires_exactly_one_command_source_with_file_option(monkeypatch, tmp_path):
+    monkeypatch.setenv("PPT_MODEL_LIVE_APPROVED", "1")
+    with pytest.raises(ValueError, match="exactly one"):
+        bot.build_ppt_runner_from_args(args("--enable-ppt-model", "--ppt-visual-reference-root", str(tmp_path), "--ppt-model-max-calls", "26"))
+
+
+def test_file_command_preserves_gate_and_never_starts_network(monkeypatch, tmp_path):
+    monkeypatch.delenv("PPT_MODEL_LIVE_APPROVED", raising=False)
+    producer_file = write_producer_file(tmp_path / "producer.json")
+    with pytest.raises(ValueError, match="PPT_MODEL_LIVE_APPROVED"):
+        bot.build_ppt_runner_from_args(enabled_file_args(producer_file, tmp_path))
 
 
 def test_producer_argv_rejects_unknown_placeholder_and_never_uses_shell(tmp_path, monkeypatch):

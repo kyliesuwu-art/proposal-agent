@@ -24,6 +24,7 @@ from dotenv import load_dotenv
 from wecom_aibot_sdk import WSClient, WSClientOptions, MessageType
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PPT_MODEL_SCENE_COMMAND_FILE_MAX_BYTES = 64 * 1024
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.wecom.adapter import IncomingMessage, SDKTransport, WeComAgentAdapter
@@ -43,21 +44,32 @@ def load_runtime_environment(env_file: Path | None) -> None:
         load_dotenv(dotenv_path=candidate, override=False)
 
 
-def build_ppt_runner_from_args(args: argparse.Namespace, *, environ: dict[str, str] | None = None) -> ProductionPptRunner:
-    """The sole bot entry point for PPT runner configuration."""
-    if not args.enable_ppt_model:
-        return ProductionPptRunner(PROJECT_ROOT)
-    env = os.environ if environ is None else environ
-    if env.get("PPT_MODEL_LIVE_APPROVED") != "1":
-        raise ValueError("--enable-ppt-model requires PPT_MODEL_LIVE_APPROVED=1")
-    if not args.ppt_model_scene_command_json:
-        raise ValueError("--enable-ppt-model requires --ppt-model-scene-command-json")
+def _load_ppt_model_scene_command_file(path: Path) -> list[str]:
+    """Read a bounded, UTF-8 JSON argv file without exposing its content."""
+    if not path.is_file():
+        raise ValueError("--ppt-model-scene-command-file must be an existing regular file")
     try:
-        producer = json.loads(args.ppt_model_scene_command_json)
+        if path.stat().st_size > PPT_MODEL_SCENE_COMMAND_FILE_MAX_BYTES:
+            raise ValueError("--ppt-model-scene-command-file exceeds the 64 KiB limit")
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise ValueError("--ppt-model-scene-command-file must be readable") from exc
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("--ppt-model-scene-command-file must be UTF-8") from exc
+    try:
+        values = json.loads(text)
     except json.JSONDecodeError as exc:
-        raise ValueError("--ppt-model-scene-command-json must be a JSON argv list") from exc
-    if not isinstance(producer, list) or not producer or not all(isinstance(item, str) and item for item in producer):
-        raise ValueError("--ppt-model-scene-command-json must be a non-empty argv list")
+        raise ValueError("--ppt-model-scene-command-file must contain a JSON argv list") from exc
+    if not isinstance(values, list):
+        raise ValueError("--ppt-model-scene-command-file top level must be a JSON array")
+    if not values or not all(isinstance(item, str) and item for item in values):
+        raise ValueError("--ppt-model-scene-command-file must contain a non-empty array of strings")
+    return values
+
+
+def _validate_ppt_model_scene_command(producer: list[str]) -> None:
     allowed = {"${PYTHON_EXECUTABLE}", "${INPUT_MD}", "${TASK_ROOT}", "${OUTPUT_DIR}", "${SCENE_DIR}", "${VISUAL_REFERENCE_ROOT}", "${MODEL_MAX_CALLS}"}
     unknown = {token for item in producer for token in re.findall(r"\$\{[^}]+\}", item)} - allowed
     if unknown:
@@ -66,12 +78,34 @@ def build_ppt_runner_from_args(args: argparse.Namespace, *, environ: dict[str, s
         raise ValueError("producer argv must include ${MODEL_MAX_CALLS}")
     if not any("${VISUAL_REFERENCE_ROOT}" in item for item in producer):
         raise ValueError("producer argv must include ${VISUAL_REFERENCE_ROOT}")
+
+
+def build_ppt_runner_from_args(args: argparse.Namespace, *, environ: dict[str, str] | None = None) -> ProductionPptRunner:
+    """The sole bot entry point for PPT runner configuration."""
+    if not args.enable_ppt_model:
+        return ProductionPptRunner(PROJECT_ROOT)
+    env = os.environ if environ is None else environ
+    if env.get("PPT_MODEL_LIVE_APPROVED") != "1":
+        raise ValueError("--enable-ppt-model requires PPT_MODEL_LIVE_APPROVED=1")
+    inline = args.ppt_model_scene_command_json
+    command_file = args.ppt_model_scene_command_file
+    if bool(inline) == bool(command_file):
+        raise ValueError("--enable-ppt-model requires exactly one scene-command source")
+    if command_file:
+        producer = _load_ppt_model_scene_command_file(command_file)
+    else:
+        try:
+            producer = json.loads(inline)
+        except json.JSONDecodeError as exc:
+            raise ValueError("--ppt-model-scene-command-json must be a JSON argv list") from exc
+        if not isinstance(producer, list) or not producer or not all(isinstance(item, str) and item for item in producer):
+            raise ValueError("--ppt-model-scene-command-json must be a non-empty argv list")
+    _validate_ppt_model_scene_command(producer)
     if not isinstance(args.ppt_model_max_calls, int) or args.ppt_model_max_calls <= 0:
         raise ValueError("--enable-ppt-model requires a positive --ppt-model-max-calls")
     if not args.ppt_visual_reference_root or not args.ppt_visual_reference_root.is_dir():
         raise ValueError("--enable-ppt-model requires an existing --ppt-visual-reference-root")
     return ProductionPptRunner(PROJECT_ROOT, model_enabled=True, model_scene_command=producer, model_max_calls=args.ppt_model_max_calls, visual_reference_root=args.ppt_visual_reference_root)
-
 
 def _get_env(key: str) -> str:
     """从环境变量读取，不存在时退出并提示。"""
@@ -109,7 +143,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--env-file", type=Path, help="optional credential file; process environment values retain precedence")
     parser.add_argument("--enable-ppt-model", action="store_true", help="explicitly enable the guarded live PPT model path")
-    parser.add_argument("--ppt-model-scene-command-json", help="JSON argv list for the approved Scene Graph producer")
+    producer_source = parser.add_mutually_exclusive_group()
+    producer_source.add_argument("--ppt-model-scene-command-json", help="JSON argv list for the approved Scene Graph producer")
+    producer_source.add_argument("--ppt-model-scene-command-file", type=Path, help="UTF-8 JSON argv file for the approved Scene Graph producer")
     parser.add_argument("--ppt-model-max-calls", type=int, help="positive Ark-call budget for the producer")
     parser.add_argument("--ppt-visual-reference-root", type=Path, help="explicit root containing the approved V4 visual reference resources")
     parser.add_argument("--proactive-markdown-chatid", help="confirmed live-test chat ID")
