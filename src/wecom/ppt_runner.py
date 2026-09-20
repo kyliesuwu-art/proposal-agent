@@ -9,7 +9,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Sequence
 from zipfile import is_zipfile
 
 
@@ -45,7 +45,8 @@ class ProductionPptRunner:
         visual_critic: bool = False,
         max_revisions: int = 0,
         model_enabled: bool = False,
-        model_scene_command: str | None = None,
+        model_scene_command: Sequence[str] | None = None,
+        model_max_calls: int | None = None,
     ) -> None:
         self._project_root = project_root
         self._existing_scene_dir = existing_scene_dir
@@ -53,9 +54,22 @@ class ProductionPptRunner:
         self._visual_critic = visual_critic
         self._max_revisions = max_revisions
         self._model_enabled = model_enabled
-        self._model_scene_command = model_scene_command
-        if model_enabled and not model_scene_command:
-            raise ValueError("model_scene_command is required when model_enabled is true")
+        self._model_scene_command = tuple(model_scene_command or ())
+        self._model_max_calls = model_max_calls
+        if model_enabled and (not self._model_scene_command or not isinstance(model_max_calls, int) or model_max_calls <= 0):
+            raise ValueError("enabled PPT model requires a producer argv and positive model_max_calls")
+
+    @property
+    def model_enabled(self) -> bool:
+        return self._model_enabled
+
+    @property
+    def model_scene_command(self) -> tuple[str, ...]:
+        return self._model_scene_command
+
+    @property
+    def model_max_calls(self) -> int | None:
+        return self._model_max_calls
 
     @staticmethod
     def _redact(text: str) -> str:
@@ -82,7 +96,7 @@ class ProductionPptRunner:
             "--max-revisions", str(self._max_revisions),
         ]
         if self._model_enabled:
-            command.extend(("--enable-model", "--model-scene-command", self._model_scene_command or ""))
+            command.extend(("--enable-model", "--model-scene-command-json", json.dumps(self._model_scene_command), "--model-max-calls", str(self._model_max_calls)))
         else:
             # Offline and ordinary local re-renders may only consume an existing
             # Scene Graph.  This makes accidental model invocation impossible.
@@ -104,6 +118,7 @@ class ProductionPptRunner:
             "started_at": started.isoformat(), "finished_at": finished.isoformat(),
             "duration_seconds": round((finished - started).total_seconds(), 6),
             "model_enabled": self._model_enabled,
+            "model_max_calls": self._model_max_calls if self._model_enabled else 0,
         }, ensure_ascii=False, indent=2), encoding="utf-8")
         if completed.returncode:
             raise subprocess.CalledProcessError(completed.returncode, command)

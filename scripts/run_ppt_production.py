@@ -7,9 +7,9 @@ import json
 import re
 import shutil
 import os
-import shlex
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from pptx import Presentation
@@ -165,7 +165,36 @@ def render(scene_dir: Path, output: Path, asset_set, approved_text: str, target_
     return warnings, len(sources)
 
 
-def generate_scene_graph(command: str, input_md: Path, task_root: Path, output_dir: Path, target_slides: int | None) -> Path:
+_PRODUCER_PLACEHOLDERS = {
+    "${INPUT_MD}", "${TASK_ROOT}", "${OUTPUT_DIR}", "${SCENE_DIR}", "${MODEL_MAX_CALLS}",
+}
+
+
+def _producer_argv(command_json: str, *, input_md: Path, task_root: Path, output_dir: Path, scene_dir: Path, model_max_calls: int) -> list[str]:
+    try:
+        values = json.loads(command_json)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("--model-scene-command-json must be a JSON argv list") from exc
+    if not isinstance(values, list) or not values or not all(isinstance(item, str) and item for item in values):
+        raise RuntimeError("--model-scene-command-json must be a non-empty argv list of strings")
+    if not any("${MODEL_MAX_CALLS}" in item for item in values):
+        raise RuntimeError("producer argv must receive ${MODEL_MAX_CALLS}")
+    replacements = {
+        "${INPUT_MD}": str(input_md), "${TASK_ROOT}": str(task_root), "${OUTPUT_DIR}": str(output_dir),
+        "${SCENE_DIR}": str(scene_dir), "${MODEL_MAX_CALLS}": str(model_max_calls),
+    }
+    argv: list[str] = []
+    for item in values:
+        unknown = set(re.findall(r"\$\{[^}]+\}", item)) - _PRODUCER_PLACEHOLDERS
+        if unknown:
+            raise RuntimeError("producer argv contains an unknown placeholder")
+        for placeholder, replacement in replacements.items():
+            item = item.replace(placeholder, replacement)
+        argv.append(item)
+    return argv
+
+
+def generate_scene_graph(command_json: str, input_md: Path, task_root: Path, output_dir: Path, model_max_calls: int) -> Path:
     """Run the explicitly approved live Scene Graph producer.
 
     This seam deliberately does not know credentials or a model endpoint.  A
@@ -174,18 +203,18 @@ def generate_scene_graph(command: str, input_md: Path, task_root: Path, output_d
     """
     if os.environ.get("PPT_MODEL_LIVE_APPROVED") != "1":
         raise RuntimeError("--enable-model requires PPT_MODEL_LIVE_APPROVED=1")
+    if model_max_calls <= 0:
+        raise RuntimeError("--model-max-calls must be positive")
     scene_dir = output_dir / "generated_scene_graph"
-    scene_dir.mkdir(parents=True, exist_ok=True)
-    args = shlex.split(command)
-    if not args:
-        raise RuntimeError("--model-scene-command must not be empty")
-    args.extend(("--input-md", str(input_md), "--task-root", str(task_root), "--output-dir", str(scene_dir)))
-    if target_slides is not None:
-        args.extend(("--target-slides", str(target_slides)))
-    completed = subprocess.run(args, check=False, capture_output=True, text=True)
+    if scene_dir.exists():
+        raise RuntimeError("model-enabled production refuses an existing Scene Graph directory")
+    scene_dir.mkdir(parents=True)
+    started = datetime.now().timestamp()
+    args = _producer_argv(command_json, input_md=input_md, task_root=task_root, output_dir=output_dir, scene_dir=scene_dir, model_max_calls=model_max_calls)
+    completed = subprocess.run(args, check=False, capture_output=True, text=True, shell=False)
     (output_dir / "model_scene_generator.stdout.log").write_text(completed.stdout or "", encoding="utf-8")
     (output_dir / "model_scene_generator.stderr.log").write_text(completed.stderr or "", encoding="utf-8")
-    if completed.returncode:
+    if completed.returncode or not any(path.stat().st_mtime >= started for path in scene_dir.glob("*.json")):
         raise RuntimeError("approved model Scene Graph producer failed")
     return scene_dir
 
@@ -198,18 +227,18 @@ def main() -> int:
     model_mode = parser.add_mutually_exclusive_group(required=True)
     model_mode.add_argument("--disable-model", action="store_true", help="offline re-render using --existing-scene-dir only")
     model_mode.add_argument("--enable-model", action="store_true", help="run the separately approved Scene Graph producer")
-    parser.add_argument("--existing-scene-dir", type=Path); parser.add_argument("--model-scene-command")
+    parser.add_argument("--existing-scene-dir", type=Path); parser.add_argument("--model-scene-command-json"); parser.add_argument("--model-max-calls", type=int)
     parser.add_argument("--enable-visual-critic", action="store_true"); parser.add_argument("--max-revisions", type=int, default=0)
     parser.add_argument("--task-id", default=""); parser.add_argument("--job-id", default="")
     args = parser.parse_args()
     if args.disable_model and not args.existing_scene_dir:
         raise RuntimeError("--existing-scene-dir is required for model-disabled production")
-    if args.enable_model and (args.existing_scene_dir or not args.model_scene_command):
-        raise RuntimeError("--enable-model requires --model-scene-command and cannot reuse an existing Scene Graph")
+    if args.enable_model and (args.existing_scene_dir or not args.model_scene_command_json or not args.model_max_calls):
+        raise RuntimeError("--enable-model requires producer argv, positive model call limit, and cannot reuse an existing Scene Graph")
     before = hashlib.sha256(args.input_md.read_bytes()).hexdigest()
     manifest = build_manifest(args.input_md, args.task_root); args.output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = args.output_dir / "assets_manifest.json"; manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    scene_dir = args.existing_scene_dir or generate_scene_graph(args.model_scene_command, args.input_md, args.task_root, args.output_dir, args.target_slides)
+    scene_dir = args.existing_scene_dir or generate_scene_graph(args.model_scene_command_json, args.input_md, args.task_root, args.output_dir, args.model_max_calls)
     warnings, page_count = render(scene_dir, args.output_pptx, build_validated_asset_set(manifest, args.task_root), args.input_md.read_text(encoding="utf-8"), args.target_slides)
     report = evaluate(profile="client-delivery", markdown=str(args.input_md), pptx=str(args.output_pptx), expected_source_hash=before)
     write_report(report, args.output_dir / "artifact_evaluation")

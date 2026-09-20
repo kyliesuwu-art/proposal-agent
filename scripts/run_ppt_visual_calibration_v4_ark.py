@@ -38,6 +38,27 @@ REFERENCE_SHEETS = (
 )
 
 
+class ModelCallBudget:
+    """A producer-wide metered-call budget consumed before every Ark request."""
+    def __init__(self, maximum: int) -> None:
+        if maximum <= 0:
+            raise ValueError("model call budget must be positive")
+        self.maximum, self.used = maximum, 0
+
+    def consume(self, _call_id: str) -> None:
+        if self.used >= self.maximum:
+            raise RuntimeError("PPT model call budget exhausted before Ark request")
+        self.used += 1
+
+
+MODEL_CALL_BUDGET: ModelCallBudget | None = None
+
+
+def configure_model_call_budget(maximum: int | None) -> None:
+    global MODEL_CALL_BUDGET
+    MODEL_CALL_BUDGET = ModelCallBudget(maximum) if maximum is not None else None
+
+
 def load(name: str, filename: str):
     spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / filename)
     module = importlib.util.module_from_spec(spec)
@@ -109,6 +130,8 @@ def record_call(item: dict) -> None:
 
 def ask_json(*, call_id: str, system: str, content: list[dict], raw_file: Path, max_tokens: int = 12000) -> tuple[dict, dict]:
     """Perform one streaming Ark call and persist its unmodified answer first."""
+    if MODEL_CALL_BUDGET is not None:
+        MODEL_CALL_BUDGET.consume(call_id)
     started = time.time(); say(f"Ark {call_id} request started")
     raw, meta = PAD.ask([{"role": "system", "content": system}, {"role": "user", "content": content}], call_id, max_tokens=max_tokens)
     raw_file.parent.mkdir(parents=True, exist_ok=True); raw_file.write_text(raw, encoding="utf-8")
@@ -241,7 +264,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Resumable Ark V4 visual calibration")
     parser.add_argument("--page", type=int, choices=PICK, help="Generate exactly one missing V4 page Scene Graph")
     parser.add_argument("--finish", action="store_true", help="Render all saved pages, critique, and make capped revisions")
+    parser.add_argument("--model-max-calls", type=int, help="hard Ark-call budget, consumed before every request")
     args = parser.parse_args()
+    configure_model_call_budget(args.model_max_calls)
     OUT.mkdir(parents=True, exist_ok=True)
     for path in (BASE / "contact_sheet.png", V3 / "contact_sheet.png", *REFERENCE_SHEETS):
         if not path.is_file(): raise RuntimeError(f"required visual reference missing: {path}")

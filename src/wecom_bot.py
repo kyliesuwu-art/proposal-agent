@@ -12,13 +12,14 @@
 
 import argparse
 import asyncio
+import json
 import os
+import re
 import signal
 import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-load_dotenv()
 
 from wecom_aibot_sdk import WSClient, WSClientOptions, MessageType
 
@@ -33,6 +34,39 @@ from src.wecom.store import SQLiteTaskStore
 from src.wecom.task_service import TaskService
 from src.wecom.word_runner import ProductionWordRunner
 from src.wecom.ppt_runner import ProductionPptRunner
+
+
+def load_runtime_environment(env_file: Path | None) -> None:
+    """Load an optional env file without overriding an injected process env."""
+    candidate = env_file or (PROJECT_ROOT / ".env")
+    if candidate.is_file():
+        load_dotenv(dotenv_path=candidate, override=False)
+
+
+def build_ppt_runner_from_args(args: argparse.Namespace, *, environ: dict[str, str] | None = None) -> ProductionPptRunner:
+    """The sole bot entry point for PPT runner configuration."""
+    if not args.enable_ppt_model:
+        return ProductionPptRunner(PROJECT_ROOT)
+    env = os.environ if environ is None else environ
+    if env.get("PPT_MODEL_LIVE_APPROVED") != "1":
+        raise ValueError("--enable-ppt-model requires PPT_MODEL_LIVE_APPROVED=1")
+    if not args.ppt_model_scene_command_json:
+        raise ValueError("--enable-ppt-model requires --ppt-model-scene-command-json")
+    try:
+        producer = json.loads(args.ppt_model_scene_command_json)
+    except json.JSONDecodeError as exc:
+        raise ValueError("--ppt-model-scene-command-json must be a JSON argv list") from exc
+    if not isinstance(producer, list) or not producer or not all(isinstance(item, str) and item for item in producer):
+        raise ValueError("--ppt-model-scene-command-json must be a non-empty argv list")
+    allowed = {"${INPUT_MD}", "${TASK_ROOT}", "${OUTPUT_DIR}", "${SCENE_DIR}", "${MODEL_MAX_CALLS}"}
+    unknown = {token for item in producer for token in re.findall(r"\$\{[^}]+\}", item)} - allowed
+    if unknown:
+        raise ValueError("producer argv contains an unknown placeholder")
+    if not any("${MODEL_MAX_CALLS}" in item for item in producer):
+        raise ValueError("producer argv must include ${MODEL_MAX_CALLS}")
+    if not isinstance(args.ppt_model_max_calls, int) or args.ppt_model_max_calls <= 0:
+        raise ValueError("--enable-ppt-model requires a positive --ppt-model-max-calls")
+    return ProductionPptRunner(PROJECT_ROOT, model_enabled=True, model_scene_command=producer, model_max_calls=args.ppt_model_max_calls)
 
 
 def _get_env(key: str) -> str:
@@ -69,6 +103,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="accept and clarify messages without starting the proposal runner",
     )
+    parser.add_argument("--env-file", type=Path, help="optional credential file; process environment values retain precedence")
+    parser.add_argument("--enable-ppt-model", action="store_true", help="explicitly enable the guarded live PPT model path")
+    parser.add_argument("--ppt-model-scene-command-json", help="JSON argv list for the approved Scene Graph producer")
+    parser.add_argument("--ppt-model-max-calls", type=int, help="positive Ark-call budget for the producer")
     parser.add_argument("--proactive-markdown-chatid", help="confirmed live-test chat ID")
     parser.add_argument("--proactive-markdown", help="one-time live-test Markdown content")
     parser.add_argument("--proactive-file-chatid", help="confirmed live-test chat ID")
@@ -95,6 +133,7 @@ async def main(
     proactive_markdown: str | None = None,
     proactive_file_chatid: str | None = None,
     proactive_file_path: Path | None = None,
+    ppt_runner: ProductionPptRunner | None = None,
 ) -> None:
     """建立长连接，注册消息回调，等待接收消息。"""
     bot_id = _get_env("AIBOT_BOT_ID")
@@ -119,7 +158,7 @@ async def main(
         generation_enabled=not disable_proposal,
     )
     artifacts = ArtifactService(
-        store, ProductionWordRunner(PROJECT_ROOT), ProductionPptRunner(PROJECT_ROOT), task_output_root=output_root,
+        store, ProductionWordRunner(PROJECT_ROOT), ppt_runner or ProductionPptRunner(PROJECT_ROOT), task_output_root=output_root,
         output_root=artifact_output_root or PROJECT_ROOT / "outputs" / "wecom_artifacts",
     )
     adapter = WeComAgentAdapter(service, SDKTransport(client), artifacts, TaskControlService(store, artifacts))
@@ -201,6 +240,15 @@ async def main(
 
 if __name__ == "__main__":
     args = parse_args()
+    load_runtime_environment(args.env_file)
+    try:
+        configured_ppt_runner = build_ppt_runner_from_args(args)
+    except ValueError as exc:
+        raise SystemExit(f"PPT live configuration error: {exc}") from exc
+    print(f"PPT_MODEL_ENABLED: {'TRUE' if configured_ppt_runner.model_enabled else 'FALSE'}")
+    print(f"PPT_MODEL_SCENE_COMMAND_CONFIGURED: {'TRUE' if bool(configured_ppt_runner.model_scene_command) else 'FALSE'}")
+    print(f"PPT_MODEL_MAX_CALLS: {configured_ppt_runner.model_max_calls or 0}")
+    print(f"PPT_MODEL_LIVE_GATE: {'PASS' if configured_ppt_runner.model_enabled else 'NOT_REQUESTED'}")
     asyncio.run(main(
         db_path=args.db_path,
         output_root=args.output_root,
@@ -210,4 +258,5 @@ if __name__ == "__main__":
         proactive_markdown=args.proactive_markdown,
         proactive_file_chatid=args.proactive_file_chatid,
         proactive_file_path=args.proactive_file_path,
+        ppt_runner=configured_ppt_runner,
     ))

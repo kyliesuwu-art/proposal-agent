@@ -150,7 +150,7 @@ def test_production_runner_uses_disable_model_only_for_offline_rerender(tmp_path
     approved = tmp_path / "approved.md"; approved.write_text("# x", encoding="utf-8")
     offline = ProductionPptRunner(tmp_path, existing_scene_dir=tmp_path / "scene")
     offline.run(approved, tmp_path, tmp_path / "offline", "task", "job")
-    live = ProductionPptRunner(tmp_path, model_enabled=True, model_scene_command="approved-scene-producer")
+    live = ProductionPptRunner(tmp_path, model_enabled=True, model_scene_command=["approved-scene-producer", "${MODEL_MAX_CALLS}"], model_max_calls=1)
     live.run(approved, tmp_path, tmp_path / "live", "task", "job2")
     assert "--disable-model" in captured[0] and "--enable-model" not in captured[0]
     assert "--enable-model" in captured[1] and "--disable-model" not in captured[1]

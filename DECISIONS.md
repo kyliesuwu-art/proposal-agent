@@ -1,5 +1,11 @@
 # 架构决策
 
+## 2026-09 — PPT live producer requires explicit argv and a pre-call budget
+
+Decision: The WeCom bot keeps PPT generation offline by default. A live PPT run must receive an explicit CLI enable flag, a positive `PPT_MODEL_LIVE_APPROVED=1` gate, a JSON argv producer command, and a positive model-call budget. The producer inherits credentials only through the process environment; it receives no secrets as argv. Unknown placeholders and pre-existing job Scene Graph folders fail closed.
+
+Impact: A historical experiment Scene Graph cannot be reused to claim a live ArtifactJob. The V4 request wrapper consumes its call budget before each Ark request, including critic and revision calls.
+
 此处只记录长期架构或产品决策：即系统重构或长期工作方向调整时，仍需理解其取舍原因的选择。
 
 不要记录日常进度、普通实现细节、测试运行结果、临时 API/网络故障、当前阻塞或下一步行动。这些信息应保留在 Git 历史、提交信息、输出报告或当前工作会话中。
