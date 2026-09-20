@@ -29,6 +29,7 @@ V3 = FULL15 / "visual_calibration_v3"
 OUT = FULL15 / "visual_calibration_v4_ark"
 PICK = (1, 2, 3, 5, 6, 14, 19, 20)
 NAMES = {1: "G", 2: "TOC", 3: "BACKGROUND", 5: "H", 6: "ARCH", 14: "D", 19: "E", 20: "CLOSE"}
+APPROVED_TEXT = ""
 V3_PAGE_MAP = {1: 1, 2: 2, 3: 3, 5: 4, 6: 5, 14: 6, 19: 7, 20: 8}
 REFERENCE_SHEETS = (
     ROOT / "outputs" / "ppt_template_library_v1" / "source_analysis" / "comking_company" / "contact_sheet.png",
@@ -99,6 +100,8 @@ def image_part(path: Path, label: str) -> list[dict]:
 
 
 def source_scene(page: int) -> dict:
+    if APPROVED_TEXT:
+        return {"elements": []}
     path = BASE / "scene_graphs" / f"page_{page:02}_{NAMES[page]}.json"
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -119,6 +122,7 @@ def context_for(page: int) -> dict:
         "locked_display_text": text_content(scene),
         "allowed_assets": allowed_assets(scene),
         "known_constraint": "Image image-001.jpg is only 537x489; do not make it a full-bleed or enlarged hero image." if page == 5 else None,
+        "approved_markdown": APPROVED_TEXT if APPROVED_TEXT else None,
     }
 
 

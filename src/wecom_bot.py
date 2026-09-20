@@ -58,7 +58,7 @@ def build_ppt_runner_from_args(args: argparse.Namespace, *, environ: dict[str, s
         raise ValueError("--ppt-model-scene-command-json must be a JSON argv list") from exc
     if not isinstance(producer, list) or not producer or not all(isinstance(item, str) and item for item in producer):
         raise ValueError("--ppt-model-scene-command-json must be a non-empty argv list")
-    allowed = {"${INPUT_MD}", "${TASK_ROOT}", "${OUTPUT_DIR}", "${SCENE_DIR}", "${MODEL_MAX_CALLS}"}
+    allowed = {"${PYTHON_EXECUTABLE}", "${INPUT_MD}", "${TASK_ROOT}", "${OUTPUT_DIR}", "${SCENE_DIR}", "${MODEL_MAX_CALLS}"}
     unknown = {token for item in producer for token in re.findall(r"\$\{[^}]+\}", item)} - allowed
     if unknown:
         raise ValueError("producer argv contains an unknown placeholder")

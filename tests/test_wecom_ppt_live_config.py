@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,7 @@ def args(*extra: str) -> argparse.Namespace:
 
 
 def valid_command() -> str:
-    return json.dumps(["producer", "--output", "${SCENE_DIR}", "--budget", "${MODEL_MAX_CALLS}"])
+    return json.dumps(["${PYTHON_EXECUTABLE}", "producer", "--output", "${SCENE_DIR}", "--budget", "${MODEL_MAX_CALLS}"])
 
 
 def test_default_bot_runner_keeps_model_disabled():
@@ -55,7 +56,7 @@ def test_requested_live_model_rejects_incomplete_or_unsafe_config(monkeypatch, e
 def test_live_runner_receives_validated_argv_and_budget(monkeypatch):
     monkeypatch.setenv("PPT_MODEL_LIVE_APPROVED", "1")
     runner = bot.build_ppt_runner_from_args(args("--enable-ppt-model", "--ppt-model-scene-command-json", valid_command(), "--ppt-model-max-calls", "7"))
-    assert runner.model_enabled and runner.model_scene_command[0] == "producer" and runner.model_max_calls == 7
+    assert runner.model_enabled and runner.model_scene_command[1] == "producer" and runner.model_max_calls == 7
 
 
 def test_producer_argv_rejects_unknown_placeholder_and_never_uses_shell(tmp_path, monkeypatch):
@@ -104,3 +105,22 @@ def test_production_runner_serializes_live_argv_without_secret(tmp_path, monkeyp
     source = tmp_path / "approved.md"; source.write_text("# x", encoding="utf-8")
     runner.run(source, tmp_path, tmp_path / "out", "task", "job")
     assert "--enable-model" in seen[0][0] and "--disable-model" not in seen[0][0] and seen[0][1].get("shell") is None
+
+
+def test_fake_producer_dry_run_writes_fresh_scene_graph_in_job_dir(tmp_path):
+    import scripts.run_ppt_production as production
+    output = tmp_path / "job output"
+    command = json.dumps([sys.executable, "-c", "import pathlib,sys; p=pathlib.Path(sys.argv[1]); p.joinpath('page_01.json').write_text('{}')", "${SCENE_DIR}", "${MODEL_MAX_CALLS}"])
+    import os
+    old = os.environ.get("PPT_MODEL_LIVE_APPROVED"); os.environ["PPT_MODEL_LIVE_APPROVED"] = "1"
+    try:
+        scene = production.generate_scene_graph(command, tmp_path / "approved.md", tmp_path, output, 3)
+    finally:
+        if old is None: os.environ.pop("PPT_MODEL_LIVE_APPROVED", None)
+        else: os.environ["PPT_MODEL_LIVE_APPROVED"] = old
+    assert scene == output / "generated_scene_graph" and (scene / "page_01.json").is_file()
+
+
+def test_v4_producer_budget_contract_is_26_calls():
+    import scripts.run_ppt_v4_ark_full20 as producer
+    assert producer.MAX_MODEL_CALLS == 26

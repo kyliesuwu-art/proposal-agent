@@ -1,0 +1,15 @@
+[
+  "${PYTHON_EXECUTABLE}",
+  "scripts/run_ppt_v4_ark_full20.py",
+  "--produce",
+  "--input-md",
+  "${INPUT_MD}",
+  "--output-dir",
+  "${OUTPUT_DIR}",
+  "--scene-dir",
+  "${SCENE_DIR}",
+  "--manifest-path",
+  "${OUTPUT_DIR}/producer_manifest.json",
+  "--model-max-calls",
+  "${MODEL_MAX_CALLS}"
+]

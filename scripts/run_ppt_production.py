@@ -12,6 +12,10 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE
@@ -166,7 +170,7 @@ def render(scene_dir: Path, output: Path, asset_set, approved_text: str, target_
 
 
 _PRODUCER_PLACEHOLDERS = {
-    "${INPUT_MD}", "${TASK_ROOT}", "${OUTPUT_DIR}", "${SCENE_DIR}", "${MODEL_MAX_CALLS}",
+    "${PYTHON_EXECUTABLE}", "${INPUT_MD}", "${TASK_ROOT}", "${OUTPUT_DIR}", "${SCENE_DIR}", "${MODEL_MAX_CALLS}",
 }
 
 
@@ -180,7 +184,7 @@ def _producer_argv(command_json: str, *, input_md: Path, task_root: Path, output
     if not any("${MODEL_MAX_CALLS}" in item for item in values):
         raise RuntimeError("producer argv must receive ${MODEL_MAX_CALLS}")
     replacements = {
-        "${INPUT_MD}": str(input_md), "${TASK_ROOT}": str(task_root), "${OUTPUT_DIR}": str(output_dir),
+        "${PYTHON_EXECUTABLE}": sys.executable, "${INPUT_MD}": str(input_md), "${TASK_ROOT}": str(task_root), "${OUTPUT_DIR}": str(output_dir),
         "${SCENE_DIR}": str(scene_dir), "${MODEL_MAX_CALLS}": str(model_max_calls),
     }
     argv: list[str] = []
