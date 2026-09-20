@@ -286,7 +286,7 @@ def main() -> None:
             details: dict[str, object] = {"error_type": type(exc).__name__}
             if isinstance(exc, ProposalGenerationError):
                 details["cause_type"] = type(exc.cause).__name__
-                if exc.stage == "quality_gate" and isinstance(exc.cause, ProposalQualityError):
+                if exc.stage in {"quality_gate", "scope_gate"} and isinstance(exc.cause, ProposalQualityError):
                     # The quality gate only raises deterministic rule messages.
                     # Keep the complete reason alongside its structured snapshot.
                     details["quality_gate_error_message"] = str(exc.cause)
