@@ -12,6 +12,7 @@ from typing import Callable
 from zipfile import is_zipfile
 
 from src.wecom.models import ArtifactEvent, ArtifactJob, ArtifactJobStatus, ArtifactType, TaskStatus, WeComTask
+from src.wecom.task_paths import PersistedTaskPathError, resolve_persisted_task_path
 from src.wecom.store import SQLiteTaskStore
 from src.wecom.word_runner import WordRunner
 from src.wecom.ppt_runner import PptRunner
@@ -40,10 +41,11 @@ def _command(text: str) -> tuple[ArtifactType, bool, str | None] | None:
 class ArtifactService:
     """Asynchronous artifact jobs kept separate from the approved content task."""
 
-    def __init__(self, store: SQLiteTaskStore, word_runner: WordRunner, ppt_runner: PptRunner | None = None, *, task_output_root: Path, output_root: Path) -> None:
+    def __init__(self, store: SQLiteTaskStore, word_runner: WordRunner, ppt_runner: PptRunner | None = None, *, task_output_root: Path, output_root: Path, task_path_root: Path | None = None) -> None:
         self._store, self._word_runner = store, word_runner
         self._ppt_runner = ppt_runner
         self._task_output_root, self._output_root = task_output_root.resolve(), output_root.resolve()
+        self._task_path_root = Path(task_path_root or task_output_root).resolve()
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="wecom-word")
         self._futures: set[Future[None]] = set()
         self._future_lock = threading.Lock()
@@ -98,10 +100,13 @@ class ArtifactService:
     def _safe_source(self, task: WeComTask) -> tuple[Path, str]:
         if task.status is not TaskStatus.MD_APPROVED or not task.approved_md_path:
             raise ValueError("approved Markdown is unavailable")
-        source = Path(task.approved_md_path).resolve()
+        try:
+            source = resolve_persisted_task_path(task.approved_md_path, self._task_path_root)
+        except PersistedTaskPathError as exc:
+            raise ValueError("approved Markdown path is unsafe or unavailable") from exc
         task_directory = (self._task_output_root / task.task_id).resolve()
-        if task_directory not in source.parents or not source.is_file() or source.stat().st_size == 0:
-            raise ValueError("approved Markdown path is unsafe or unavailable")
+        if task_directory not in source.parents:
+            raise ValueError("approved Markdown path is outside its Task directory")
         return source, hashlib.sha256(source.read_bytes()).hexdigest()
 
     def _request_word(self, task: WeComTask, message_id: str | None, *, retry: bool) -> tuple[WeComTask, str]:

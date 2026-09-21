@@ -131,6 +131,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="per-task output directory",
     )
     parser.add_argument(
+        "--task-path-root",
+        type=Path,
+        help="persistent Task-path trust root; defaults to --output-root",
+    )
+    parser.add_argument(
         "--artifact-output-root",
         type=Path,
         default=PROJECT_ROOT / "outputs" / "wecom_artifacts",
@@ -169,6 +174,7 @@ async def main(
     db_path: Path,
     output_root: Path,
     artifact_output_root: Path | None = None,
+    task_path_root: Path | None = None,
     disable_proposal: bool = False,
     proactive_markdown_chatid: str | None = None,
     proactive_markdown: str | None = None,
@@ -200,6 +206,7 @@ async def main(
     )
     artifacts = ArtifactService(
         store, ProductionWordRunner(PROJECT_ROOT), ppt_runner or ProductionPptRunner(PROJECT_ROOT), task_output_root=output_root,
+        task_path_root=task_path_root or output_root,
         output_root=artifact_output_root or PROJECT_ROOT / "outputs" / "wecom_artifacts",
     )
     adapter = WeComAgentAdapter(service, SDKTransport(client), artifacts, TaskControlService(store, artifacts))
@@ -294,6 +301,7 @@ if __name__ == "__main__":
         db_path=args.db_path,
         output_root=args.output_root,
         artifact_output_root=args.artifact_output_root,
+        task_path_root=args.task_path_root or args.output_root,
         disable_proposal=args.disable_proposal,
         proactive_markdown_chatid=args.proactive_markdown_chatid,
         proactive_markdown=args.proactive_markdown,

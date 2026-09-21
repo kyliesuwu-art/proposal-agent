@@ -114,3 +114,9 @@ PPT 从已交付 Markdown 和溯源资料构建。正式 briefing 为 15–25 �
 Decision: The guarded WeCom PPT entry point accepts exactly one producer argv source: the existing inline JSON option or a UTF-8 JSON file. File inputs must be regular, readable files no larger than 64 KiB; their top level must be a non-empty string array and they pass the same placeholder validation as inline argv.
 
 Impact: PowerShell callers can pass a single path containing spaces or Chinese characters without command-line JSON quoting risk. The bot never expands a shell, evaluates configuration, or logs the configuration content; the downstream process continues to receive an argv list with shell=False.
+
+## 2026-09 — Persisted Task paths require an explicit trust root
+
+Decision: Task paths stored in the WeCom SQLite database are resolved from an explicit task-path root, not the process current directory or the code worktree. Relative values are rooted there; legacy absolute values remain readable only when they are canonical descendants of the same root. Artifact processing also requires the resolved approved Markdown to remain under the configured task output directory for its Task ID.
+
+Impact: A separate PPT integration worktree can safely consume an existing Task without copying or rewriting approved.md. Traversal, drive-relative paths, UNC paths, symlinks, missing or empty files, non-Markdown files, and any containment escape fail before an ArtifactJob or runner starts.
