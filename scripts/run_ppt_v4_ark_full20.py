@@ -16,6 +16,7 @@ APPROVED = ROOT / "outputs" / "wecom_v1_full_e2e_retry" / "20260917_retry" / "95
 NAMES = {1:"G",2:"TOC",3:"BACKGROUND",4:"I",5:"H",6:"ARCH",7:"RELIABILITY",8:"A",9:"J",10:"B",11:"C",12:"K",13:"L",14:"D",15:"ORGANIZATION",16:"N",17:"F",18:"M",19:"E",20:"CLOSE"}
 ACCEPTED = (1,2,3,5,6,14,19,20)
 MAX_MODEL_CALLS = 26  # global direction + 20 pages + critic + up to 4 revisions
+_REPARSE_POINT_ATTRIBUTE = 0x0400
 
 spec = importlib.util.spec_from_file_location("v4", ROOT / "scripts" / "run_ppt_visual_calibration_v4_ark.py")
 v4 = importlib.util.module_from_spec(spec); assert spec.loader; spec.loader.exec_module(v4)
@@ -70,6 +71,54 @@ def source_status(page: int) -> str:
     return "V4_REVISED" if page in {1,5,14,20} else "V4_ACCEPTED" if page in ACCEPTED else "ARK_REQUIRED"
 
 
+def _is_symlink_or_reparse_point(path: Path) -> bool:
+    """Reject links and Windows reparse points without resolving through them."""
+    try:
+        stat = path.lstat()
+    except FileNotFoundError:
+        return False
+    is_junction = getattr(path, "is_junction", lambda: False)
+    return path.is_symlink() or is_junction() or bool(getattr(stat, "st_file_attributes", 0) & _REPARSE_POINT_ATTRIBUTE)
+
+
+def prepare_fresh_job_scene_output_directory(output_dir: Path, scene_dir: Path) -> Path:
+    """Prepare only a new, job-scoped Scene Graph directory.
+
+    The production wrapper may pre-create the empty ``generated_scene_graph``
+    directory before it launches this producer. That is valid only for the
+    current job: existing content, completed-producer evidence, links, or an
+    escaped path are never reused or removed.
+    """
+    output_dir, scene_dir = Path(output_dir), Path(scene_dir)
+    if not output_dir.is_absolute() or not scene_dir.is_absolute():
+        raise RuntimeError("producer output and Scene Graph paths must be absolute")
+    if _is_symlink_or_reparse_point(output_dir):
+        raise RuntimeError("producer Job output root must not be a symlink or reparse point")
+    if output_dir.exists() and not output_dir.is_dir():
+        raise RuntimeError("producer Job output root must be a directory")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    root = output_dir.resolve(strict=True)
+    if _is_symlink_or_reparse_point(scene_dir):
+        raise RuntimeError("producer Scene Graph directory must not be a symlink or reparse point")
+    canonical_scene = scene_dir.resolve(strict=False)
+    try:
+        canonical_scene.relative_to(root)
+    except ValueError as exc:
+        raise RuntimeError("producer Scene Graph directory must be inside the current Job output root") from exc
+    if (root / "scene_graphs").exists():
+        raise RuntimeError("producer output already contains a Scene Graph")
+    if (root / "producer_manifest.json").exists():
+        raise RuntimeError("producer output already contains a completed producer record")
+    if scene_dir.exists():
+        if not scene_dir.is_dir():
+            raise RuntimeError("producer Scene Graph path must be a directory")
+        if any(scene_dir.iterdir()):
+            raise RuntimeError("producer Scene Graph directory is not empty")
+    else:
+        scene_dir.mkdir(parents=False, exist_ok=False)
+    return scene_dir
+
+
 def generate_missing() -> None:
     set_context(); prepare(); direction = json.loads((OUT / "global_art_direction.json").read_text(encoding="utf-8"))
     for page in range(1, 21):
@@ -103,14 +152,8 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_
         raise RuntimeError("producer input Markdown is unavailable")
     if model_max_calls <= 0 or model_max_calls > MAX_MODEL_CALLS:
         raise RuntimeError(f"model-max-calls must be between 1 and {MAX_MODEL_CALLS}")
-    if output_dir.exists() and any(output_dir.joinpath(name).exists() for name in ("scene_graphs", "generated_scene_graph")):
-        raise RuntimeError("producer output already contains a Scene Graph")
-    if scene_dir.exists():
-        if any(scene_dir.iterdir()):
-            raise RuntimeError("producer Scene Graph directory is not empty")
-    else:
-        scene_dir.mkdir(parents=True, exist_ok=False)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    scene_dir = prepare_fresh_job_scene_output_directory(output_dir, scene_dir)
+
     configure_production_visual_resources(visual_reference_root)
     set_context(); v4.OUT = output_dir; v4.APPROVED_TEXT = input_md.read_text(encoding="utf-8")
     v4.configure_model_call_budget(model_max_calls)
