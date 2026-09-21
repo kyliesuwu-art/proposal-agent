@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -46,16 +47,19 @@ PAGES = {"A": 9, "B": 10, "C": 5, "D": 12, "E": 13, "F": 14}
 
 
 def read_env() -> dict[str, str]:
+    """Read local defaults, then inherit the explicitly loaded runtime environment."""
     values: dict[str, str] = {}
     env_file = ROOT / ".env"
-    if not env_file.is_file():
-        raise RuntimeError(".env is unavailable; ARK_API_KEY cannot be loaded")
-    for line in env_file.read_text(encoding="utf-8").splitlines():
-        if "=" in line and not line.lstrip().startswith("#"):
-            key, value = line.split("=", 1)
-            values[key.strip()] = value.strip().strip("\"'")
+    if env_file.is_file():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                key, value = line.split("=", 1)
+                values[key.strip()] = value.strip().strip("\"'")
+    for key in ("ARK_API_KEY", "ARK_BASE_URL"):
+        if os.environ.get(key):
+            values[key] = os.environ[key]
     if not values.get("ARK_API_KEY"):
-        raise RuntimeError("ARK_API_KEY is not present")
+        raise RuntimeError("ARK_API_KEY is not present in the runtime environment or .env")
     return values
 
 

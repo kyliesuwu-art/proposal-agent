@@ -205,3 +205,13 @@ def test_v4_producer_requires_explicit_complete_visual_reference_root(tmp_path):
     import scripts.run_ppt_v4_ark_full20 as producer
     with pytest.raises(RuntimeError, match="visual resources"):
         producer.configure_production_visual_resources(tmp_path)
+
+def test_live_producer_uses_inherited_env_when_its_project_env_file_is_absent(tmp_path, monkeypatch):
+    import scripts.run_ppt_pure_art_director as director
+    monkeypatch.setattr(director, "ROOT", tmp_path)
+    monkeypatch.setenv("ARK_API_KEY", "test-inherited-key")
+    monkeypatch.setenv("ARK_BASE_URL", "https://example.invalid")
+    assert director.read_env() == {
+        "ARK_API_KEY": "test-inherited-key",
+        "ARK_BASE_URL": "https://example.invalid",
+    }
