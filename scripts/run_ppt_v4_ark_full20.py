@@ -173,7 +173,7 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_
     manifest = {
         "schema": "ppt-scene-producer/v1", "approved_md_sha256": hashlib.sha256(input_md.read_bytes()).hexdigest(),
         "model_max_calls": model_max_calls, "model_calls_used": v4.MODEL_CALL_BUDGET.used if v4.MODEL_CALL_BUDGET else None,
-        "scene_graph_dir": str(scene_dir), "visual_reference_root_configured": True, "pages": 20, "critic_selected_pages": critic_result.get("selected_pages", []),
+        "scene_graph_dir": str(scene_dir.resolve().relative_to(output_dir.resolve())), "visual_reference_root_configured": True, "pages": 20, "critic_selected_pages": critic_result.get("selected_pages", []),
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True); manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0

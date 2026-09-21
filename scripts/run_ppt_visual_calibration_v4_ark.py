@@ -142,9 +142,9 @@ def ask_json(*, call_id: str, system: str, content: list[dict], raw_file: Path, 
     try:
         parsed = PAD.as_json(raw)
     except Exception as exc:
-        record_call({"call_id": call_id, **meta, "started_at": started, "status": "PARSE_FAILED", "input_image_count": sum(1 for x in content if x.get("type") == "image_url"), "response_path": str(raw_file.relative_to(ROOT)), "error": type(exc).__name__})
+        record_call({"call_id": call_id, **meta, "started_at": started, "status": "PARSE_FAILED", "input_image_count": sum(1 for x in content if x.get("type") == "image_url"), "response_path": str(raw_file.resolve().relative_to(OUT.resolve())), "error": type(exc).__name__})
         raise
-    record_call({"call_id": call_id, **meta, "started_at": started, "status": "OK", "input_image_count": sum(1 for x in content if x.get("type") == "image_url"), "response_path": str(raw_file.relative_to(ROOT))})
+    record_call({"call_id": call_id, **meta, "started_at": started, "status": "OK", "input_image_count": sum(1 for x in content if x.get("type") == "image_url"), "response_path": str(raw_file.resolve().relative_to(OUT.resolve()))})
     say(f"Ark {call_id} saved ({meta['elapsed_seconds']}s; ttft={meta['ttft_seconds']}s)")
     return parsed, meta
 
@@ -260,7 +260,7 @@ def critic(direction: dict, sheet: Path, *, max_pages: int = 4) -> dict:
 def report(direction: dict, scenes: dict[int, dict], critic_result: dict, rendered: list[Path]) -> None:
     audits = {str(p): PAD.validate(scenes[p], set(context_for(p)["allowed_assets"])) for p in PICK}
     text = {str(p): text_content(scenes[p]) for p in PICK}
-    manifest = {"source_v2": str((BASE / "pure_art_director_mainline_expanded_v2.pptx").relative_to(ROOT)), "source_v3": str((V3 / "pure_art_director_visual_calibration_v3.pptx").relative_to(ROOT)), "pages": list(PICK), "model": PAD.MODEL, "ark_calls": len(json.loads((OUT / "ark_calls.json").read_text(encoding="utf-8"))), "scenes": {str(p): str((OUT / "scene_graphs" / f"page_{p:02}_{NAMES[p]}.json").relative_to(ROOT)) for p in PICK}, "before_text": {str(p): text_content(source_scene(p)) for p in PICK}, "after_text": text, "text_change_reason": "Ark visual hierarchy and concision only; facts and boundary conditions were locked in prompts.", "audit": audits, "critic": critic_result, "rendered_pages": [str(x.relative_to(ROOT)) for x in rendered]}
+    manifest = {"source_v2": str((BASE / "pure_art_director_mainline_expanded_v2.pptx").relative_to(ROOT)), "source_v3": str((V3 / "pure_art_director_visual_calibration_v3.pptx").relative_to(ROOT)), "pages": list(PICK), "model": PAD.MODEL, "ark_calls": len(json.loads((OUT / "ark_calls.json").read_text(encoding="utf-8"))), "scenes": {str(p): str((OUT / "scene_graphs" / f"page_{p:02}_{NAMES[p]}.json").resolve().relative_to(OUT.resolve())) for p in PICK}, "before_text": {str(p): text_content(source_scene(p)) for p in PICK}, "after_text": text, "text_change_reason": "Ark visual hierarchy and concision only; facts and boundary conditions were locked in prompts.", "audit": audits, "critic": critic_result, "rendered_pages": [str(x.resolve().relative_to(OUT.resolve())) for x in rendered]}
     (OUT / "visual_calibration_v4_report.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
 

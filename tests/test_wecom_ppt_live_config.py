@@ -205,6 +205,51 @@ def test_v4_producer_requires_explicit_complete_visual_reference_root(tmp_path):
     import scripts.run_ppt_v4_ark_full20 as producer
     with pytest.raises(RuntimeError, match="visual resources"):
         producer.configure_production_visual_resources(tmp_path)
+def test_v4_fake_producer_serializes_runtime_paths_relative_to_cross_root_job(tmp_path, monkeypatch):
+    import scripts.run_ppt_v4_ark_full20 as producer
+
+    job_root = tmp_path / "separate task root" / "job"
+    input_md = job_root / "approved.md"; input_md.parent.mkdir(parents=True); input_md.write_text("# approved", encoding="utf-8")
+    scene_dir = job_root / "generated_scene_graph"; manifest_path = job_root / "producer_manifest.json"
+    monkeypatch.setattr(producer, "configure_production_visual_resources", lambda _root: None)
+    monkeypatch.setattr(producer, "set_context", lambda: None)
+    def fake_art_direction():
+        (job_root / "scene_graphs").mkdir()
+        return {"direction": "fake"}
+
+    monkeypatch.setattr(producer.v4, "art_direction", fake_art_direction)
+    monkeypatch.setattr(producer.v4, "page_request", lambda page, _direction, revision=False: {"elements": [], "page": page, "revision": revision})
+    monkeypatch.setattr(producer.v4, "draw", lambda _scenes: job_root / "fake.pptx")
+
+    def fake_render(_deck):
+        pages = job_root / "pages" / "slide"; pages.mkdir(parents=True, exist_ok=True)
+        rendered = []
+        for page in range(1, 21):
+            path = pages / f"slide{page}.png"; path.write_bytes(b"fake"); rendered.append(path)
+        return rendered
+
+    monkeypatch.setattr(producer.v4, "render", fake_render)
+    monkeypatch.setattr(producer.v4, "contact", lambda _rendered, path, _labels: path.write_bytes(b"fake"))
+    monkeypatch.setattr(producer.v4, "critic", lambda _direction, _comparison: {"selected_pages": []})
+    monkeypatch.setattr(producer.v4, "compare", lambda _rendered: job_root / "comparison.png")
+    producer.produce(input_md, job_root, scene_dir, tmp_path / "visual root", manifest_path, 26)
+    assert json.loads(manifest_path.read_text(encoding="utf-8"))["scene_graph_dir"] == "generated_scene_graph"
+    assert (scene_dir / "page_01_G.json").is_file()
+
+    calibration = producer.v4; calibration.OUT = job_root
+    raw = job_root / "raw" / "cross-root.json"
+    monkeypatch.setattr(calibration.PAD, "ask", lambda *_a, **_k: ("{}", {"elapsed_seconds": 0, "ttft_seconds": 0}))
+    calibration.ask_json(call_id="fake", system="x", content=[], raw_file=raw)
+    assert json.loads((job_root / "ark_calls.json").read_text(encoding="utf-8"))[0]["response_path"] == str(Path("raw") / "cross-root.json")
+
+    (job_root / "scene_graphs").mkdir(exist_ok=True)
+    (job_root / "scene_graphs" / "page_01_G.json").write_text('{"elements": []}', encoding="utf-8")
+    monkeypatch.setattr(calibration, "PICK", (1,)); monkeypatch.setattr(calibration, "NAMES", {1: "G"})
+    monkeypatch.setattr(calibration.PAD, "validate", lambda *_a, **_k: {})
+    calibration.report({}, {1: {"elements": []}}, {}, [job_root / "pages" / "slide1.png"])
+    report = json.loads((job_root / "visual_calibration_v4_report.json").read_text(encoding="utf-8"))
+    assert report["scenes"] == {"1": str(Path("scene_graphs") / "page_01_G.json")}
+    assert report["rendered_pages"] == [str(Path("pages") / "slide1.png")]
 
 def test_live_producer_uses_inherited_env_when_its_project_env_file_is_absent(tmp_path, monkeypatch):
     import scripts.run_ppt_pure_art_director as director

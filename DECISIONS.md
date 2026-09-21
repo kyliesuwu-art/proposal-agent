@@ -6,6 +6,12 @@ Decision: The WeCom bot keeps PPT generation offline by default. A live PPT run 
 
 Impact: A historical experiment Scene Graph cannot be reused to claim a live ArtifactJob. The V4 request wrapper consumes its call budget before each Ark request, including critic and revision calls. The production producer also requires an explicit, read-only visual-reference root; it validates the approved logo and reference sheets before its first Ark request, rather than discovering a historical task directory implicitly.
 
+## 2026-09 — PPT runtime artifacts are portable within a job root
+
+Decision: V4 Ark-call records, V4 visual-calibration reports, and the producer manifest serialize generated artifact locations relative to their active ArtifactJob output root. They do not encode the repository root or absolute machine paths.
+
+Impact: A guarded producer can run from a separate worktree against a task rooted elsewhere, and its persisted records remain relocatable while retaining paths needed by the job consumer.
+
 此处只记录长期架构或产品决策：即系统重构或长期工作方向调整时，仍需理解其取舍原因的选择。
 
 不要记录日常进度、普通实现细节、测试运行结果、临时 API/网络故障、当前阻塞或下一步行动。这些信息应保留在 Git 历史、提交信息、输出报告或当前工作会话中。
