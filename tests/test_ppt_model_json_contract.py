@@ -63,7 +63,7 @@ def test_two_invalid_responses_fail_with_stage_attempt_and_location(monkeypatch,
     calls: list[tuple] = []
     monkeypatch.setattr(v4.PAD, "ask", fake_ask(['{"ok": true "x": 1}', '{"ok": true "x": 2}'], calls))
     v4.configure_model_call_budget(2)
-    with pytest.raises(v4.ModelJsonContractError, match="global failed after 2 JSON attempts") as exc_info:
+    with pytest.raises(v4.ModelJsonContractError, match="global failed after 2 HTTP attempts") as exc_info:
         v4.ask_json(call_id="global", system="x", content=[], raw_file=tmp_path / "global_raw.json")
     assert exc_info.value.line == 1 and exc_info.value.column
     assert len(calls) == 2 and len(json.loads((tmp_path / "ark_calls.json").read_text(encoding="utf-8"))) == 2
@@ -86,7 +86,8 @@ def test_budget_rejects_retry_before_second_network_call(monkeypatch, tmp_path):
     with pytest.raises(RuntimeError, match="budget exhausted"):
         v4.ask_json(call_id="global", system="x", content=[], raw_file=tmp_path / "global_raw.json")
     assert len(calls) == 1 and v4.MODEL_CALL_BUDGET.used == 1
-    assert len(json.loads((tmp_path / "ark_calls.json").read_text(encoding="utf-8"))) == 1
+    records = json.loads((tmp_path / "ark_calls.json").read_text(encoding="utf-8"))
+    assert len(records) == 2 and records[1]["network_request_started"] is False
 
 
 def test_unique_top_level_object_extraction_is_string_aware():

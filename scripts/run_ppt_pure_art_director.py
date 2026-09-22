@@ -64,13 +64,18 @@ def read_env() -> dict[str, str]:
 
 
 def ask(messages: list[dict], purpose: str, *, max_tokens: int = 12000) -> tuple[str, dict]:
-    """Make one required streaming Seed call without logging credentials."""
+    """Make one complete JSON request without logging credentials.
+
+    Every PPT consumer waits for a complete JSON object before it can proceed.
+    A non-stream response removes an unnecessary SSE read boundary without
+    changing the model, prompt, timeout, or JSON-object contract.
+    """
     cfg = read_env()
     base = cfg.get("ARK_BASE_URL", "https://ark.cn-beijing.volces.com").removesuffix("/api/v3")
     payload = {
         "model": MODEL,
         "thinking": {"type": "enabled"},
-        "stream": True,
+        "stream": False,
         "max_tokens": max_tokens,
         "response_format": {"type": "json_object"},
         "messages": messages,
@@ -82,40 +87,24 @@ def ask(messages: list[dict], purpose: str, *, max_tokens: int = 12000) -> tuple
         method="POST",
     )
     started = time.perf_counter()
-    first = None
-    parts: list[str] = []
-    events = 0
     with urllib.request.urlopen(request, timeout=360) as response:
-        for raw in response:
-            line = raw.decode("utf-8", "replace").strip()
-            if not line.startswith("data:"):
-                continue
-            data = line[5:].strip()
-            if data == "[DONE]":
-                break
-            try:
-                choice = (json.loads(data).get("choices") or [{}])[0]
-                delta = (choice.get("delta") or {}).get("content", "")
-            except (IndexError, json.JSONDecodeError):
-                continue
-            events += 1
-            if isinstance(delta, list):
-                delta = "".join(x.get("text", "") for x in delta if isinstance(x, dict))
-            if delta:
-                first = first or time.perf_counter()
-                parts.append(str(delta))
-    result = "".join(parts).strip()
+        body = json.loads(response.read().decode("utf-8"))
+        choice = (body.get("choices") or [{}])[0]
+        result = (choice.get("message") or {}).get("content", "")
+    if isinstance(result, list):
+        result = "".join(item.get("text", "") for item in result if isinstance(item, dict))
+    result = str(result).strip()
     if not result:
         raise RuntimeError(f"{purpose}: model returned no final content")
     return result, {
         "purpose": purpose,
         "model": MODEL,
         "thinking": "enabled",
-        "stream": True,
+        "stream": False,
         "timeout_seconds": 360,
         "elapsed_seconds": round(time.perf_counter() - started, 1),
-        "ttft_seconds": round(first - started, 1) if first else None,
-        "sse_events": events,
+        "ttft_seconds": None,
+        "sse_events": 0,
     }
 
 

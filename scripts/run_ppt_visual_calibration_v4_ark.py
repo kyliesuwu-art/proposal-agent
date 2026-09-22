@@ -8,13 +8,17 @@ from __future__ import annotations
 
 import base64
 import argparse
+import http.client
 import importlib.util
 import json
+import os
 import re
+import socket
 import shutil
 import subprocess
 import sys
 import time
+import urllib.error
 from copy import deepcopy
 from pathlib import Path
 from typing import Callable
@@ -62,6 +66,14 @@ class ModelJsonContractError(ValueError):
     def __init__(self, message: str, *, line: int | None = None, column: int | None = None) -> None:
         super().__init__(message)
         self.line, self.column = line, column
+
+
+class ModelTransportError(RuntimeError):
+    """A model HTTP attempt failed before a complete response was available."""
+
+    def __init__(self, message: str, *, retryable: bool) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 def configure_model_call_budget(maximum: int | None) -> None:
@@ -137,8 +149,47 @@ def context_for(page: int) -> dict:
 
 def record_call(item: dict) -> None:
     path = OUT / "ark_calls.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
     calls = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []
     calls.append(item); path.write_text(json.dumps(calls, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _redact_error_message(error: BaseException) -> str:
+    """Keep telemetry useful without retaining credentials or signed URLs."""
+    message = str(error)
+    for name in ("ARK_API_KEY", "DASHSCOPE_API_KEY", "AIBOT_SECRET"):
+        value = os.environ.get(name)
+        if value:
+            message = message.replace(value, "[REDACTED]")
+    message = re.sub(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s]+", r"\1[REDACTED]", message)
+    return re.sub(r"(https?://[^\s?]+)\?[^\s]+", r"\1?[REDACTED]", message)
+
+
+def is_retryable_transport_error(error: BaseException) -> bool:
+    """Classify only transient transport/status failures used by this client."""
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code in {408, 429} or 500 <= error.code <= 599
+    if isinstance(error, (http.client.IncompleteRead, ConnectionResetError, ConnectionAbortedError,
+                          BrokenPipeError, TimeoutError, socket.timeout)):
+        return True
+    if isinstance(error, urllib.error.URLError):
+        return isinstance(error.reason, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError,
+                                         TimeoutError, socket.timeout, OSError))
+    try:
+        import httpx  # type: ignore
+        if isinstance(error, (httpx.ReadError, httpx.ReadTimeout, httpx.RemoteProtocolError)):
+            return True
+    except ImportError:
+        pass
+    try:
+        import openai  # type: ignore
+        if isinstance(error, (openai.APIConnectionError, openai.APITimeoutError)):
+            return True
+        if isinstance(error, openai.APIStatusError):
+            return error.status_code in {408, 429} or 500 <= error.status_code <= 599
+    except ImportError:
+        pass
+    return False
 
 
 def _unique_top_level_object(payload: str) -> str:
@@ -222,38 +273,101 @@ def _attempt_raw_file(raw_file: Path, attempt: int) -> Path:
     return raw_file.with_name(f"{stem}_attempt_{attempt:02}_raw{raw_file.suffix}")
 
 
-def _retry_system_prompt(system: str, error: ModelJsonContractError) -> str:
-    location = f" at line {error.line}, column {error.column}" if error.line else ""
-    return system + "\nYour previous response was not valid JSON" + location + ". Return only one complete JSON object with all required fields and no markdown, commentary, or code fence."
+def _retry_system_prompt(system: str, error: BaseException) -> str:
+    if isinstance(error, ModelJsonContractError):
+        location = f" at line {error.line}, column {error.column}" if error.line else ""
+        return system + "\nYour previous response was not valid JSON" + location + ". Return only one complete JSON object with all required fields and no markdown, commentary, or code fence."
+    return system + "\nThe previous request ended before a complete response was received. Return only one complete JSON object with all required fields and no markdown, commentary, or code fence."
+
+
+def _attempt_record(*, call_id: str, attempt: int, started: float, meta: dict, content: list[dict],
+                    network_request_started: bool, http_success: bool, response_complete: bool,
+                    parse_success: bool, schema_success: bool, success: bool, retryable: bool,
+                    error: BaseException | None, response_path: Path | None) -> dict:
+    return {
+        "stage": call_id,
+        "logical_call_id": call_id,
+        "call_id": call_id,
+        "attempt": attempt,
+        **meta,
+        "started_at": started,
+        "finished_at": time.time(),
+        "duration_seconds": round(time.time() - started, 3),
+        "input_image_count": sum(1 for item in content if item.get("type") == "image_url"),
+        "network_request_started": network_request_started,
+        "http_success": http_success,
+        "response_complete": response_complete,
+        "raw_response_complete": response_complete,
+        "parse_success": parse_success,
+        "schema_success": schema_success,
+        "success": success,
+        "retryable": retryable,
+        "response_path": str(response_path.resolve().relative_to(OUT.resolve())) if response_path else None,
+        "error_type": type(error).__name__ if error else None,
+        "error_message": _redact_error_message(error) if error else None,
+        "error": _redact_error_message(error) if error else None,
+        "json_line": error.line if isinstance(error, ModelJsonContractError) else None,
+        "json_column": error.column if isinstance(error, ModelJsonContractError) else None,
+        "budget_used": MODEL_CALL_BUDGET.used if MODEL_CALL_BUDGET else None,
+        "budget_limit": MODEL_CALL_BUDGET.maximum if MODEL_CALL_BUDGET else None,
+    }
 
 
 def ask_json(*, call_id: str, system: str, content: list[dict], raw_file: Path, max_tokens: int = 12000,
-             validator: Callable[[dict], None] | None = None) -> tuple[dict, dict]:
-    """Perform at most two budgeted calls for one JSON-producing stage."""
-    last_error: ModelJsonContractError | None = None
+             validator: Callable[[dict], None] | None = None, retry_delay_seconds: float = 2.0,
+             sleep_fn: Callable[[float], None] = time.sleep) -> tuple[dict, dict]:
+    """Perform at most two total budgeted HTTP attempts for one JSON stage."""
+    last_error: BaseException | None = None
     for attempt in (1, 2):
-        if MODEL_CALL_BUDGET is not None:
-            MODEL_CALL_BUDGET.consume(call_id)
-        started = time.time(); say(f"Ark {call_id} attempt {attempt} request started")
-        active_system = system if last_error is None else _retry_system_prompt(system, last_error)
-        raw, meta = PAD.ask([{"role": "system", "content": active_system}, {"role": "user", "content": content}], call_id, max_tokens=max_tokens)
-        path = _attempt_raw_file(raw_file, attempt); path.parent.mkdir(parents=True, exist_ok=True); path.write_text(raw, encoding="utf-8")
-        finished = time.time()
-        parse_success = False
+        started = time.time()
+        meta: dict = {"purpose": call_id}
+        network_request_started = http_success = response_complete = parse_success = schema_success = False
+        response_path: Path | None = None
+        error: BaseException | None = None
+        retryable = False
         try:
+            if MODEL_CALL_BUDGET is not None:
+                MODEL_CALL_BUDGET.consume(call_id)
+            network_request_started = True
+            say(f"Ark {call_id} attempt {attempt} request started")
+            active_system = system if last_error is None else _retry_system_prompt(system, last_error)
+            raw, meta = PAD.ask([{"role": "system", "content": active_system}, {"role": "user", "content": content}], call_id, max_tokens=max_tokens)
+            http_success = response_complete = True
+            response_path = _attempt_raw_file(raw_file, attempt)
+            response_path.parent.mkdir(parents=True, exist_ok=True)
+            response_path.write_text(raw, encoding="utf-8")
             parsed = parse_model_json(raw)
             parse_success = True
             if validator:
                 validator(parsed)
+            schema_success = True
         except ModelJsonContractError as exc:
-            last_error = exc
-            record_call({"stage": call_id, "call_id": call_id, "attempt": attempt, **meta, "started_at": started, "finished_at": finished, "duration_seconds": round(finished - started, 3), "success": False, "parse_success": parse_success, "input_image_count": sum(1 for x in content if x.get("type") == "image_url"), "response_path": str(path.resolve().relative_to(OUT.resolve())), "error_type": type(exc).__name__, "error": str(exc), "json_line": exc.line, "json_column": exc.column, "budget_used": MODEL_CALL_BUDGET.used if MODEL_CALL_BUDGET else None, "budget_limit": MODEL_CALL_BUDGET.maximum if MODEL_CALL_BUDGET else None})
-            if attempt == 2:
-                raise ModelJsonContractError(f"{call_id} failed after 2 JSON attempts: {exc}", line=exc.line, column=exc.column) from exc
-            continue
-        record_call({"stage": call_id, "call_id": call_id, "attempt": attempt, **meta, "started_at": started, "finished_at": finished, "duration_seconds": round(finished - started, 3), "success": True, "parse_success": True, "input_image_count": sum(1 for x in content if x.get("type") == "image_url"), "response_path": str(path.resolve().relative_to(OUT.resolve())), "error_type": None, "json_line": None, "json_column": None, "budget_used": MODEL_CALL_BUDGET.used if MODEL_CALL_BUDGET else None, "budget_limit": MODEL_CALL_BUDGET.maximum if MODEL_CALL_BUDGET else None})
-        say(f"Ark {call_id} attempt {attempt} saved ({meta['elapsed_seconds']}s; ttft={meta['ttft_seconds']}s)")
-        return parsed, meta
+            error = exc
+            retryable = True
+        except Exception as exc:
+            error = exc
+            retryable = is_retryable_transport_error(exc)
+        else:
+            record_call(_attempt_record(call_id=call_id, attempt=attempt, started=started, meta=meta, content=content,
+                                        network_request_started=network_request_started, http_success=http_success,
+                                        response_complete=response_complete, parse_success=parse_success,
+                                        schema_success=schema_success, success=True, retryable=False, error=None,
+                                        response_path=response_path))
+            say(f"Ark {call_id} attempt {attempt} saved ({meta.get('elapsed_seconds')}s; ttft={meta.get('ttft_seconds')}s)")
+            return parsed, meta
+
+        record_call(_attempt_record(call_id=call_id, attempt=attempt, started=started, meta=meta, content=content,
+                                    network_request_started=network_request_started, http_success=http_success,
+                                    response_complete=response_complete, parse_success=parse_success,
+                                    schema_success=schema_success, success=False, retryable=retryable, error=error,
+                                    response_path=response_path))
+        if not retryable or attempt == 2:
+            if isinstance(error, ModelJsonContractError):
+                raise ModelJsonContractError(f"{call_id} failed after {attempt} HTTP attempts: {error}", line=error.line, column=error.column) from error
+            raise ModelTransportError(f"{call_id} transport failure after {attempt} HTTP attempts: {type(error).__name__}: {_redact_error_message(error)}", retryable=retryable) from error
+        last_error = error
+        if retry_delay_seconds:
+            sleep_fn(retry_delay_seconds)
     raise AssertionError("unreachable")
 
 def art_direction() -> dict:
@@ -292,10 +406,12 @@ def page_request(page: int, direction: dict, *, revision: bool = False) -> dict:
     system = "You are a senior enterprise presentation art director. You can see the attached actual images. Return ONLY one JSON object Scene Graph, with background and elements. Do not explain your work. Avoid card-grid/UI conventions; every line, arrow, color block, or image crop must carry information or hierarchy."
     folder = OUT / ("revisions" if revision else "raw")
     raw = folder / f"page_{page:02}_{NAMES[page]}_{'revision_' if revision else ''}raw.json"
-    value, _ = ask_json(call_id=f"page_{page:02}_{'revision' if revision else 'design'}", system=system, content=content, raw_file=raw)
-    validation = PAD.validate(value, set(ctx["allowed_assets"]))
-    if validation["hard_errors"] or validation["preclamp_out_of_bounds"]:
-        raise RuntimeError(f"page {page:02} invalid Ark scene: {validation}")
+    def validate_scene_graph(value: dict) -> None:
+        validation = PAD.validate(value, set(ctx["allowed_assets"]))
+        if validation["hard_errors"] or validation["preclamp_out_of_bounds"]:
+            raise ModelJsonContractError(f"page {page:02} invalid Ark scene: {validation}")
+
+    value, _ = ask_json(call_id=f"page_{page:02}_{'revision' if revision else 'design'}", system=system, content=content, raw_file=raw, validator=validate_scene_graph)
     scene_path.parent.mkdir(parents=True, exist_ok=True); scene_path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
     return value
 
