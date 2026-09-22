@@ -17,6 +17,7 @@ import sys
 import time
 from copy import deepcopy
 from pathlib import Path
+from typing import Callable
 
 from PIL import Image, ImageDraw
 from pptx import Presentation
@@ -53,6 +54,14 @@ class ModelCallBudget:
 
 
 MODEL_CALL_BUDGET: ModelCallBudget | None = None
+
+
+class ModelJsonContractError(ValueError):
+    """A model response could not satisfy the JSON output contract."""
+
+    def __init__(self, message: str, *, line: int | None = None, column: int | None = None) -> None:
+        super().__init__(message)
+        self.line, self.column = line, column
 
 
 def configure_model_call_budget(maximum: int | None) -> None:
@@ -132,22 +141,120 @@ def record_call(item: dict) -> None:
     calls.append(item); path.write_text(json.dumps(calls, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def ask_json(*, call_id: str, system: str, content: list[dict], raw_file: Path, max_tokens: int = 12000) -> tuple[dict, dict]:
-    """Perform one streaming Ark call and persist its unmodified answer first."""
-    if MODEL_CALL_BUDGET is not None:
-        MODEL_CALL_BUDGET.consume(call_id)
-    started = time.time(); say(f"Ark {call_id} request started")
-    raw, meta = PAD.ask([{"role": "system", "content": system}, {"role": "user", "content": content}], call_id, max_tokens=max_tokens)
-    raw_file.parent.mkdir(parents=True, exist_ok=True); raw_file.write_text(raw, encoding="utf-8")
-    try:
-        parsed = PAD.as_json(raw)
-    except Exception as exc:
-        record_call({"call_id": call_id, **meta, "started_at": started, "status": "PARSE_FAILED", "input_image_count": sum(1 for x in content if x.get("type") == "image_url"), "response_path": str(raw_file.resolve().relative_to(OUT.resolve())), "error": type(exc).__name__})
-        raise
-    record_call({"call_id": call_id, **meta, "started_at": started, "status": "OK", "input_image_count": sum(1 for x in content if x.get("type") == "image_url"), "response_path": str(raw_file.resolve().relative_to(OUT.resolve()))})
-    say(f"Ark {call_id} saved ({meta['elapsed_seconds']}s; ttft={meta['ttft_seconds']}s)")
-    return parsed, meta
+def _unique_top_level_object(payload: str) -> str:
+    """Return one balanced object without rewriting any model-provided text."""
+    depth = 0
+    in_string = False
+    escaped = False
+    found: tuple[int, int] | None = None
+    for index, char in enumerate(payload):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            if depth == 0:
+                if found is not None:
+                    raise ModelJsonContractError("model response contains multiple top-level JSON objects")
+                start = index
+            depth += 1
+        elif char == "}" and depth:
+            depth -= 1
+            if depth == 0:
+                found = (start, index + 1)
+    if found is None or depth or in_string:
+        return payload
+    return payload[found[0]:found[1]]
 
+
+def parse_model_json(raw: str) -> dict:
+    """Apply only lossless JSON transport normalization and parse one object."""
+    payload = raw.removeprefix("\ufeff").strip()
+    lines = payload.splitlines()
+    fence_lines = [index for index, line in enumerate(lines) if line.strip().startswith("```")]
+    if fence_lines:
+        if len(fence_lines) != 2 or fence_lines[0] != 0 or fence_lines[1] != len(lines) - 1:
+            raise ModelJsonContractError("model response contains an ambiguous code fence")
+        opener, closer = lines[0].strip().lower(), lines[-1].strip()
+        if opener not in {"```", "```json"} or closer != "```":
+            raise ModelJsonContractError("model response contains an unsupported code fence")
+        payload = "\n".join(lines[1:-1]).strip()
+    payload = _unique_top_level_object(payload)
+    try:
+        value = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise ModelJsonContractError(f"invalid model JSON at line {exc.lineno}, column {exc.colno}: {exc.msg}", line=exc.lineno, column=exc.colno) from exc
+    if not isinstance(value, dict):
+        raise ModelJsonContractError("model JSON root is not an object")
+    return value
+
+
+GLOBAL_ART_DIRECTION_FIELDS = (
+    "design_intent", "visual_personality", "color_system", "typography_hierarchy",
+    "spacing_rhythm", "image_treatment", "diagram_language", "brand_motif",
+    "page_families", "density_strategy", "do_not_use", "page_directions",
+)
+
+
+def validate_global_art_direction(value: dict) -> None:
+    """Validate the explicitly prompted Global Art Direction contract."""
+    missing = [field for field in GLOBAL_ART_DIRECTION_FIELDS if field not in value]
+    if missing:
+        raise ModelJsonContractError("global art direction missing required fields: " + ", ".join(missing))
+    text_fields = {"design_intent", "visual_personality", "typography_hierarchy", "spacing_rhythm", "image_treatment", "diagram_language", "brand_motif", "density_strategy"}
+    invalid_text = sorted(field for field in text_fields if not isinstance(value[field], str) or not value[field].strip())
+    if invalid_text:
+        raise ModelJsonContractError("global art direction requires non-empty text fields: " + ", ".join(invalid_text))
+    invalid_objects = sorted(field for field in {"color_system", "page_families", "page_directions"} if not isinstance(value[field], dict) or not value[field])
+    if invalid_objects:
+        raise ModelJsonContractError("global art direction requires non-empty object fields: " + ", ".join(invalid_objects))
+    if not isinstance(value["do_not_use"], list) or not value["do_not_use"] or not all(isinstance(item, str) and item.strip() for item in value["do_not_use"]):
+        raise ModelJsonContractError("global art direction requires a non-empty do_not_use string list")
+
+def _attempt_raw_file(raw_file: Path, attempt: int) -> Path:
+    stem = raw_file.stem.removesuffix("_raw")
+    return raw_file.with_name(f"{stem}_attempt_{attempt:02}_raw{raw_file.suffix}")
+
+
+def _retry_system_prompt(system: str, error: ModelJsonContractError) -> str:
+    location = f" at line {error.line}, column {error.column}" if error.line else ""
+    return system + "\nYour previous response was not valid JSON" + location + ". Return only one complete JSON object with all required fields and no markdown, commentary, or code fence."
+
+
+def ask_json(*, call_id: str, system: str, content: list[dict], raw_file: Path, max_tokens: int = 12000,
+             validator: Callable[[dict], None] | None = None) -> tuple[dict, dict]:
+    """Perform at most two budgeted calls for one JSON-producing stage."""
+    last_error: ModelJsonContractError | None = None
+    for attempt in (1, 2):
+        if MODEL_CALL_BUDGET is not None:
+            MODEL_CALL_BUDGET.consume(call_id)
+        started = time.time(); say(f"Ark {call_id} attempt {attempt} request started")
+        active_system = system if last_error is None else _retry_system_prompt(system, last_error)
+        raw, meta = PAD.ask([{"role": "system", "content": active_system}, {"role": "user", "content": content}], call_id, max_tokens=max_tokens)
+        path = _attempt_raw_file(raw_file, attempt); path.parent.mkdir(parents=True, exist_ok=True); path.write_text(raw, encoding="utf-8")
+        finished = time.time()
+        parse_success = False
+        try:
+            parsed = parse_model_json(raw)
+            parse_success = True
+            if validator:
+                validator(parsed)
+        except ModelJsonContractError as exc:
+            last_error = exc
+            record_call({"stage": call_id, "call_id": call_id, "attempt": attempt, **meta, "started_at": started, "finished_at": finished, "duration_seconds": round(finished - started, 3), "success": False, "parse_success": parse_success, "input_image_count": sum(1 for x in content if x.get("type") == "image_url"), "response_path": str(path.resolve().relative_to(OUT.resolve())), "error_type": type(exc).__name__, "error": str(exc), "json_line": exc.line, "json_column": exc.column, "budget_used": MODEL_CALL_BUDGET.used if MODEL_CALL_BUDGET else None, "budget_limit": MODEL_CALL_BUDGET.maximum if MODEL_CALL_BUDGET else None})
+            if attempt == 2:
+                raise ModelJsonContractError(f"{call_id} failed after 2 JSON attempts: {exc}", line=exc.line, column=exc.column) from exc
+            continue
+        record_call({"stage": call_id, "call_id": call_id, "attempt": attempt, **meta, "started_at": started, "finished_at": finished, "duration_seconds": round(finished - started, 3), "success": True, "parse_success": True, "input_image_count": sum(1 for x in content if x.get("type") == "image_url"), "response_path": str(path.resolve().relative_to(OUT.resolve())), "error_type": None, "json_line": None, "json_column": None, "budget_used": MODEL_CALL_BUDGET.used if MODEL_CALL_BUDGET else None, "budget_limit": MODEL_CALL_BUDGET.maximum if MODEL_CALL_BUDGET else None})
+        say(f"Ark {call_id} attempt {attempt} saved ({meta['elapsed_seconds']}s; ttft={meta['ttft_seconds']}s)")
+        return parsed, meta
+    raise AssertionError("unreachable")
 
 def art_direction() -> dict:
     target = OUT / "global_art_direction.json"
@@ -159,12 +266,9 @@ def art_direction() -> dict:
     for label, sheet in zip(labels, REFERENCE_SHEETS): content.extend(image_part(sheet, label))
     content.extend(image_part(BASE / "contact_sheet.png", "Current complete V2 contact sheet"))
     content.extend(image_part(V3 / "contact_sheet.png", "Local V3 eight-page calibration contact sheet"))
-    content.append({"type": "text", "text": json.dumps({"target_pages": [context_for(x) for x in PICK], "strict": ["Use mature corporate proposal design, not web UI", "Avoid repeated rounded-card grids, pill labels, meaningless diagonal or crossing lines", "Make diagrams communicate relationships", "Keep all text editable and preserve facts/boundaries", "Use one official logo and renderer-owned footer only"], "required_keys": ["design_intent", "visual_personality", "color_system", "typography_hierarchy", "spacing_rhythm", "image_treatment", "diagram_language", "brand_motif", "page_families", "density_strategy", "do_not_use", "page_directions"]}, ensure_ascii=False)})
+    content.append({"type": "text", "text": json.dumps({"target_pages": [context_for(x) for x in PICK], "strict": ["Use mature corporate proposal design, not web UI", "Avoid repeated rounded-card grids, pill labels, meaningless diagonal or crossing lines", "Make diagrams communicate relationships", "Keep all text editable and preserve facts/boundaries", "Use one official logo and renderer-owned footer only"], "required_keys": ["design_intent", "visual_personality", "color_system", "typography_hierarchy", "spacing_rhythm", "image_treatment", "diagram_language", "brand_motif", "page_families", "density_strategy", "do_not_use", "page_directions"], "field_contract": {"design_intent": "non-empty string", "visual_personality": "non-empty string", "color_system": "non-empty object", "typography_hierarchy": "non-empty string", "spacing_rhythm": "non-empty string", "image_treatment": "non-empty string", "diagram_language": "non-empty string", "brand_motif": "non-empty string", "page_families": "non-empty object", "density_strategy": "non-empty string", "do_not_use": "non-empty array of strings", "page_directions": "non-empty object"}}, ensure_ascii=False)})
     system = "Return only a valid JSON object. You are judging actual attached images. Do not output a slide Scene Graph in this call; output the requested Global Art Direction object with concise, actionable page directions for pages 1,2,3,5,6,14,19,20."
-    value, _ = ask_json(call_id="global_art_direction", system=system, content=content, raw_file=OUT / "global_art_direction_raw.json", max_tokens=7000)
-    required = {"design_intent", "visual_personality", "color_system", "typography_hierarchy", "spacing_rhythm", "image_treatment", "diagram_language", "brand_motif", "page_families", "density_strategy", "do_not_use", "page_directions"}
-    missing = sorted(required - set(value))
-    if missing: raise RuntimeError("global art direction missing keys: " + ", ".join(missing))
+    value, _ = ask_json(call_id="global_art_direction", system=system, content=content, raw_file=OUT / "global_art_direction_raw.json", max_tokens=7000, validator=validate_global_art_direction)
     target.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
     return value
 

@@ -12,6 +12,13 @@ Decision: V4 Ark-call records, V4 visual-calibration reports, and the producer m
 
 Impact: A guarded producer can run from a separate worktree against a task rooted elsewhere, and its persisted records remain relocatable while retaining paths needed by the job consumer.
 
+## 2026-09 — PPT model JSON responses are bounded, lossless contracts
+
+Decision: Every V4 model JSON stage accepts only lossless transport normalization (BOM/whitespace, one complete JSON fence, or one string-aware top-level object), validates its declared schema, and may issue at most one new budgeted request after a parse or schema failure. Each response is persisted under a distinct attempt filename with structured, job-relative call evidence.
+
+Impact: The producer never silently repairs model facts or syntax. A malformed response remains diagnosable, retry consumption remains within the single producer-wide call budget, and invalid Global Art Direction cannot reach page generation.
+
+
 此处只记录长期架构或产品决策：即系统重构或长期工作方向调整时，仍需理解其取舍原因的选择。
 
 不要记录日常进度、普通实现细节、测试运行结果、临时 API/网络故障、当前阻塞或下一步行动。这些信息应保留在 Git 历史、提交信息、输出报告或当前工作会话中。

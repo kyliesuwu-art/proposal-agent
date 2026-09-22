@@ -240,7 +240,7 @@ def test_v4_fake_producer_serializes_runtime_paths_relative_to_cross_root_job(tm
     raw = job_root / "raw" / "cross-root.json"
     monkeypatch.setattr(calibration.PAD, "ask", lambda *_a, **_k: ("{}", {"elapsed_seconds": 0, "ttft_seconds": 0}))
     calibration.ask_json(call_id="fake", system="x", content=[], raw_file=raw)
-    assert json.loads((job_root / "ark_calls.json").read_text(encoding="utf-8"))[0]["response_path"] == str(Path("raw") / "cross-root.json")
+    assert json.loads((job_root / "ark_calls.json").read_text(encoding="utf-8"))[0]["response_path"] == str(Path("raw") / "cross-root_attempt_01_raw.json")
 
     (job_root / "scene_graphs").mkdir(exist_ok=True)
     (job_root / "scene_graphs" / "page_01_G.json").write_text('{"elements": []}', encoding="utf-8")
