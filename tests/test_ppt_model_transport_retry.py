@@ -15,8 +15,48 @@ def fake_ask(outcomes, calls):
         outcome = outcomes.pop(0)
         if isinstance(outcome, BaseException):
             raise outcome
-        return outcome, {"purpose": purpose, "elapsed_seconds": 0, "ttft_seconds": None, "stream": False}
+        return outcome, {"purpose": purpose, "elapsed_seconds": 0, "ttft_seconds": None, "stream": True}
     return ask
+
+
+class FakeSseResponse:
+    def __init__(self, events):
+        self.events = events
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def __iter__(self):
+        for event in self.events:
+            if isinstance(event, BaseException):
+                raise event
+            yield event
+
+    def read(self):
+        raise AssertionError("streaming PAD.ask must not perform a complete response.read()")
+
+
+def sse_delta(text: str) -> bytes:
+    return ("data: " + json.dumps({"choices": [{"delta": {"content": text}}]}) + "\n").encode("utf-8")
+
+
+def sse_done() -> bytes:
+    return b"data: [DONE]\n"
+
+
+def install_fake_sse(monkeypatch, streams):
+    captured = []
+
+    def urlopen(request, timeout):
+        captured.append({"request": request, "timeout": timeout})
+        return FakeSseResponse(streams.pop(0))
+
+    monkeypatch.setattr(v4.PAD, "read_env", lambda: {"ARK_API_KEY": "fake", "ARK_BASE_URL": "https://example.invalid"})
+    monkeypatch.setattr(v4.PAD.urllib.request, "urlopen", urlopen)
+    return captured
 
 
 @pytest.fixture(autouse=True)
@@ -35,6 +75,80 @@ def incomplete(partial=b""):
     return http.client.IncompleteRead(partial, 1)
 
 
+def test_pad_ask_uses_streaming_sse_json_response(monkeypatch):
+    captured = install_fake_sse(monkeypatch, [[sse_delta('{"ok": '), sse_delta("true}"), sse_done()]])
+
+    raw, meta = v4.PAD.ask([], "fake")
+
+    payload = json.loads(captured[0]["request"].data.decode("utf-8"))
+    assert raw == '{"ok": true}'
+    assert payload["stream"] is True
+    assert payload["response_format"] == {"type": "json_object"}
+    assert captured[0]["timeout"] == 360
+    assert meta["stream"] is True and meta["stream_completed"] is True
+    assert meta["sse_events"] == 2
+    assert meta["first_chunk_at"] is not None
+    assert meta["first_chunk_latency_seconds"] is not None
+    assert meta["last_chunk_at"] is not None
+
+
+def test_streaming_partial_attempt_is_discarded_before_retry(monkeypatch, tmp_path):
+    captured = install_fake_sse(monkeypatch, [
+        [sse_delta('{"partial": '), incomplete(b'{"partial": ')],
+        [sse_delta('{"complete": true}'), sse_done()],
+    ])
+    v4.configure_model_call_budget(2)
+
+    value, meta = v4.ask_json(call_id="page_02_design", system="x", content=[], raw_file=tmp_path / "raw.json", retry_delay_seconds=0)
+
+    attempt_records = records(tmp_path)
+    assert value == {"complete": True}
+    assert len(captured) == 2 and v4.MODEL_CALL_BUDGET.used == 2
+    assert meta["stream"] is True and meta["stream_completed"] is True
+    assert not (tmp_path / "raw_attempt_01_raw.json").exists()
+    assert (tmp_path / "raw_attempt_02_raw.json").read_text(encoding="utf-8") == '{"complete": true}'
+    assert attempt_records[0]["stream_completed"] is False
+    assert attempt_records[0]["first_chunk_at"] is not None
+    assert attempt_records[0]["response_complete"] is False
+    assert attempt_records[1]["stream_completed"] is True
+    assert attempt_records[1]["response_complete"] is True
+
+
+def test_two_streaming_interruptions_stop_after_two_total_http_attempts(monkeypatch, tmp_path):
+    captured = install_fake_sse(monkeypatch, [
+        [sse_delta('{"partial": 1'), incomplete()],
+        [sse_delta('{"partial": 2'), incomplete()],
+    ])
+    v4.configure_model_call_budget(2)
+
+    with pytest.raises(v4.ModelTransportError, match="after 2 HTTP attempts"):
+        v4.ask_json(call_id="page", system="x", content=[], raw_file=tmp_path / "raw.json", retry_delay_seconds=0)
+
+    assert len(captured) == 2 and v4.MODEL_CALL_BUDGET.used == 2
+    assert len(records(tmp_path)) == 2
+    assert all(item["stream_completed"] is False for item in records(tmp_path))
+
+
+@pytest.mark.parametrize("streams, expected", [
+    (
+        [[sse_delta('{"partial": '), incomplete()], [sse_delta('{"ok": true "bad": 1}'), sse_done()]],
+        v4.ModelJsonContractError,
+    ),
+    (
+        [[sse_delta('{"ok": true "bad": 1}'), sse_done()], [sse_delta('{"partial": '), incomplete()]],
+        v4.ModelTransportError,
+    ),
+])
+def test_streaming_json_and_transport_failures_share_two_attempt_limit(monkeypatch, tmp_path, streams, expected):
+    captured = install_fake_sse(monkeypatch, streams)
+    v4.configure_model_call_budget(2)
+
+    with pytest.raises(expected):
+        v4.ask_json(call_id="page", system="x", content=[], raw_file=tmp_path / "raw.json", retry_delay_seconds=0)
+
+    assert len(captured) == 2 and v4.MODEL_CALL_BUDGET.used == 2
+    assert len(records(tmp_path)) == 2
+
 def test_transport_failure_then_valid_json_retries_once_and_records_every_attempt(monkeypatch, tmp_path):
     calls = []
     monkeypatch.setattr(v4.PAD, "ask", fake_ask([incomplete(), '{"ok": true}'], calls))
@@ -49,16 +163,6 @@ def test_transport_failure_then_valid_json_retries_once_and_records_every_attemp
     assert attempt_records[0]["response_path"] is None
     assert attempt_records[1]["success"] is True and attempt_records[1]["schema_success"] is True
     assert {"stage", "logical_call_id", "attempt", "started_at", "finished_at", "duration_seconds", "budget_used", "budget_limit", "network_request_started", "http_success", "response_complete", "parse_success", "schema_success", "success", "retryable", "error_type", "error_message", "response_path", "raw_response_complete"} <= set(attempt_records[0])
-
-
-def test_partial_transport_content_is_never_spliced_into_retry(monkeypatch, tmp_path):
-    calls = []
-    monkeypatch.setattr(v4.PAD, "ask", fake_ask([incomplete(b'{"partial":'), '{"complete": true}'], calls))
-    v4.configure_model_call_budget(2)
-    value, _ = v4.ask_json(call_id="page", system="x", content=[], raw_file=tmp_path / "raw.json", retry_delay_seconds=0)
-    assert value == {"complete": True}
-    assert not (tmp_path / "raw_attempt_01_raw.json").exists()
-    assert (tmp_path / "raw_attempt_02_raw.json").read_text(encoding="utf-8") == '{"complete": true}'
 
 
 def test_two_incomplete_reads_stop_after_two_total_http_attempts(monkeypatch, tmp_path):
@@ -122,23 +226,6 @@ def test_transport_error_messages_are_redacted(monkeypatch, tmp_path):
     assert "super-secret" not in message and "signature=secret" not in message
 
 
-def test_pad_ask_uses_non_stream_complete_json_response(monkeypatch):
-    captured = {}
-
-    class Response:
-        def __enter__(self):
-            return self
-        def __exit__(self, *_):
-            return False
-        def read(self):
-            return b'{"choices":[{"message":{"content":"{\\"ok\\": true}"}}]}'
-
-    monkeypatch.setattr(v4.PAD, "read_env", lambda: {"ARK_API_KEY": "fake", "ARK_BASE_URL": "https://example.invalid"})
-    monkeypatch.setattr(v4.PAD.urllib.request, "urlopen", lambda request, timeout: captured.update({"request": request, "timeout": timeout}) or Response())
-    raw, meta = v4.PAD.ask([], "fake")
-    payload = json.loads(captured["request"].data.decode("utf-8"))
-    assert raw == '{"ok": true}' and payload["stream"] is False and payload["response_format"] == {"type": "json_object"}
-    assert captured["timeout"] == 360 and meta["stream"] is False and meta["sse_events"] == 0
 @pytest.mark.parametrize("error", [
     ConnectionResetError(), ConnectionAbortedError(), BrokenPipeError(), TimeoutError(),
     urllib.error.URLError(TimeoutError()),

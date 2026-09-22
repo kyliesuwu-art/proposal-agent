@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import time
+import http.client
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -63,19 +64,27 @@ def read_env() -> dict[str, str]:
     return values
 
 
-def ask(messages: list[dict], purpose: str, *, max_tokens: int = 12000) -> tuple[str, dict]:
-    """Make one complete JSON request without logging credentials.
+class StreamInterruptedError(http.client.IncompleteRead):
+    """An SSE response ended before the terminal event, with safe timing data."""
 
-    Every PPT consumer waits for a complete JSON object before it can proceed.
-    A non-stream response removes an unnecessary SSE read boundary without
-    changing the model, prompt, timeout, or JSON-object contract.
+    def __init__(self, partial: bytes, expected: int, telemetry: dict) -> None:
+        super().__init__(partial, expected)
+        self.telemetry = telemetry
+
+
+def ask(messages: list[dict], purpose: str, *, max_tokens: int = 12000) -> tuple[str, dict]:
+    """Make one complete SSE JSON request without logging credentials.
+
+    The PPT model may think for longer than one complete-response read window.
+    Consumers still receive only a fully assembled response after the terminal
+    SSE event; interrupted attempt buffers are discarded by raising instead.
     """
     cfg = read_env()
     base = cfg.get("ARK_BASE_URL", "https://ark.cn-beijing.volces.com").removesuffix("/api/v3")
     payload = {
         "model": MODEL,
         "thinking": {"type": "enabled"},
-        "stream": False,
+        "stream": True,
         "max_tokens": max_tokens,
         "response_format": {"type": "json_object"},
         "messages": messages,
@@ -87,26 +96,60 @@ def ask(messages: list[dict], purpose: str, *, max_tokens: int = 12000) -> tuple
         method="POST",
     )
     started = time.perf_counter()
-    with urllib.request.urlopen(request, timeout=360) as response:
-        body = json.loads(response.read().decode("utf-8"))
-        choice = (body.get("choices") or [{}])[0]
-        result = (choice.get("message") or {}).get("content", "")
-    if isinstance(result, list):
-        result = "".join(item.get("text", "") for item in result if isinstance(item, dict))
-    result = str(result).strip()
+    first_chunk_at: float | None = None
+    last_chunk_at: float | None = None
+    events = 0
+    parts: list[str] = []
+    stream_completed = False
+
+    def telemetry() -> dict:
+        return {
+            "purpose": purpose,
+            "model": MODEL,
+            "thinking": "enabled",
+            "stream": True,
+            "timeout_seconds": 360,
+            "elapsed_seconds": round(time.perf_counter() - started, 1),
+            "first_chunk_at": first_chunk_at,
+            "first_chunk_latency_seconds": round(first_chunk_at - started, 1) if first_chunk_at else None,
+            "last_chunk_at": last_chunk_at,
+            "ttft_seconds": round(first_chunk_at - started, 1) if first_chunk_at else None,
+            "sse_events": events,
+            "stream_completed": stream_completed,
+        }
+
+    try:
+        with urllib.request.urlopen(request, timeout=360) as response:
+            for raw in response:
+                line = raw.decode("utf-8", "replace").strip()
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    stream_completed = True
+                    break
+                try:
+                    choice = (json.loads(data).get("choices") or [{}])[0]
+                    delta = (choice.get("delta") or {}).get("content", "")
+                except (IndexError, json.JSONDecodeError):
+                    continue
+                events += 1
+                if isinstance(delta, list):
+                    delta = "".join(item.get("text", "") for item in delta if isinstance(item, dict))
+                if delta:
+                    now = time.perf_counter()
+                    first_chunk_at = first_chunk_at or now
+                    last_chunk_at = now
+                    parts.append(str(delta))
+    except http.client.IncompleteRead as exc:
+        raise StreamInterruptedError(exc.partial, exc.expected, telemetry()) from exc
+
+    if not stream_completed:
+        raise StreamInterruptedError(b"", 1, telemetry())
+    result = "".join(parts).strip()
     if not result:
         raise RuntimeError(f"{purpose}: model returned no final content")
-    return result, {
-        "purpose": purpose,
-        "model": MODEL,
-        "thinking": "enabled",
-        "stream": False,
-        "timeout_seconds": 360,
-        "elapsed_seconds": round(time.perf_counter() - started, 1),
-        "ttft_seconds": None,
-        "sse_events": 0,
-    }
-
+    return result, telemetry()
 
 def as_json(raw: str) -> dict:
     fenced = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", raw, re.I)

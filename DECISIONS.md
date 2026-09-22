@@ -12,11 +12,11 @@ Decision: V4 Ark-call records, V4 visual-calibration reports, and the producer m
 
 Impact: A guarded producer can run from a separate worktree against a task rooted elsewhere, and its persisted records remain relocatable while retaining paths needed by the job consumer.
 
-## 2026-09 — PPT model attempts are complete-response, transport-bounded operations
+## 2026-09 — PPT model attempts are streaming, transport-bounded operations
 
-Decision: V4 PPT model stages request complete non-stream JSON responses because no caller consumes partial tokens. Each logical stage has at most two total budgeted HTTP attempts, shared by transient transport, JSON syntax, and schema failures. Every attempt writes redacted, job-relative telemetry even if the request fails while the HTTP body is read.
+Decision: V4 PPT model stages retain streaming JSON-object responses because this long-reasoning model can emit early SSE chunks while generation continues. Consumers receive content only after the terminal `[DONE]` event, then apply JSON syntax and schema validation. Each logical stage has at most two total budgeted HTTP attempts, shared by transient transport, JSON syntax, and schema failures. Every attempt writes redacted, job-relative telemetry even if the SSE body is interrupted.
 
-Impact: A partial response is never parsed or combined with a retry. Transient `IncompleteRead`, connection, timeout, 408, 429, and 5xx failures can consume the single remaining attempt; authentication, configuration, local validation, and budget failures stop immediately. The producer-wide 26-call budget remains enforced before every network request.
+Impact: A partial SSE response is never parsed or combined with a retry. Transient `IncompleteRead`, connection, timeout, 408, 429, and 5xx failures can consume the single remaining attempt; authentication, configuration, local validation, and budget failures stop immediately. The producer-wide 26-call budget remains enforced before every network request, while first/last chunk timings distinguish stream progress from a stalled request.
 ## 2026-09 — PPT model JSON responses are bounded, lossless contracts
 
 Decision: Every V4 model JSON stage accepts only lossless transport normalization (BOM/whitespace, one complete JSON fence, or one string-aware top-level object), validates its declared schema, and may issue at most one new budgeted request after a parse or schema failure. Each response is persisted under a distinct attempt filename with structured, job-relative call evidence.

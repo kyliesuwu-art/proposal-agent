@@ -346,6 +346,9 @@ def ask_json(*, call_id: str, system: str, content: list[dict], raw_file: Path, 
             retryable = True
         except Exception as exc:
             error = exc
+            telemetry = getattr(exc, "telemetry", None)
+            if isinstance(telemetry, dict):
+                meta = telemetry
             retryable = is_retryable_transport_error(exc)
         else:
             record_call(_attempt_record(call_id=call_id, attempt=attempt, started=started, meta=meta, content=content,
