@@ -144,3 +144,8 @@ Impact: A separate PPT integration worktree can safely consume an existing Task 
 Decision: In the production V4 Scene Graph, `id` remains a unique element name only. The only rendered image reference is `image_source`, which must exactly match a validated, task-relative source from the already-created `assets_manifest.json`. The page prompt receives the same validated asset records (asset ID, source and dimensions); attached reference decks are explicitly style-only and never become allowed content images.
 
 Impact: Diagnostics identify invalid `image_source` values without rejecting ordinary node names such as `screenshot`. The renderer interface and Scene Graph field names remain unchanged, while visual-reference paths, URLs, absolute paths and traversal values fail closed because they are absent from the manifest whitelist.
+## 2026-09 — Direct PPT producer scripts bootstrap their own worktree root
+
+Decision: `scripts/run_ppt_v4_ark_full20.py` derives its project root from `__file__` and inserts that root into its process-local `sys.path` before importing `src`. It remains independent of the caller cwd, `PYTHONPATH`, the original Core checkout and editable-install state.
+
+Impact: `ProductionPptRunner` can invoke the configured producer by absolute script path from an ArtifactJob subprocess without an import-stage failure. The bootstrap is limited to this direct entry point and does not mutate global environment or alter production command execution.

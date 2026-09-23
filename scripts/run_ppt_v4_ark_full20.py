@@ -7,10 +7,18 @@ import importlib.util
 import json
 import shutil
 import os
+import sys
 from pathlib import Path
+
+# This producer is launched by an absolute script path from a job subprocess.
+# Make its own worktree root importable before importing application modules.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from src.artifact_assets.bundle import build_validated_asset_set, load_manifest
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = PROJECT_ROOT
 CAL = ROOT / "outputs" / "ppt_pure_art_director" / "full15" / "visual_calibration_v4_ark"
 OUT = ROOT / "outputs" / "ppt_pure_art_director" / "full15" / "v4_ark_full20_mainline_candidate"
 APPROVED = ROOT / "outputs" / "wecom_v1_full_e2e_retry" / "20260917_retry" / "95f07bf23ea8" / "approved.md"
