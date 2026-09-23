@@ -122,7 +122,7 @@ class SQLiteTaskStore:
             self._connection.execute("""INSERT INTO wecom_artifact_jobs (job_id,task_id,artifact_type,status,source_md_path,source_md_sha256,output_dir,primary_artifact_path,preview_artifact_path,error_stage,error_message,created_at,updated_at,delivered_at,parent_job_id,resume_from_job_id,retryable,failure_code) VALUES
                 (:job_id, :task_id, :artifact_type, :status, :source_md_path, :source_md_sha256,
                  :output_dir, :primary_artifact_path, :preview_artifact_path, :error_stage,
-                 :error_message, :created_at, :updated_at, :delivered_at)""", job.payload())
+                 :error_message, :created_at, :updated_at, :delivered_at, :parent_job_id, :resume_from_job_id, :retryable, :failure_code)""", job.payload())
         return job
 
     def update_artifact_job(self, job: ArtifactJob) -> ArtifactJob:
