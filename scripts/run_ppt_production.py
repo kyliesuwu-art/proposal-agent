@@ -201,7 +201,7 @@ def _producer_argv(command_json: str, *, input_md: Path, task_root: Path, output
     return argv
 
 
-def generate_scene_graph(command_json: str, input_md: Path, task_root: Path, output_dir: Path, visual_reference_root: Path, model_max_calls: int) -> Path:
+def generate_scene_graph(command_json: str, input_md: Path, task_root: Path, output_dir: Path, visual_reference_root: Path, model_max_calls: int, *, resume_from_job_root: Path | None = None) -> Path:
     """Run the explicitly approved live Scene Graph producer.
 
     This seam deliberately does not know credentials or a model endpoint.  A
@@ -220,6 +220,9 @@ def generate_scene_graph(command_json: str, input_md: Path, task_root: Path, out
     scene_dir.mkdir(parents=True)
     started = datetime.now().timestamp()
     args = _producer_argv(command_json, input_md=input_md, task_root=task_root, output_dir=output_dir, scene_dir=scene_dir, visual_reference_root=visual_reference_root, model_max_calls=model_max_calls)
+    if resume_from_job_root:
+        if not resume_from_job_root.is_dir() or resume_from_job_root.is_symlink(): raise RuntimeError("resume source Job root is unsafe")
+        args.extend(("--resume-from-job-root", str(resume_from_job_root.resolve())))
     completed = subprocess.run(args, check=False, capture_output=True, text=True, shell=False)
     (output_dir / "model_scene_generator.stdout.log").write_text(completed.stdout or "", encoding="utf-8")
     (output_dir / "model_scene_generator.stderr.log").write_text(completed.stderr or "", encoding="utf-8")
@@ -238,7 +241,7 @@ def main() -> int:
     model_mode.add_argument("--enable-model", action="store_true", help="run the separately approved Scene Graph producer")
     parser.add_argument("--existing-scene-dir", type=Path); parser.add_argument("--model-scene-command-json"); parser.add_argument("--model-max-calls", type=int); parser.add_argument("--visual-reference-root", type=Path)
     parser.add_argument("--enable-visual-critic", action="store_true"); parser.add_argument("--max-revisions", type=int, default=0)
-    parser.add_argument("--task-id", default=""); parser.add_argument("--job-id", default="")
+    parser.add_argument("--task-id", default=""); parser.add_argument("--job-id", default=""); parser.add_argument("--resume-from-job-root", type=Path)
     args = parser.parse_args()
     if args.disable_model and not args.existing_scene_dir:
         raise RuntimeError("--existing-scene-dir is required for model-disabled production")
@@ -247,7 +250,7 @@ def main() -> int:
     before = hashlib.sha256(args.input_md.read_bytes()).hexdigest()
     manifest = build_manifest(args.input_md, args.task_root); args.output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = args.output_dir / "assets_manifest.json"; manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    scene_dir = args.existing_scene_dir or generate_scene_graph(args.model_scene_command_json, args.input_md, args.task_root, args.output_dir, args.visual_reference_root, args.model_max_calls)
+    scene_dir = args.existing_scene_dir or generate_scene_graph(args.model_scene_command_json, args.input_md, args.task_root, args.output_dir, args.visual_reference_root, args.model_max_calls, resume_from_job_root=args.resume_from_job_root)
     warnings, page_count = render(scene_dir, args.output_pptx, build_validated_asset_set(manifest, args.task_root), args.input_md.read_text(encoding="utf-8"), args.target_slides)
     report = evaluate(profile="client-delivery", markdown=str(args.input_md), pptx=str(args.output_pptx), expected_source_hash=before)
     write_report(report, args.output_dir / "artifact_evaluation")

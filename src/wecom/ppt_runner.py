@@ -85,7 +85,7 @@ class ProductionPptRunner:
                 text = text.replace(value, "[REDACTED]")
         return re.sub(r"(?im)(authorization\s*:\s*bearer\s+)[^\s]+", r"\1[REDACTED]", text)
 
-    def run(self, approved_md_path: Path, task_root: Path, output_dir: Path, task_id: str, job_id: str) -> PptResult:
+    def run(self, approved_md_path: Path, task_root: Path, output_dir: Path, task_id: str, job_id: str, *, resume_from_job_root: Path | None = None) -> PptResult:
         output_dir.mkdir(parents=True, exist_ok=True)
         output_pptx = output_dir / "proposal.pptx"
         run_log = output_dir / "ppt_runner.run.log"
@@ -103,6 +103,8 @@ class ProductionPptRunner:
         ]
         if self._model_enabled:
             command.extend(("--enable-model", "--model-scene-command-json", json.dumps(self._model_scene_command), "--model-max-calls", str(self._model_max_calls), "--visual-reference-root", str(self._visual_reference_root)))
+            if resume_from_job_root:
+                command.extend(("--resume-from-job-root", str(resume_from_job_root)))
         else:
             # Offline and ordinary local re-renders may only consume an existing
             # Scene Graph.  This makes accidental model invocation impossible.
@@ -114,7 +116,8 @@ class ProductionPptRunner:
         if self._visual_critic:
             command.append("--enable-visual-critic")
         started = datetime.now().astimezone()
-        completed = subprocess.run(command, cwd=self._project_root, check=False, capture_output=True, text=True, shell=False)
+        environment = dict(os.environ); environment["PPT_TASK_ID"], environment["PPT_JOB_ID"] = task_id, job_id
+        completed = subprocess.run(command, cwd=self._project_root, check=False, capture_output=True, text=True, shell=False, env=environment)
         finished = datetime.now().astimezone()
         (output_dir / "ppt_runner.stdout.log").write_text(self._redact(completed.stdout or ""), encoding="utf-8")
         (output_dir / "ppt_runner.stderr.log").write_text(self._redact(completed.stderr or ""), encoding="utf-8")

@@ -17,6 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.artifact_assets.bundle import build_validated_asset_set, load_manifest
+from src.wecom.ppt_checkpoint import CheckpointStore, ResumeRejected, import_resume_state
 
 ROOT = PROJECT_ROOT
 CAL = ROOT / "outputs" / "ppt_pure_art_director" / "full15" / "visual_calibration_v4_ark"
@@ -150,7 +151,7 @@ def finish() -> None:
     (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_root: Path, manifest_path: Path, model_max_calls: int) -> int:
+def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_root: Path, manifest_path: Path, model_max_calls: int, resume_from_job_root: Path | None = None) -> int:
     """Fresh, job-scoped producer entry point used by ArtifactService.
 
     The producer never copies a prior Scene Graph.  Existing V4 rendered PNGs
@@ -174,7 +175,21 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_
         "usage": "content_asset",
     } for asset in assets.valid_assets)
     set_context(); v4.OUT = output_dir; v4.APPROVED_TEXT = input_md.read_text(encoding="utf-8")
-    v4.configure_model_call_budget(model_max_calls)
+    compatibility = {"producer": "run_ppt_v4_ark_full20/v1", "prompt": "v4-scene-prompt/v1", "scene_schema": "v4-scene-graph/v1", "model": v4.PAD.MODEL, "pages": 20, "visual_reference_root": str(visual_reference_root.resolve())}
+    approved_sha = hashlib.sha256(input_md.read_bytes()).hexdigest(); assets_sha = hashlib.sha256((output_dir / "assets_manifest.json").read_bytes()).hexdigest()
+    checkpoints = CheckpointStore(output_dir, task_id=os.environ.get("PPT_TASK_ID", ""), job_id=os.environ.get("PPT_JOB_ID", ""), approved_sha256=approved_sha, assets_manifest_sha256=assets_sha, compatibility=compatibility, model_max_calls=model_max_calls)
+    inherited = 0
+    if resume_from_job_root:
+        expected = {"contract_version": "ppt-generation-checkpoint/v1", "task_id": os.environ.get("PPT_TASK_ID", ""), "approved_md_sha256": approved_sha, "assets_manifest_sha256": assets_sha, "compatibility": compatibility, "model_max_calls": model_max_calls, "pages": 20}
+        def valid_global(value): v4.validate_global_art_direction(value)
+        def valid_page(page, value):
+            audit = v4.PAD.validate(value, set(v4.context_for(page)["allowed_image_sources"]))
+            if audit.get("hard_errors") or audit.get("preclamp_out_of_bounds"): raise ResumeRejected(f"invalid page checkpoint {page}")
+        state = import_resume_state(parent_root=resume_from_job_root, child_root=output_dir, expected=expected, validate_global=valid_global, validate_page=valid_page)
+        inherited = state.historical_calls_used
+        if state.global_direction: checkpoints.record(stage="global_art_direction", canonical_path=state.global_direction, page=None, calls_used=inherited)
+        for page, source in state.page_paths: checkpoints.record(stage="page_scene_graph", canonical_path=source, page=page, calls_used=inherited)
+    v4.configure_checkpointing(checkpoints); v4.configure_model_call_budget(model_max_calls, used=inherited)
     direction = v4.art_direction()
     scenes = {page: v4.page_request(page, direction) for page in range(1, 21)}
     deck = v4.draw(scenes)
@@ -191,18 +206,18 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_
     manifest = {
         "schema": "ppt-scene-producer/v1", "approved_md_sha256": hashlib.sha256(input_md.read_bytes()).hexdigest(),
         "model_max_calls": model_max_calls, "model_calls_used": v4.MODEL_CALL_BUDGET.used if v4.MODEL_CALL_BUDGET else None,
-        "scene_graph_dir": str(scene_dir.resolve().relative_to(output_dir.resolve())), "visual_reference_root_configured": True, "pages": 20, "critic_selected_pages": critic_result.get("selected_pages", []),
+        "scene_graph_dir": str(scene_dir.resolve().relative_to(output_dir.resolve())), "visual_reference_root_configured": True, "pages": 20, "critic_selected_pages": critic_result.get("selected_pages", []), "resume_from_job_root": str(resume_from_job_root) if resume_from_job_root else None, "historical_calls_used": inherited,
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True); manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(); parser.add_argument("--generate-missing", action="store_true"); parser.add_argument("--finish", action="store_true"); parser.add_argument("--produce", action="store_true"); parser.add_argument("--input-md", type=Path); parser.add_argument("--output-dir", type=Path); parser.add_argument("--scene-dir", type=Path); parser.add_argument("--visual-reference-root", type=Path); parser.add_argument("--manifest-path", type=Path); parser.add_argument("--model-max-calls", type=int); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument("--generate-missing", action="store_true"); parser.add_argument("--finish", action="store_true"); parser.add_argument("--produce", action="store_true"); parser.add_argument("--input-md", type=Path); parser.add_argument("--output-dir", type=Path); parser.add_argument("--scene-dir", type=Path); parser.add_argument("--visual-reference-root", type=Path); parser.add_argument("--manifest-path", type=Path); parser.add_argument("--model-max-calls", type=int); parser.add_argument("--resume-from-job-root", type=Path); args = parser.parse_args()
     if args.produce:
         if not all((args.input_md, args.output_dir, args.scene_dir, args.visual_reference_root, args.manifest_path, args.model_max_calls)):
             parser.error("--produce requires input, output, scene, visual-reference-root, manifest, and positive model-max-calls")
-        produce(args.input_md, args.output_dir, args.scene_dir, args.visual_reference_root, args.manifest_path, args.model_max_calls)
+        produce(args.input_md, args.output_dir, args.scene_dir, args.visual_reference_root, args.manifest_path, args.model_max_calls, args.resume_from_job_root)
     elif args.generate_missing: generate_missing()
     elif args.finish: finish()
     else: parser.error("choose --generate-missing or --finish")

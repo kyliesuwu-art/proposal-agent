@@ -23,6 +23,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Callable
 
+from src.wecom.ppt_checkpoint import CheckpointStore, atomic_json_checkpoint
+
 from PIL import Image, ImageDraw
 from pptx import Presentation
 from pptx.util import Inches
@@ -61,6 +63,7 @@ class ModelCallBudget:
 
 
 MODEL_CALL_BUDGET: ModelCallBudget | None = None
+CHECKPOINTS: CheckpointStore | None = None
 
 
 class ModelJsonContractError(ValueError):
@@ -79,9 +82,18 @@ class ModelTransportError(RuntimeError):
         self.retryable = retryable
 
 
-def configure_model_call_budget(maximum: int | None) -> None:
+def configure_model_call_budget(maximum: int | None, *, used: int = 0) -> None:
     global MODEL_CALL_BUDGET
     MODEL_CALL_BUDGET = ModelCallBudget(maximum) if maximum is not None else None
+    if MODEL_CALL_BUDGET is not None:
+        if used < 0 or used > MODEL_CALL_BUDGET.maximum:
+            raise RuntimeError("invalid inherited PPT model budget")
+        MODEL_CALL_BUDGET.used = used
+
+
+def configure_checkpointing(store: CheckpointStore | None) -> None:
+    global CHECKPOINTS
+    CHECKPOINTS = store
 
 
 def load(name: str, filename: str):
@@ -400,7 +412,10 @@ def art_direction() -> dict:
     content.append({"type": "text", "text": json.dumps({"target_pages": [context_for(x) for x in PICK], "strict": ["Use mature corporate proposal design, not web UI", "Avoid repeated rounded-card grids, pill labels, meaningless diagonal or crossing lines", "Make diagrams communicate relationships", "Keep all text editable and preserve facts/boundaries", "Use one official logo and renderer-owned footer only"], "required_keys": ["design_intent", "visual_personality", "color_system", "typography_hierarchy", "spacing_rhythm", "image_treatment", "diagram_language", "brand_motif", "page_families", "density_strategy", "do_not_use", "page_directions"], "field_contract": {"design_intent": "non-empty string", "visual_personality": "non-empty string", "color_system": "non-empty object", "typography_hierarchy": "non-empty string", "spacing_rhythm": "non-empty string", "image_treatment": "non-empty string", "diagram_language": "non-empty string", "brand_motif": "non-empty string", "page_families": "non-empty object", "density_strategy": "non-empty string", "do_not_use": "non-empty array of strings", "page_directions": "non-empty object"}}, ensure_ascii=False)})
     system = "Return only a valid JSON object. You are judging actual attached images. Do not output a slide Scene Graph in this call; output the requested Global Art Direction object with concise, actionable page directions for pages 1,2,3,5,6,14,19,20."
     value, _ = ask_json(call_id="global_art_direction", system=system, content=content, raw_file=OUT / "global_art_direction_raw.json", max_tokens=7000, validator=validate_global_art_direction)
-    target.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_json_checkpoint(target, value)
+    if CHECKPOINTS:
+        CHECKPOINTS.record(stage="global_art_direction", canonical_path=target, page=None,
+                           calls_used=MODEL_CALL_BUDGET.used if MODEL_CALL_BUDGET else 0)
     return value
 
 
@@ -443,7 +458,10 @@ def page_request(page: int, direction: dict, *, revision: bool = False) -> dict:
             raise ModelJsonContractError(f"page {page:02} invalid Ark scene:{detail} validation={validation}")
 
     value, _ = ask_json(call_id=f"page_{page:02}_{'revision' if revision else 'design'}", system=system, content=content, raw_file=raw, validator=validate_scene_graph)
-    scene_path.parent.mkdir(parents=True, exist_ok=True); scene_path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_json_checkpoint(scene_path, value)
+    if CHECKPOINTS:
+        CHECKPOINTS.record(stage="page_scene_graph", canonical_path=scene_path, page=page,
+                           calls_used=MODEL_CALL_BUDGET.used if MODEL_CALL_BUDGET else 0)
     return value
 
 
