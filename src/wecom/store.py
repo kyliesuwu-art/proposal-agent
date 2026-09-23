@@ -34,7 +34,7 @@ class SQLiteTaskStore:
                     status TEXT NOT NULL, source_md_path TEXT NOT NULL, source_md_sha256 TEXT NOT NULL,
                     output_dir TEXT NOT NULL, primary_artifact_path TEXT, preview_artifact_path TEXT,
                     error_stage TEXT, error_message TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-                    delivered_at TEXT
+                    delivered_at TEXT, parent_job_id TEXT, resume_from_job_id TEXT, retryable INTEGER NOT NULL DEFAULT 0, failure_code TEXT
                 );
                 CREATE INDEX IF NOT EXISTS idx_wecom_artifact_jobs_task_type
                     ON wecom_artifact_jobs(task_id, artifact_type, created_at);
@@ -114,12 +114,12 @@ class SQLiteTaskStore:
     def _artifact_job(row: sqlite3.Row) -> ArtifactJob:
         data = dict(row)
         data["artifact_type"] = ArtifactType(data["artifact_type"])
-        data["status"] = ArtifactJobStatus(data["status"])
+        data["status"] = ArtifactJobStatus(data["status"]); data["retryable"] = bool(data.get("retryable", False))
         return ArtifactJob(**data)
 
     def create_artifact_job(self, job: ArtifactJob) -> ArtifactJob:
         with self._lock, self._connection:
-            self._connection.execute("""INSERT INTO wecom_artifact_jobs VALUES
+            self._connection.execute("""INSERT INTO wecom_artifact_jobs (job_id,task_id,artifact_type,status,source_md_path,source_md_sha256,output_dir,primary_artifact_path,preview_artifact_path,error_stage,error_message,created_at,updated_at,delivered_at,parent_job_id,resume_from_job_id,retryable,failure_code) VALUES
                 (:job_id, :task_id, :artifact_type, :status, :source_md_path, :source_md_sha256,
                  :output_dir, :primary_artifact_path, :preview_artifact_path, :error_stage,
                  :error_message, :created_at, :updated_at, :delivered_at)""", job.payload())
@@ -131,7 +131,7 @@ class SQLiteTaskStore:
                 status=:status, source_md_path=:source_md_path, source_md_sha256=:source_md_sha256,
                 output_dir=:output_dir, primary_artifact_path=:primary_artifact_path,
                 preview_artifact_path=:preview_artifact_path, error_stage=:error_stage,
-                error_message=:error_message, updated_at=:updated_at, delivered_at=:delivered_at
+                error_message=:error_message, updated_at=:updated_at, delivered_at=:delivered_at, parent_job_id=:parent_job_id, resume_from_job_id=:resume_from_job_id, retryable=:retryable, failure_code=:failure_code
                 WHERE job_id=:job_id""", job.payload())
         return job
 
@@ -157,6 +157,15 @@ class SQLiteTaskStore:
             rows = self._connection.execute("SELECT * FROM wecom_artifact_jobs WHERE status=?", (status.value,)).fetchall()
         return [self._artifact_job(row) for row in rows]
 
+
+    def list_artifact_children(self, parent_job_id: str) -> list[ArtifactJob]:
+        with self._lock:
+            rows = self._connection.execute("SELECT * FROM wecom_artifact_jobs WHERE parent_job_id=? ORDER BY created_at", (parent_job_id,)).fetchall()
+        return [self._artifact_job(row) for row in rows]
+
+    def has_active_resume_child(self, parent_job_id: str) -> bool:
+        with self._lock:
+            return self._connection.execute("SELECT 1 FROM wecom_artifact_jobs WHERE parent_job_id=? AND resume_from_job_id IS NOT NULL AND status IN (?,?)", (parent_job_id, ArtifactJobStatus.QUEUED.value, ArtifactJobStatus.RUNNING.value)).fetchone() is not None
     def control_message_seen(self, message_id: str | None) -> bool:
         if not message_id:
             return False
