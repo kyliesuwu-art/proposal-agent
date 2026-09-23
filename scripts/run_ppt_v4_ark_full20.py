@@ -8,6 +8,7 @@ import json
 import shutil
 import os
 from pathlib import Path
+from src.artifact_assets.bundle import build_validated_asset_set, load_manifest
 
 ROOT = Path(__file__).resolve().parent.parent
 CAL = ROOT / "outputs" / "ppt_pure_art_director" / "full15" / "visual_calibration_v4_ark"
@@ -155,6 +156,15 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_
     scene_dir = prepare_fresh_job_scene_output_directory(output_dir, scene_dir)
 
     configure_production_visual_resources(visual_reference_root)
+    assets_manifest = load_manifest(output_dir / "assets_manifest.json")
+    assets = build_validated_asset_set(assets_manifest, input_md.parent)
+    v4.CONTENT_ASSETS = tuple({
+        "asset_id": asset["asset_id"],
+        "image_source": asset["normalized_relative_path"],
+        "width": asset.get("width"),
+        "height": asset.get("height"),
+        "usage": "content_asset",
+    } for asset in assets.valid_assets)
     set_context(); v4.OUT = output_dir; v4.APPROVED_TEXT = input_md.read_text(encoding="utf-8")
     v4.configure_model_call_budget(model_max_calls)
     direction = v4.art_direction()

@@ -243,7 +243,7 @@ def validate(scene: dict, allowed_images: set[str]) -> dict:
             except (TypeError, ValueError):
                 issues.append(f"{ident}:font_size_invalid")
         if typ == "image" and element.get("image_source") not in allowed_images:
-            issues.append(f"{ident}:unapproved_or_missing_image")
+            issues.append(f"{ident}:unapproved_or_missing_image_source:{element.get('image_source')}")
         if typ not in {"line", "arrow"}:
             boxes.append((ident, x, y, w, h))
     duplicates = sorted(k for k, v in Counter(ids).items() if v > 1)

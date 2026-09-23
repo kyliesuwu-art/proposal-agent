@@ -210,6 +210,7 @@ def test_v4_fake_producer_serializes_runtime_paths_relative_to_cross_root_job(tm
 
     job_root = tmp_path / "separate task root" / "job"
     input_md = job_root / "approved.md"; input_md.parent.mkdir(parents=True); input_md.write_text("# approved", encoding="utf-8")
+    (job_root / "assets_manifest.json").write_text(json.dumps({"schema_version": "image-asset-manifest/v1", "assets": []}), encoding="utf-8")
     scene_dir = job_root / "generated_scene_graph"; manifest_path = job_root / "producer_manifest.json"
     monkeypatch.setattr(producer, "configure_production_visual_resources", lambda _root: None)
     monkeypatch.setattr(producer, "set_context", lambda: None)

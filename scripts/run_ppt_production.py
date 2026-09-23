@@ -112,7 +112,7 @@ def _add_line(slide, value: dict) -> None:
 
 
 def _asset_path(asset_set, source: str) -> Path | None:
-    asset = asset_set.resolve_asset_by_reference(source)
+    asset = asset_set.resolve_asset_by_id(source) or asset_set.resolve_asset_by_reference(source)
     if not asset or asset not in asset_set.valid_assets or asset.get("detected_format") not in {"PNG", "JPEG", "GIF", "BMP", "TIFF"}:
         return None
     try:
@@ -122,10 +122,11 @@ def _asset_path(asset_set, source: str) -> Path | None:
 
 
 def _add_image(slide, value: dict, asset_set) -> str | None:
-    path = _asset_path(asset_set, str(value.get("image_source", "")))
+    source = str(value.get("image_source", ""))
+    path = _asset_path(asset_set, source)
     if not path:
-        return f"asset_not_usable:{value.get('image_source', '')}"
-    asset = asset_set.resolve_asset_by_reference(str(value["image_source"]))
+        return f"asset_not_usable:{source}"
+    asset = asset_set.resolve_asset_by_reference(source)
     full_bleed = float(value.get("w", 0)) >= W * .8 or float(value.get("h", 0)) >= H * .75
     if asset.get("status") == "LOW_RESOLUTION" and full_bleed:
         return f"low_resolution_full_bleed_omitted:{value['image_source']}"

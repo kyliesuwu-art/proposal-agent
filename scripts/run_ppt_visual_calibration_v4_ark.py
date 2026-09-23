@@ -35,6 +35,9 @@ OUT = FULL15 / "visual_calibration_v4_ark"
 PICK = (1, 2, 3, 5, 6, 14, 19, 20)
 NAMES = {1: "G", 2: "TOC", 3: "BACKGROUND", 5: "H", 6: "ARCH", 14: "D", 19: "E", 20: "CLOSE"}
 APPROVED_TEXT = ""
+# Production injects these from the already-built task assets manifest.  The
+# references attached to the model request are deliberately not included.
+CONTENT_ASSETS: tuple[dict[str, object], ...] = ()
 V3_PAGE_MAP = {1: 1, 2: 2, 3: 3, 5: 4, 6: 5, 14: 6, 19: 7, 20: 8}
 REFERENCE_SHEETS = (
     ROOT / "outputs" / "ppt_template_library_v1" / "source_analysis" / "comking_company" / "contact_sheet.png",
@@ -137,11 +140,22 @@ def allowed_assets(scene: dict) -> list[str]:
 
 def context_for(page: int) -> dict:
     scene = source_scene(page)
+    allowed_content_images = (
+        [dict(asset) for asset in CONTENT_ASSETS]
+        if APPROVED_TEXT
+        else [{"image_source": source, "usage": "content_asset"} for source in allowed_assets(scene)]
+    )
     return {
         "page": page,
         "page_name": NAMES[page],
         "locked_display_text": text_content(scene),
-        "allowed_assets": allowed_assets(scene),
+        "allowed_content_images": allowed_content_images,
+        "allowed_image_sources": [
+            str(reference)
+            for asset in allowed_content_images
+            for reference in (asset.get("asset_id"), asset["image_source"])
+            if reference
+        ],
         "known_constraint": "Image image-001.jpg is only 537x489; do not make it a full-bleed or enlarged hero image." if page == 5 else None,
         "approved_markdown": APPROVED_TEXT if APPROVED_TEXT else None,
     }
@@ -276,7 +290,7 @@ def _attempt_raw_file(raw_file: Path, attempt: int) -> Path:
 def _retry_system_prompt(system: str, error: BaseException) -> str:
     if isinstance(error, ModelJsonContractError):
         location = f" at line {error.line}, column {error.column}" if error.line else ""
-        return system + "\nYour previous response was not valid JSON" + location + ". Return only one complete JSON object with all required fields and no markdown, commentary, or code fence."
+        return system + "\nYour previous response was not valid JSON or Scene Graph validation" + location + ": " + str(error) + ". Return only one complete JSON object. For an asset whitelist failure, use the exact invalid_image_sources and allowed_image_sources above; style references are not content assets. If none fit, remove the image node."
     return system + "\nThe previous request ended before a complete response was received. Return only one complete JSON object with all required fields and no markdown, commentary, or code fence."
 
 
@@ -396,23 +410,37 @@ def page_request(page: int, direction: dict, *, revision: bool = False) -> dict:
         say(f"page {page:02} scene checkpoint reused")
         return json.loads(scene_path.read_text(encoding="utf-8"))
     ctx = context_for(page)
-    content = [{"type": "text", "text": "Attached first: V2 current rendering; second: V3 local calibration. Use them as visual baselines, but create a materially more mature composition based on Global Art Direction."}]
+    content = [{"type": "text", "text": "Attached images are STYLE_REFERENCE_ONLY, NOT_A_CONTENT_ASSET, and MUST_NOT_BE_REFERENCED_IN_SCENE_GRAPH. Use them only as visual baselines, but create a materially more mature composition based on Global Art Direction."}]
     content.extend(image_part(page_png(BASE, page), f"V2 page {page:02}"))
     if page in V3_PAGE_MAP:
         content.extend(image_part(page_png(V3, V3_PAGE_MAP[page]), f"V3 counterpart for original page {page:02}"))
     else:
         content.extend(image_part(V3 / "contact_sheet.png", "V3 calibration contact sheet: use as family reference, not as this page's layout"))
     content.extend(image_part(REFERENCE_SHEETS[0], "Closest real COMKING reference deck contact sheet"))
-    content.append({"type": "text", "text": json.dumps({"global_art_direction": direction, "page_context": ctx, "canvas_inches": [13.333, 7.5], "safe_zones": {"logo": [0.45, 0.08, 2.05, 0.48], "footer": [0.55, 6.84, 12.15, 0.48]}, "schema": {"root": ["background", "elements"], "element_types": ["text", "image", "rectangle", "rounded_rectangle", "circle", "line", "arrow"], "common": ["id", "type", "x", "y", "w", "h", "z_order"], "text": ["text", "font_size", "font_weight", "alignment", "color"], "image": ["image_source", "crop"], "line_or_arrow": ["from", "to", "color", "line_width"]}, "requirements": ["Return a complete parseable Scene Graph only", "Do not draw logo/footer/page number", "Keep all main content outside safe zones", "Use only allowed_assets; do not invent images", "All coordinates within canvas", "Text in normal body >=16pt; no markdown, URLs or new facts", "Do not rely on a local template; choose a page-specific composition", "The result must be directly editable with native PowerPoint shapes"]}, ensure_ascii=False)})
+    content.append({"type": "text", "text": json.dumps({"global_art_direction": direction, "page_context": ctx, "canvas_inches": [13.333, 7.5], "safe_zones": {"logo": [0.45, 0.08, 2.05, 0.48], "footer": [0.55, 6.84, 12.15, 0.48]}, "schema": {"root": ["background", "elements"], "element_types": ["text", "image", "rectangle", "rounded_rectangle", "circle", "line", "arrow"], "common": ["id", "type", "x", "y", "w", "h", "z_order"], "text": ["text", "font_size", "font_weight", "alignment", "color"], "image": ["image_source", "crop"], "line_or_arrow": ["from", "to", "color", "line_width"]}, "requirements": ["Return a complete parseable Scene Graph only", "Do not draw logo/footer/page number", "Keep all main content outside safe zones", "Use only allowed_content_images as image_source. Node id is an element name, not an asset. STYLE_REFERENCE_ONLY attachments are NOT_A_CONTENT_ASSET and MUST_NOT_BE_REFERENCED_IN_SCENE_GRAPH. If none fit, omit the image node.", "All coordinates within canvas", "Text in normal body >=16pt; no markdown, URLs or new facts", "Do not rely on a local template; choose a page-specific composition", "The result must be directly editable with native PowerPoint shapes"]}, ensure_ascii=False)})
     if revision:
         previous = json.loads(scene_path.read_text(encoding="utf-8")); content.append({"type": "text", "text": "This is a single targeted revision after visual critique. Preserve locked facts and improve only the cited defects. Current Scene Graph: " + json.dumps(previous, ensure_ascii=False)})
     system = "You are a senior enterprise presentation art director. You can see the attached actual images. Return ONLY one JSON object Scene Graph, with background and elements. Do not explain your work. Avoid card-grid/UI conventions; every line, arrow, color block, or image crop must carry information or hierarchy."
     folder = OUT / ("revisions" if revision else "raw")
     raw = folder / f"page_{page:02}_{NAMES[page]}_{'revision_' if revision else ''}raw.json"
     def validate_scene_graph(value: dict) -> None:
-        validation = PAD.validate(value, set(ctx["allowed_assets"]))
+        allowed_image_sources = set(ctx["allowed_image_sources"])
+        validation = PAD.validate(value, allowed_image_sources)
         if validation["hard_errors"] or validation["preclamp_out_of_bounds"]:
-            raise ModelJsonContractError(f"page {page:02} invalid Ark scene: {validation}")
+            invalid_image_sources = sorted({
+                str(element.get("image_source"))
+                for element in value.get("elements", [])
+                if isinstance(element, dict)
+                and element.get("type") == "image"
+                and element.get("image_source") not in allowed_image_sources
+            })
+            detail = (
+                f" invalid_image_sources={invalid_image_sources}; "
+                f"allowed_image_sources={sorted(allowed_image_sources)}; "
+                "STYLE_REFERENCE_ONLY attachments cannot be used as image_source."
+                if invalid_image_sources else ""
+            )
+            raise ModelJsonContractError(f"page {page:02} invalid Ark scene:{detail} validation={validation}")
 
     value, _ = ask_json(call_id=f"page_{page:02}_{'revision' if revision else 'design'}", system=system, content=content, raw_file=raw, validator=validate_scene_graph)
     scene_path.parent.mkdir(parents=True, exist_ok=True); scene_path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -481,7 +509,7 @@ def critic(direction: dict, sheet: Path, *, max_pages: int = 4) -> dict:
 
 
 def report(direction: dict, scenes: dict[int, dict], critic_result: dict, rendered: list[Path]) -> None:
-    audits = {str(p): PAD.validate(scenes[p], set(context_for(p)["allowed_assets"])) for p in PICK}
+    audits = {str(p): PAD.validate(scenes[p], set(context_for(p)["allowed_image_sources"])) for p in PICK}
     text = {str(p): text_content(scenes[p]) for p in PICK}
     manifest = {"source_v2": str((BASE / "pure_art_director_mainline_expanded_v2.pptx").relative_to(ROOT)), "source_v3": str((V3 / "pure_art_director_visual_calibration_v3.pptx").relative_to(ROOT)), "pages": list(PICK), "model": PAD.MODEL, "ark_calls": len(json.loads((OUT / "ark_calls.json").read_text(encoding="utf-8"))), "scenes": {str(p): str((OUT / "scene_graphs" / f"page_{p:02}_{NAMES[p]}.json").resolve().relative_to(OUT.resolve())) for p in PICK}, "before_text": {str(p): text_content(source_scene(p)) for p in PICK}, "after_text": text, "text_change_reason": "Ark visual hierarchy and concision only; facts and boundary conditions were locked in prompts.", "audit": audits, "critic": critic_result, "rendered_pages": [str(x.resolve().relative_to(OUT.resolve())) for x in rendered]}
     (OUT / "visual_calibration_v4_report.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")

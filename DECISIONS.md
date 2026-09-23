@@ -138,3 +138,9 @@ Impact: PowerShell callers can pass a single path containing spaces or Chinese c
 Decision: Task paths stored in the WeCom SQLite database are resolved from an explicit task-path root, not the process current directory or the code worktree. Relative values are rooted there; legacy absolute values remain readable only when they are canonical descendants of the same root. Artifact processing also requires the resolved approved Markdown to remain under the configured task output directory for its Task ID.
 
 Impact: A separate PPT integration worktree can safely consume an existing Task without copying or rewriting approved.md. Traversal, drive-relative paths, UNC paths, symlinks, missing or empty files, non-Markdown files, and any containment escape fail before an ArtifactJob or runner starts.
+
+## 2026-09 — PPT Scene Graph image references are task-manifest sources
+
+Decision: In the production V4 Scene Graph, `id` remains a unique element name only. The only rendered image reference is `image_source`, which must exactly match a validated, task-relative source from the already-created `assets_manifest.json`. The page prompt receives the same validated asset records (asset ID, source and dimensions); attached reference decks are explicitly style-only and never become allowed content images.
+
+Impact: Diagnostics identify invalid `image_source` values without rejecting ordinary node names such as `screenshot`. The renderer interface and Scene Graph field names remain unchanged, while visual-reference paths, URLs, absolute paths and traversal values fail closed because they are absent from the manifest whitelist.
