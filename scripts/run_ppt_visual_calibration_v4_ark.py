@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Callable
 
 from src.wecom.ppt_checkpoint import CheckpointStore, atomic_json_checkpoint
+from src.wecom.ppt_failures import PptModelBudgetExceededError, PptProducerConfigError
 
 from PIL import Image, ImageDraw
 from pptx import Presentation
@@ -58,7 +59,7 @@ class ModelCallBudget:
 
     def consume(self, _call_id: str) -> None:
         if self.used >= self.maximum:
-            raise RuntimeError("PPT model call budget exhausted before Ark request")
+            raise PptModelBudgetExceededError("PPT model call budget exhausted before Ark request")
         self.used += 1
 
 
@@ -77,9 +78,10 @@ class ModelJsonContractError(ValueError):
 class ModelTransportError(RuntimeError):
     """A model HTTP attempt failed before a complete response was available."""
 
-    def __init__(self, message: str, *, retryable: bool) -> None:
+    def __init__(self, message: str, *, retryable: bool, status_code: int | None = None) -> None:
         super().__init__(message)
         self.retryable = retryable
+        self.status_code = status_code
 
 
 def configure_model_call_budget(maximum: int | None, *, used: int = 0) -> None:
@@ -87,7 +89,7 @@ def configure_model_call_budget(maximum: int | None, *, used: int = 0) -> None:
     MODEL_CALL_BUDGET = ModelCallBudget(maximum) if maximum is not None else None
     if MODEL_CALL_BUDGET is not None:
         if used < 0 or used > MODEL_CALL_BUDGET.maximum:
-            raise RuntimeError("invalid inherited PPT model budget")
+            raise PptProducerConfigError("invalid inherited PPT model budget")
         MODEL_CALL_BUDGET.used = used
 
 
@@ -190,6 +192,11 @@ def _redact_error_message(error: BaseException) -> str:
     message = re.sub(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s]+", r"\1[REDACTED]", message)
     return re.sub(r"(https?://[^\s?]+)\?[^\s]+", r"\1?[REDACTED]", message)
 
+
+def transport_status_code(error: BaseException) -> int | None:
+    """Return a provider status only when the client exposes it structurally."""
+    value = getattr(error, "code", getattr(error, "status_code", None))
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 def is_retryable_transport_error(error: BaseException) -> bool:
     """Classify only transient transport/status failures used by this client."""
@@ -391,9 +398,11 @@ def ask_json(*, call_id: str, system: str, content: list[dict], raw_file: Path, 
                                     schema_success=schema_success, success=False, retryable=retryable, error=error,
                                     response_path=response_path))
         if not retryable or attempt == 2:
+            if isinstance(error, PptModelBudgetExceededError):
+                raise error
             if isinstance(error, ModelJsonContractError):
                 raise ModelJsonContractError(f"{call_id} failed after {attempt} HTTP attempts: {error}", line=error.line, column=error.column) from error
-            raise ModelTransportError(f"{call_id} transport failure after {attempt} HTTP attempts: {type(error).__name__}: {_redact_error_message(error)}", retryable=retryable) from error
+            raise ModelTransportError(f"{call_id} transport failure after {attempt} HTTP attempts: {type(error).__name__}: {_redact_error_message(error)}", retryable=retryable, status_code=transport_status_code(error)) from error
         last_error = error
         if retry_delay_seconds:
             sleep_fn(retry_delay_seconds)

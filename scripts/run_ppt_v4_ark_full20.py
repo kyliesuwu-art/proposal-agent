@@ -9,6 +9,7 @@ import shutil
 import os
 import sys
 from pathlib import Path
+from typing import Callable
 
 # This producer is launched by an absolute script path from a job subprocess.
 # Make its own worktree root importable before importing application modules.
@@ -18,6 +19,18 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.artifact_assets.bundle import build_validated_asset_set, load_manifest
 from src.wecom.ppt_checkpoint import CheckpointStore, ResumeRejected, import_resume_state
+from src.wecom.ppt_failures import (
+    PPT_FAILURE_FILENAME,
+    PptFailureCode,
+    PptFailureInfo,
+    PptModelBudgetExceededError,
+    PptProducerAuthError,
+    PptProducerConfigError,
+    PptProducerInputError,
+    PptProducerRenderError,
+    PptProducerSecurityError,
+    write_ppt_failure,
+)
 
 ROOT = PROJECT_ROOT
 CAL = ROOT / "outputs" / "ppt_pure_art_director" / "full15" / "visual_calibration_v4_ark"
@@ -58,7 +71,7 @@ def configure_production_visual_resources(visual_reference_root: Path) -> None:
     logo = root / "files" / "工业园综合智慧能源解决方案.pptx"
     required = (base / "contact_sheet.png", v3 / "contact_sheet.png", *references, logo)
     if not root.is_dir() or any(not path.is_file() for path in required):
-        raise RuntimeError("required production visual resources are unavailable")
+        raise PptProducerConfigError("required production visual resources are unavailable")
     v4.FULL15 = full15
     v4.BASE = base
     v4.V3 = v3
@@ -101,29 +114,31 @@ def prepare_fresh_job_scene_output_directory(output_dir: Path, scene_dir: Path) 
     """
     output_dir, scene_dir = Path(output_dir), Path(scene_dir)
     if not output_dir.is_absolute() or not scene_dir.is_absolute():
-        raise RuntimeError("producer output and Scene Graph paths must be absolute")
+        raise PptProducerSecurityError("producer output and Scene Graph paths must be absolute")
     if _is_symlink_or_reparse_point(output_dir):
-        raise RuntimeError("producer Job output root must not be a symlink or reparse point")
+        raise PptProducerSecurityError("producer Job output root must not be a symlink or reparse point")
     if output_dir.exists() and not output_dir.is_dir():
-        raise RuntimeError("producer Job output root must be a directory")
+        raise PptProducerSecurityError("producer Job output root must be a directory")
     output_dir.mkdir(parents=True, exist_ok=True)
     root = output_dir.resolve(strict=True)
+    if os.path.lexists(root / PPT_FAILURE_FILENAME):
+        raise PptProducerSecurityError("producer output already contains a failure report")
     if _is_symlink_or_reparse_point(scene_dir):
-        raise RuntimeError("producer Scene Graph directory must not be a symlink or reparse point")
+        raise PptProducerSecurityError("producer Scene Graph directory must not be a symlink or reparse point")
     canonical_scene = scene_dir.resolve(strict=False)
     try:
         canonical_scene.relative_to(root)
     except ValueError as exc:
-        raise RuntimeError("producer Scene Graph directory must be inside the current Job output root") from exc
+        raise PptProducerSecurityError("producer Scene Graph directory must be inside the current Job output root") from exc
     if (root / "scene_graphs").exists():
-        raise RuntimeError("producer output already contains a Scene Graph")
+        raise PptProducerSecurityError("producer output already contains a Scene Graph")
     if (root / "producer_manifest.json").exists():
-        raise RuntimeError("producer output already contains a completed producer record")
+        raise PptProducerSecurityError("producer output already contains a completed producer record")
     if scene_dir.exists():
         if not scene_dir.is_dir():
-            raise RuntimeError("producer Scene Graph path must be a directory")
+            raise PptProducerSecurityError("producer Scene Graph path must be a directory")
         if any(scene_dir.iterdir()):
-            raise RuntimeError("producer Scene Graph directory is not empty")
+            raise PptProducerSecurityError("producer Scene Graph directory is not empty")
     else:
         scene_dir.mkdir(parents=False, exist_ok=False)
     return scene_dir
@@ -151,22 +166,31 @@ def finish() -> None:
     (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_root: Path, manifest_path: Path, model_max_calls: int, resume_from_job_root: Path | None = None) -> int:
+def _produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_root: Path, manifest_path: Path, model_max_calls: int, resume_from_job_root: Path | None = None, *, stage_callback: Callable[[str], None] | None = None) -> int:
     """Fresh, job-scoped producer entry point used by ArtifactService.
 
     The producer never copies a prior Scene Graph.  Existing V4 rendered PNGs
     and brand references remain visual-only inputs, while approved Markdown is
     the locked content input for this run.
     """
+    if stage_callback: stage_callback("startup")
     if not input_md.is_file() or input_md.stat().st_size == 0:
-        raise RuntimeError("producer input Markdown is unavailable")
+        raise PptProducerInputError("producer input Markdown is unavailable")
     if model_max_calls <= 0 or model_max_calls > MAX_MODEL_CALLS:
-        raise RuntimeError(f"model-max-calls must be between 1 and {MAX_MODEL_CALLS}")
+        raise PptProducerConfigError(f"model-max-calls must be between 1 and {MAX_MODEL_CALLS}")
     scene_dir = prepare_fresh_job_scene_output_directory(output_dir, scene_dir)
 
-    configure_production_visual_resources(visual_reference_root)
-    assets_manifest = load_manifest(output_dir / "assets_manifest.json")
-    assets = build_validated_asset_set(assets_manifest, input_md.parent)
+    try:
+        configure_production_visual_resources(visual_reference_root)
+    except PptProducerConfigError:
+        raise
+    except Exception as exc:
+        raise PptProducerConfigError("required production visual resources are unavailable") from exc
+    try:
+        assets_manifest = load_manifest(output_dir / "assets_manifest.json")
+        assets = build_validated_asset_set(assets_manifest, input_md.parent)
+    except Exception as exc:
+        raise PptProducerInputError("producer assets manifest is invalid") from exc
     v4.CONTENT_ASSETS = tuple({
         "asset_id": asset["asset_id"],
         "image_source": asset["normalized_relative_path"],
@@ -180,6 +204,7 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_
     checkpoints = CheckpointStore(output_dir, task_id=os.environ.get("PPT_TASK_ID", ""), job_id=os.environ.get("PPT_JOB_ID", ""), approved_sha256=approved_sha, assets_manifest_sha256=assets_sha, compatibility=compatibility, model_max_calls=model_max_calls)
     inherited = 0
     if resume_from_job_root:
+        if stage_callback: stage_callback("resume_validation")
         expected = {"contract_version": "ppt-generation-checkpoint/v1", "task_id": os.environ.get("PPT_TASK_ID", ""), "approved_md_sha256": approved_sha, "assets_manifest_sha256": assets_sha, "compatibility": compatibility, "model_max_calls": model_max_calls, "pages": 20}
         def valid_global(value): v4.validate_global_art_direction(value)
         def valid_page(page, value):
@@ -190,13 +215,23 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_
         if state.global_direction: checkpoints.record(stage="global_art_direction", canonical_path=state.global_direction, page=None, calls_used=inherited)
         for page, source in state.page_paths: checkpoints.record(stage="page_scene_graph", canonical_path=source, page=page, calls_used=inherited)
     v4.configure_checkpointing(checkpoints); v4.configure_model_call_budget(model_max_calls, used=inherited)
+    if stage_callback: stage_callback("global_art_direction")
     direction = v4.art_direction()
-    scenes = {page: v4.page_request(page, direction) for page in range(1, 21)}
-    deck = v4.draw(scenes)
-    rendered = v4.render(deck)
-    sheet = output_dir / "contact_sheet.png"; v4.contact(rendered, sheet, [f"V4 Full 20 | {page:02}" for page in range(1, 21)])
+    scenes = {}
+    for page in range(1, 21):
+        if stage_callback: stage_callback(f"page_design:{page:02}")
+        scenes[page] = v4.page_request(page, direction)
+    try:
+        if stage_callback: stage_callback("producer_finalize")
+        deck = v4.draw(scenes)
+        rendered = v4.render(deck)
+        sheet = output_dir / "contact_sheet.png"; v4.contact(rendered, sheet, [f"V4 Full 20 | {page:02}" for page in range(1, 21)])
+    except Exception as exc:
+        raise PptProducerRenderError("PPT rendering failed") from exc
+    if stage_callback: stage_callback("critic")
     critic_result = v4.critic(direction, v4.compare(rendered))
     for page in critic_result.get("selected_pages", [])[:4]:
+        if stage_callback: stage_callback(f"revision:{page:02}")
         scenes[page] = v4.page_request(page, direction, revision=True)
     for page in range(1, 21):
         source = output_dir / "scene_graphs" / f"page_{page:02}_{NAMES[page]}.json"
@@ -211,6 +246,59 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_
     manifest_path.parent.mkdir(parents=True, exist_ok=True); manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0
 
+
+
+
+def classify_producer_failure(exc: BaseException, *, stage: str, ark_attempts_used: int | None, ark_attempts_max: int | None) -> PptFailureInfo:
+    if isinstance(exc, v4.ModelTransportError):
+        if exc.status_code in {401, 403}:
+            code, retryable, message = PptFailureCode.AUTH_REJECTED, False, "PPT model credentials were rejected."
+        elif exc.status_code in {408, 429} or (exc.status_code is not None and 500 <= exc.status_code <= 599):
+            code, retryable, message = PptFailureCode.MODEL_PROVIDER_TRANSIENT, True, "PPT model provider attempts were exhausted."
+        elif exc.retryable:
+            code, retryable, message = PptFailureCode.MODEL_TRANSPORT_RETRY_EXHAUSTED, True, "PPT model transport attempts were exhausted."
+        else:
+            code, retryable, message = PptFailureCode.UNKNOWN_FAILURE, False, "PPT producer failed without a classified retry path."
+    elif isinstance(exc, v4.ModelJsonContractError):
+        code, retryable, message = PptFailureCode.MODEL_OUTPUT_CONTRACT_RETRY_EXHAUSTED, True, "PPT model output contract attempts were exhausted."
+    elif isinstance(exc, PptModelBudgetExceededError):
+        code, retryable, message = PptFailureCode.MODEL_BUDGET_EXHAUSTED, False, "PPT model call budget was exhausted."
+    elif isinstance(exc, PptProducerConfigError):
+        code, retryable, message = PptFailureCode.CONFIG_INVALID, False, "PPT producer configuration is invalid."
+    elif isinstance(exc, PptProducerAuthError):
+        code, retryable, message = PptFailureCode.AUTH_REJECTED, False, "PPT model credentials were rejected."
+    elif isinstance(exc, ResumeRejected):
+        code, retryable, message = PptFailureCode.RESUME_CHECKPOINT_INVALID, False, "PPT resume checkpoint validation failed."
+    elif isinstance(exc, PptProducerSecurityError):
+        code, retryable, message = PptFailureCode.SECURITY_REJECTED, False, "PPT producer filesystem safety validation failed."
+    elif isinstance(exc, PptProducerInputError):
+        code, retryable, message = PptFailureCode.INPUT_INVALID, False, "PPT producer input is invalid."
+    elif isinstance(exc, PptProducerRenderError):
+        code, retryable, message = PptFailureCode.RENDER_FAILED, False, "PPT rendering failed."
+    else:
+        code, retryable, message = PptFailureCode.UNKNOWN_FAILURE, False, "PPT producer failed without a valid structured classification."
+    return PptFailureInfo(code=code, stage=stage, retryable=retryable, safe_message=message, ark_attempts_used=ark_attempts_used, ark_attempts_max=ark_attempts_max)
+
+
+def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_root: Path, manifest_path: Path, model_max_calls: int, resume_from_job_root: Path | None = None) -> int:
+    current_stage = "startup"
+
+    def set_stage(value: str) -> None:
+        nonlocal current_stage
+        current_stage = value
+
+    try:
+        return _produce(input_md, output_dir, scene_dir, visual_reference_root, manifest_path, model_max_calls, resume_from_job_root, stage_callback=set_stage)
+    except Exception as exc:
+        budget = v4.MODEL_CALL_BUDGET
+        failure = classify_producer_failure(exc, stage=current_stage, ark_attempts_used=budget.used if budget else None, ark_attempts_max=budget.maximum if budget else None)
+        try:
+            report = Path(output_dir) / PPT_FAILURE_FILENAME
+            if not os.path.lexists(report):
+                write_ppt_failure(Path(output_dir), failure)
+        except Exception:
+            print("PPT_FAILURE_REPORT_WRITE_FAILED", file=sys.stderr, flush=True)
+        raise
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(); parser.add_argument("--generate-missing", action="store_true"); parser.add_argument("--finish", action="store_true"); parser.add_argument("--produce", action="store_true"); parser.add_argument("--input-md", type=Path); parser.add_argument("--output-dir", type=Path); parser.add_argument("--scene-dir", type=Path); parser.add_argument("--visual-reference-root", type=Path); parser.add_argument("--manifest-path", type=Path); parser.add_argument("--model-max-calls", type=int); parser.add_argument("--resume-from-job-root", type=Path); args = parser.parse_args()

@@ -19,6 +19,7 @@ import http.client
 import urllib.request
 from collections import Counter
 from pathlib import Path
+from src.wecom.ppt_failures import PptProducerConfigError
 
 from PIL import Image, ImageDraw
 from pptx import Presentation
@@ -60,7 +61,7 @@ def read_env() -> dict[str, str]:
         if os.environ.get(key):
             values[key] = os.environ[key]
     if not values.get("ARK_API_KEY"):
-        raise RuntimeError("ARK_API_KEY is not present in the runtime environment or .env")
+        raise PptProducerConfigError("ARK_API_KEY is not present in the runtime environment or .env")
     return values
 
 

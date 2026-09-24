@@ -192,7 +192,8 @@ def test_transport_retry_budget_rejection_happens_before_second_network_call(mon
     calls = []
     monkeypatch.setattr(v4.PAD, "ask", fake_ask([incomplete()], calls))
     v4.configure_model_call_budget(1)
-    with pytest.raises(v4.ModelTransportError, match="budget exhausted"):
+    from src.wecom.ppt_failures import PptModelBudgetExceededError
+    with pytest.raises(PptModelBudgetExceededError, match="budget exhausted"):
         v4.ask_json(call_id="page", system="x", content=[], raw_file=tmp_path / "raw.json", retry_delay_seconds=0)
     attempt_records = records(tmp_path)
     assert len(calls) == 1 and len(attempt_records) == 2

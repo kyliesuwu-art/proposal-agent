@@ -51,6 +51,30 @@ class PptRunnerFailure(RuntimeError):
         super().__init__(failure.safe_message)
 
 
+class PptModelBudgetExceededError(RuntimeError):
+    """The producer-wide Ark request budget was exhausted before a request."""
+
+
+class PptProducerConfigError(RuntimeError):
+    """Required producer configuration is invalid or unavailable."""
+
+
+class PptProducerAuthError(RuntimeError):
+    """The provider rejected the configured credentials."""
+
+
+class PptProducerInputError(RuntimeError):
+    """Locked PPT inputs cannot be safely consumed."""
+
+
+class PptProducerSecurityError(RuntimeError):
+    """A path or filesystem safety contract was rejected."""
+
+
+class PptProducerRenderError(RuntimeError):
+    """The deterministic PPT rendering stage failed."""
+
+
 def unknown_ppt_failure(*, stage: str = "unknown") -> PptFailureInfo:
     return PptFailureInfo(
         code=PptFailureCode.UNKNOWN_FAILURE,
