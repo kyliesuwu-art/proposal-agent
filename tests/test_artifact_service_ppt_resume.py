@@ -197,6 +197,10 @@ def test_resume_evaluation_fail_never_sends_and_is_not_retryable(tmp_path: Path)
         PptFailureInfo(PptFailureCode.MODEL_OUTPUT_CONTRACT_RETRY_EXHAUSTED, "page_design:10", True, "PPT model output contract attempts were exhausted."),
         PptFailureInfo(PptFailureCode.MODEL_BUDGET_EXHAUSTED, "page_design:10", False, "PPT model call budget was exhausted."),
         PptFailureInfo(PptFailureCode.CONFIG_INVALID, "startup", False, "PPT producer configuration is invalid."),
+        PptFailureInfo(PptFailureCode.AUTH_REJECTED, "startup", False, "PPT provider credentials were rejected."),
+        PptFailureInfo(PptFailureCode.SECURITY_REJECTED, "resume_validation", False, "PPT producer security validation failed."),
+        PptFailureInfo(PptFailureCode.INPUT_INVALID, "startup", False, "PPT producer input is invalid."),
+        PptFailureInfo(PptFailureCode.RENDER_FAILED, "render", False, "PPT rendering failed."),
     ],
 )
 def test_resume_persists_structured_runner_failure_without_message_parsing(tmp_path: Path, failure: PptFailureInfo) -> None:
@@ -248,6 +252,20 @@ def test_resume_rejects_ineligible_source_identity(tmp_path: Path, field: str, v
     finally:
         _close(store, tasks, artifacts)
 
+
+def test_resume_rejects_missing_checkpoint_and_chat_mismatch(tmp_path: Path) -> None:
+    runner = FakePptRunner()
+    store, tasks, task, artifacts, _transport, _adapter = _service(tmp_path, runner)
+    try:
+        source = _source_job(store, task, tmp_path / "artifacts")
+        with pytest.raises(PptResumeRejected):
+            artifacts.resume_ppt(task_id=task.task_id, source_job_id=source.job_id, user_id="u1", chat_id="other-chat")
+        Path(source.output_dir, "ppt_generation_checkpoints.json").unlink()
+        with pytest.raises(PptResumeRejected):
+            artifacts.resume_ppt(task_id=task.task_id, source_job_id=source.job_id, user_id="u1", chat_id="c1")
+        assert not runner.calls
+    finally:
+        _close(store, tasks, artifacts)
 
 def test_resume_rejects_user_or_chat_mismatch_and_exhausted_budget(tmp_path: Path) -> None:
     runner = FakePptRunner()
