@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.wecom.artifact_service import ArtifactService
+from src.wecom.artifact_service import ArtifactService, PptResumeRejected
 from src.wecom.models import ArtifactJob, ArtifactJobStatus, ArtifactType, TaskStatus, WeComTask
 from src.wecom.store import SQLiteTaskStore
 
@@ -13,6 +13,9 @@ TASK_ID_RE = r"[0-9a-f]{12}"
 _STATUS_RE = re.compile(rf"^(?:状态|任务状态)(?:\s+({TASK_ID_RE}))?$", re.IGNORECASE)
 _RESEND_RE = re.compile(rf"^(?:重发|重新发送)word(?:\s+({TASK_ID_RE}))?$", re.IGNORECASE)
 _PPT_RESEND_RE = re.compile(rf"^(?:重发|重新发送)ppt(?:\s+({TASK_ID_RE}))?$", re.IGNORECASE)
+_PPT_RESUME_RE = re.compile(rf"^\u7ee7\u7eed\u751f\u6210PPT +({TASK_ID_RE})$")
+_PPT_RESUME_PREFIX_RE = re.compile(r"^\u7ee7\u7eed\u751f\u6210(?:PPT|ppt)(?: +.*)?$")
+_PPT_ARTIFACT_INVALID_RE = re.compile(r"^(?:\u65b0\u751f\u6210|\u7ee7\u7eed\u505a)(?:PPT|ppt)(?: +.*)?$")
 _STATUS_PREFIX_RE = re.compile(r"^(?:状态|任务状态)(?:\s+\S+)?$", re.IGNORECASE)
 _RESEND_PREFIX_RE = re.compile(r"^(?:重发|重新发送)word(?:\s+\S+)?$", re.IGNORECASE)
 _HELP_RE = re.compile(r"^(?:帮助|help)$", re.IGNORECASE)
@@ -49,6 +52,12 @@ class TaskControlService:
             command_name = "resend_word"
         elif _PPT_RESEND_RE.fullmatch(text):
             command_name = "resend_ppt"
+        elif _PPT_RESUME_RE.fullmatch(text):
+            command_name = "resume_ppt"
+        elif _PPT_RESUME_PREFIX_RE.fullmatch(text):
+            command_name, invalid = "resume_ppt", True
+        elif _PPT_ARTIFACT_INVALID_RE.fullmatch(text):
+            command_name, invalid = "invalid_ppt_artifact", True
         elif _RESEND_PREFIX_RE.fullmatch(text):
             command_name, invalid = "resend_word", True
         if command_name is None:
@@ -57,15 +66,40 @@ class TaskControlService:
             return ControlResult(None)
         self._store.record_control_message(message.message_id, command_name)
         if invalid:
-            return ControlResult("任务编号格式不正确。")
+            if command_name == "invalid_ppt_artifact":
+                return ControlResult("\u672a\u8bc6\u522b\u8be5 PPT \u547d\u4ee4\u3002\u7ee7\u7eed\u65ad\u70b9\u751f\u6210\u8bf7\u53d1\u9001\uff1a\n\u7ee7\u7eed\u751f\u6210PPT <\u4efb\u52a1\u7f16\u53f7>")
+            if command_name == "resume_ppt":
+                return ControlResult("\u7ee7\u7eed\u65ad\u70b9\u751f\u6210\u8bf7\u53d1\u9001\uff1a\n\u7ee7\u7eed\u751f\u6210PPT <\u4efb\u52a1\u7f16\u53f7>")
+            return ControlResult("\u4efb\u52a1\u7f16\u53f7\u683c\u5f0f\u4e0d\u6b63\u786e\u3002")
         if command_name == "help":
-            return ControlResult("当前支持：发送方案需求、确认、上传 Markdown、生成Word、重新生成Word、重发Word、生成PPT、重新生成PPT、重发PPT、状态。")
+            return ControlResult("\u5f53\u524d\u652f\u6301\uff1a\u53d1\u9001\u65b9\u6848\u9700\u6c42\u3001\u786e\u8ba4\u3001\u4e0a\u4f20 Markdown\u3001\u751f\u6210Word\u3001\u91cd\u65b0\u751f\u6210Word\u3001\u91cd\u53d1Word\u3001\u751f\u6210PPT\u3001\u91cd\u65b0\u751f\u6210PPT\u3001\u91cd\u53d1PPT\u3001\u7ee7\u7eed\u751f\u6210PPT <\u4efb\u52a1\u7f16\u53f7>\uff08\u4ece\u4e0a\u6b21\u6210\u529f\u9875\u9762\u7ee7\u7eed\u751f\u6210\u5931\u8d25\u7684PPT\uff09\u3001\u72b6\u6001\u3002")
         if command_name == "status":
             return ControlResult(self._status(message, _STATUS_RE.fullmatch(text).group(1)))
         if command_name == "resend_ppt":
             return self._resend(message, _PPT_RESEND_RE.fullmatch(text).group(1), ArtifactType.PPTX)
+        if command_name == "resume_ppt":
+            return self._resume_ppt(message, _PPT_RESUME_RE.fullmatch(text).group(1))
         return self._resend(message, _RESEND_RE.fullmatch(text).group(1), ArtifactType.WORD)
 
+    def _resume_ppt(self, message, task_id: str) -> ControlResult:
+        task = self._owned_task(message.userid, message.chatid, task_id)
+        if task is None:
+            return ControlResult("\u672a\u627e\u5230\u53ef\u8bbf\u95ee\u7684\u4efb\u52a1\u3002")
+        jobs = self._store.artifact_jobs_for(task.task_id, ArtifactType.PPTX)
+        if any(job.status in {ArtifactJobStatus.QUEUED, ArtifactJobStatus.RUNNING} for job in jobs):
+            return ControlResult(f"\u8be5\u4efb\u52a1\u5df2\u6709 PPT \u6b63\u5728\u751f\u6210\uff0c\u8bf7\u52ff\u91cd\u590d\u63d0\u4ea4\u3002\u4efb\u52a1\u7f16\u53f7\uff1a{task.task_id}")
+        sources = self._store.list_resumable_ppt_jobs(task.task_id, message.userid, message.chatid)
+        if not sources:
+            return ControlResult(f"\u5f53\u524d\u6ca1\u6709\u53ef\u7ee7\u7eed\u7684 PPT \u751f\u6210\u8bb0\u5f55\u3002\u8bf7\u53d1\u9001\uff1a\n\u91cd\u65b0\u751f\u6210PPT {task.task_id}")
+        try:
+            child = self._artifacts.resume_ppt(task_id=task.task_id, source_job_id=sources[0].job_id, user_id=message.userid, chat_id=message.chatid)
+        except PptResumeRejected:
+            if self._store.has_active_resume_child(sources[0].job_id):
+                return ControlResult(f"\u8be5\u4efb\u52a1\u5df2\u6709 PPT \u6b63\u5728\u751f\u6210\uff0c\u8bf7\u52ff\u91cd\u590d\u63d0\u4ea4\u3002\u4efb\u52a1\u7f16\u53f7\uff1a{task.task_id}")
+            return ControlResult(f"\u5f53\u524d PPT \u8bb0\u5f55\u65e0\u6cd5\u7ee7\u7eed\u751f\u6210\u3002\u8bf7\u53d1\u9001\uff1a\n\u91cd\u65b0\u751f\u6210PPT {task.task_id}")
+        if child.status is ArtifactJobStatus.FAILED:
+            return ControlResult(f"PPT \u751f\u6210\u542f\u52a8\u5931\u8d25\u3002\u4efb\u52a1\u7f16\u53f7\uff1a{task.task_id}")
+        return ControlResult(f"PPT \u5c06\u4ece\u5df2\u4fdd\u5b58\u7684\u65ad\u70b9\u7ee7\u7eed\u751f\u6210\u3002\u4efb\u52a1\u7f16\u53f7\uff1a{task.task_id}")
     def _owned_task(self, userid: str, chatid: str, task_id: str | None) -> WeComTask | None:
         tasks = self._store.tasks_for(userid, chatid)
         if task_id:

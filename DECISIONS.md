@@ -155,3 +155,9 @@ Impact: `ProductionPptRunner` can invoke the configured producer by absolute scr
 Decision: A PPT resume is an explicit ArtifactService operation with a caller-provided failed source job. It validates the approved Markdown hash, source output-root containment, source-job binding, checkpoint manifest, canonical Global/continuous Page checkpoints, and remaining producer budget before atomically creating a new lineage child. The child receives a separate output root and passes the parent root only as a read-only resume input to the existing runner.
 
 Impact: Failed jobs are never returned to RUNNING and are never overwritten. Structured runner failures persist their code, stage and retryability on the child; evaluation failure is terminal and blocks delivery. Normal PPT generation retains its existing no-resume behavior.
+
+## 2026-09 — PPT resume is an explicit, exact WeCom control command
+
+Decision: `继续生成PPT <task_id>` is the sole user-facing resume command. ControlService resolves only the caller-owned task and its newest Store-ranked resumable PPT Job, then delegates all checkpoint, lineage, path and budget validation to ArtifactService. Malformed PPT-like commands are handled as control usage errors rather than ordinary proposal requests.
+
+Impact: Resume never silently falls back to an older source, never resets model budget, and never auto-retries. Message-ID deduplication and Store-level atomic child creation keep a replay or concurrent command from launching another runner.
