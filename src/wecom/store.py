@@ -6,6 +6,13 @@ from pathlib import Path
 
 from src.wecom.models import ArtifactJob, ArtifactJobStatus, ArtifactType, TaskStatus, WeComTask
 
+_ARTIFACT_LINEAGE_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("parent_job_id", "ALTER TABLE wecom_artifact_jobs ADD COLUMN parent_job_id TEXT"),
+    ("resume_from_job_id", "ALTER TABLE wecom_artifact_jobs ADD COLUMN resume_from_job_id TEXT"),
+    ("retryable", "ALTER TABLE wecom_artifact_jobs ADD COLUMN retryable INTEGER NOT NULL DEFAULT 0"),
+    ("failure_code", "ALTER TABLE wecom_artifact_jobs ADD COLUMN failure_code TEXT"),
+)
+
 
 class ArtifactLineageError(RuntimeError):
     pass
@@ -46,6 +53,34 @@ class SQLiteTaskStore:
                     message_id TEXT PRIMARY KEY, command_name TEXT NOT NULL
                 );
             """)
+
+
+            self._connection.execute("BEGIN IMMEDIATE")
+            self._migrate_artifact_job_schema()
+
+    def _artifact_job_column_names(self) -> set[str]:
+        return {
+            str(row["name"])
+            for row in self._connection.execute("PRAGMA table_info(wecom_artifact_jobs)")
+        }
+
+    def _migrate_artifact_job_schema(self) -> None:
+        """Add lineage fields to existing artifact-job tables before use."""
+        columns = self._artifact_job_column_names()
+        for name, statement in _ARTIFACT_LINEAGE_COLUMNS:
+            if name in columns:
+                continue
+            try:
+                self._connection.execute(statement)
+            except sqlite3.OperationalError:
+                columns = self._artifact_job_column_names()
+                if name not in columns:
+                    raise
+            else:
+                columns.add(name)
+        missing = {name for name, _statement in _ARTIFACT_LINEAGE_COLUMNS} - self._artifact_job_column_names()
+        if missing:
+            raise sqlite3.OperationalError("artifact job lineage schema migration is incomplete")
 
     def close(self) -> None:
         with self._lock:
