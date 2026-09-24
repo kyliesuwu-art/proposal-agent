@@ -66,7 +66,14 @@ def recompute_call_budget(root:Path,limit:int)->int:
  used=sum(1 for x in values if isinstance(x,dict) and x.get("network_request_started") is True)
  if any(not isinstance(x,dict) for x in values) or used>limit: raise ResumeRejected("ark call record is invalid")
  return used
-def import_resume_state(*,parent_root:Path,child_root:Path,expected:dict,validate_global:Callable[[dict],None],validate_page:Callable[[int,dict],None])->ResumeState:
+def load_checkpoint_manifest(parent_root:Path)->dict:
+ if _link(parent_root) or not parent_root.is_dir(): raise ResumeRejected("source Job root is unsafe")
+ path=parent_root.resolve()/MANIFEST_NAME
+ if not path.exists() or _link(path) or not path.is_file(): raise ResumeRejected("source Job has no checkpoint manifest")
+ try: data=json.loads(path.read_text(encoding="utf-8"))
+ except Exception as exc: raise ResumeRejected("checkpoint manifest is unreadable") from exc
+ _validate(data); return data
+def inspect_resume_source(*,parent_root:Path,expected:dict,validate_global:Callable[[dict],None],validate_page:Callable[[int,dict],None])->ResumeState:
  if _link(parent_root) or not parent_root.is_dir(): raise ResumeRejected("source Job root is unsafe")
  root=parent_root.resolve(); path=root/MANIFEST_NAME
  if not path.exists(): raise ResumeRejected("source Job has no checkpoint manifest")
@@ -83,12 +90,21 @@ def import_resume_state(*,parent_root:Path,child_root:Path,expected:dict,validat
   except Exception as e: raise ResumeRejected("checkpoint JSON is invalid") from e
  global_path=None
  if data["global"]:
-  _,value=read(data["global"]); validate_global(value); global_path=child_root/"global_art_direction.json"; _atomic(global_path,value)
+  global_path,value=read(data["global"]); validate_global(value)
  elif data["pages"]: raise ResumeRejected("pages require Global checkpoint")
  pages=[]
  for number in range(1,data["total_slide_count"]+1):
   entry=next((x for x in data["pages"] if x["page"]==number),None)
   if not entry: break
-  source,value=read(entry); validate_page(number,value); target=child_root/"scene_graphs"/source.name; _atomic(target,value); pages.append((number,target))
+  source,value=read(entry); validate_page(number,value); pages.append((number,source))
  used=recompute_call_budget(root,data["model_max_calls"])
  return ResumeState(global_path,tuple(pages),len(pages)+1,used,data["model_max_calls"]-used)
+def import_resume_state(*,parent_root:Path,child_root:Path,expected:dict,validate_global:Callable[[dict],None],validate_page:Callable[[int,dict],None])->ResumeState:
+ state=inspect_resume_source(parent_root=parent_root,expected=expected,validate_global=validate_global,validate_page=validate_page)
+ global_path=None
+ if state.global_direction:
+  global_path=child_root/"global_art_direction.json"; _atomic(global_path,json.loads(state.global_direction.read_text(encoding="utf-8")))
+ pages=[]
+ for number,source in state.page_paths:
+  target=child_root/"scene_graphs"/source.name; _atomic(target,json.loads(source.read_text(encoding="utf-8"))); pages.append((number,target))
+ return ResumeState(global_path,tuple(pages),state.next_page,state.historical_calls_used,state.remaining_budget)

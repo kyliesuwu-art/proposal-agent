@@ -149,3 +149,9 @@ Impact: Diagnostics identify invalid `image_source` values without rejecting ord
 Decision: `scripts/run_ppt_v4_ark_full20.py` derives its project root from `__file__` and inserts that root into its process-local `sys.path` before importing `src`. It remains independent of the caller cwd, `PYTHONPATH`, the original Core checkout and editable-install state.
 
 Impact: `ProductionPptRunner` can invoke the configured producer by absolute script path from an ArtifactJob subprocess without an import-stage failure. The bootstrap is limited to this direct entry point and does not mutate global environment or alter production command execution.
+
+## 2026-09 — Explicit PPT resume creates a lineage child only after checkpoint preflight
+
+Decision: A PPT resume is an explicit ArtifactService operation with a caller-provided failed source job. It validates the approved Markdown hash, source output-root containment, source-job binding, checkpoint manifest, canonical Global/continuous Page checkpoints, and remaining producer budget before atomically creating a new lineage child. The child receives a separate output root and passes the parent root only as a read-only resume input to the existing runner.
+
+Impact: Failed jobs are never returned to RUNNING and are never overwritten. Structured runner failures persist their code, stage and retryability on the child; evaluation failure is terminal and blocks delivery. Normal PPT generation retains its existing no-resume behavior.

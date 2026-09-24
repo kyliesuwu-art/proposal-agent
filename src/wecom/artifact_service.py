@@ -13,10 +13,26 @@ from zipfile import is_zipfile
 
 from src.wecom.models import ArtifactEvent, ArtifactJob, ArtifactJobStatus, ArtifactType, TaskStatus, WeComTask
 from src.wecom.task_paths import PersistedTaskPathError, resolve_persisted_task_path
-from src.wecom.store import SQLiteTaskStore
+from src.wecom.store import ArtifactLineageError, SQLiteTaskStore
+from src.wecom.ppt_checkpoint import ResumeRejected, inspect_resume_source, load_checkpoint_manifest
+from src.wecom.ppt_failures import PptFailureCode, PptRunnerFailure
 from src.wecom.word_runner import WordRunner
 from src.wecom.ppt_runner import PptRunner
 
+
+class PptResumeRejected(RuntimeError):
+    """A requested explicit PPT resume source is not safe or compatible."""
+
+
+def _is_link_or_reparse_point(path: Path) -> bool:
+    try:
+        stat_result = path.lstat()
+    except FileNotFoundError:
+        return False
+    return path.is_symlink() or getattr(path, "is_junction", lambda: False)() or bool(getattr(stat_result, "st_file_attributes", 0) & 0x0400)
+def _validate_checkpoint_object(value: object, _kind: str) -> None:
+    if not isinstance(value, dict):
+        raise ResumeRejected("checkpoint JSON root is invalid")
 
 def _now() -> str:
     return datetime.now().astimezone().isoformat()
@@ -160,17 +176,125 @@ class ArtifactService:
             future.add_done_callback(lambda done: self._futures.discard(done))
             return task, f"PPT 已开始生成。任务编号：{task.task_id}"
 
-    def _generate_ppt(self, task_id: str, job_id: str) -> None:
+    def _resume_source(self, *, task_id: str, source_job_id: str, user_id: str, chat_id: str) -> tuple[WeComTask, ArtifactJob, Path]:
+        try:
+            task = self._store.get(task_id)
+            source = self._store.get_artifact_job(source_job_id)
+        except KeyError as exc:
+            raise PptResumeRejected("PPT resume source is unavailable") from exc
+        if task.userid != user_id or task.chatid != chat_id:
+            raise PptResumeRejected("PPT resume source does not belong to this user or chat")
+        try:
+            approved_path, approved_sha = self._safe_source(task)
+        except ValueError as exc:
+            raise PptResumeRejected("PPT approved Markdown is unavailable") from exc
+        if (
+            source.artifact_type is not ArtifactType.PPTX
+            or source.status is not ArtifactJobStatus.FAILED
+            or not source.retryable
+            or source.task_id != task_id
+            or source.source_md_sha256 != approved_sha
+        ):
+            raise PptResumeRejected("PPT resume source is not eligible")
+        try:
+            self._store.walk_artifact_parent_chain(source_job_id)
+        except ArtifactLineageError as exc:
+            raise PptResumeRejected("PPT resume lineage is invalid") from exc
+        root = Path(source.output_dir)
+        if not root.is_dir() or _is_link_or_reparse_point(root):
+            raise PptResumeRejected("PPT resume source output is unsafe")
+        try:
+            root = root.resolve(strict=True)
+            root.relative_to(self._output_root)
+        except (OSError, ValueError) as exc:
+            raise PptResumeRejected("PPT resume source output escapes artifact storage") from exc
+        try:
+            checkpoint = load_checkpoint_manifest(root)
+            if checkpoint["source_job_id"] != source.job_id:
+                raise ResumeRejected("checkpoint source Job does not match ArtifactJob")
+            assets_path = root / "assets_manifest.json"
+            if _is_link_or_reparse_point(assets_path) or not assets_path.is_file():
+                raise ResumeRejected("source assets manifest is unsafe")
+            assets_sha = hashlib.sha256(assets_path.read_bytes()).hexdigest()
+            compatibility = {
+                "producer": checkpoint["producer_compatibility_version"],
+                "prompt": checkpoint["prompt_contract_version"],
+                "scene_schema": checkpoint["scene_schema_version"],
+                "pages": checkpoint["total_slide_count"],
+            }
+            expected = {
+                "task_id": task_id,
+                "source_job_id": source.job_id,
+                "approved_md_sha256": approved_sha,
+                "assets_manifest_sha256": assets_sha,
+                "compatibility": compatibility,
+                "model_max_calls": checkpoint["model_max_calls"],
+                "pages": checkpoint["total_slide_count"],
+            }
+            state = inspect_resume_source(
+                parent_root=root,
+                expected=expected,
+                validate_global=lambda value: _validate_checkpoint_object(value, "global"),
+                validate_page=lambda _page, value: _validate_checkpoint_object(value, "page"),
+            )
+        except (OSError, ResumeRejected, ValueError, KeyError) as exc:
+            raise PptResumeRejected("PPT resume checkpoint is invalid") from exc
+        if state.global_direction is None or state.remaining_budget <= 0:
+            raise PptResumeRejected("PPT resume checkpoint has no usable budget or global direction")
+        return task, source, root
+
+    def resume_ppt(self, *, task_id: str, source_job_id: str, user_id: str, chat_id: str) -> ArtifactJob:
+        """Explicitly create one child Job from a verified FAILED PPT source."""
+        if self._ppt_runner is None:
+            raise PptResumeRejected("PPT production Runner is unavailable")
+        with self._start_lock:
+            task, source, source_root = self._resume_source(
+                task_id=task_id, source_job_id=source_job_id, user_id=user_id, chat_id=chat_id
+            )
+            now, job_id = _now(), uuid.uuid4().hex[:12]
+            output_dir = self._output_root / task_id / job_id
+            child = ArtifactJob(
+                job_id, task_id, ArtifactType.PPTX, ArtifactJobStatus.QUEUED,
+                source.source_md_path, source.source_md_sha256, str(output_dir),
+                None, None, None, None, now, now,
+                parent_job_id=source.job_id, resume_from_job_id=source.job_id,
+                retryable=False, failure_code=None,
+            )
+            try:
+                self._store.create_resume_child_atomic(source.job_id, child)
+            except ArtifactLineageError as exc:
+                raise PptResumeRejected("PPT resume source already has an active child") from exc
+            try:
+                future = self._executor.submit(self._generate_ppt, task_id, job_id, source_root)
+            except Exception:
+                failed = self._store.update_artifact_job(replace(
+                    child, status=ArtifactJobStatus.FAILED, error_stage="resume_scheduling",
+                    error_message="PPT generation failed", failure_code=PptFailureCode.UNKNOWN_FAILURE.value,
+                    retryable=False, updated_at=_now(),
+                ))
+                self._emit("PPT_GENERATION_FAILED", failed, task)
+                return failed
+            with self._future_lock:
+                self._futures.add(future)
+            future.add_done_callback(lambda done: self._futures.discard(done))
+            return child
+    def _generate_ppt(self, task_id: str, job_id: str, resume_from_job_root: Path | None = None) -> None:
         task, job = self._store.get(task_id), self._store.get_artifact_job(job_id)
         running = self._store.update_artifact_job(replace(job, status=ArtifactJobStatus.RUNNING, updated_at=_now()))
         self._emit("PPT_GENERATION_STARTED", running, task)
         try:
             source = Path(running.source_md_path); before = hashlib.sha256(source.read_bytes()).hexdigest()
             if before != running.source_md_sha256: raise RuntimeError("approved Markdown changed before PPT generation")
-            result = self._ppt_runner.run(source, self._task_output_root / task.task_id, Path(running.output_dir), task_id, job_id)
+            if resume_from_job_root is None:
+                result = self._ppt_runner.run(source, self._task_output_root / task.task_id, Path(running.output_dir), task_id, job_id)
+            else:
+                result = self._ppt_runner.run(source, self._task_output_root / task.task_id, Path(running.output_dir), task_id, job_id, resume_from_job_root=resume_from_job_root)
             deck = result.primary_artifact_path.resolve(); root = Path(running.output_dir).resolve()
             if root not in deck.parents or not deck.is_file() or deck.stat().st_size == 0 or not is_zipfile(deck): raise RuntimeError("invalid PPT output")
-            if result.evaluation_status == "FAIL": raise RuntimeError("PPT artifact evaluation failed")
+            if result.evaluation_status == "FAIL":
+                failed = self._store.update_artifact_job(replace(running, status=ArtifactJobStatus.FAILED, error_stage="evaluation", error_message="PPT generation failed", failure_code=PptFailureCode.EVALUATION_FAILED.value, retryable=False, updated_at=_now()))
+                self._emit("PPT_GENERATION_FAILED", failed, task)
+                return
             if result.warnings:
                 (root / "evaluation_warnings.json").write_text(json.dumps({
                     "evaluation_status": result.evaluation_status,
@@ -179,8 +303,28 @@ class ArtifactService:
             if hashlib.sha256(source.read_bytes()).hexdigest() != before: raise RuntimeError("approved Markdown changed during PPT generation")
             ready = self._store.update_artifact_job(replace(running, status=ArtifactJobStatus.READY, primary_artifact_path=str(deck), preview_artifact_path=str(result.preview_artifact_path) if result.preview_artifact_path else None, updated_at=_now()))
             self._emit("PPT_GENERATION_READY", ready, task)
+        except PptRunnerFailure as exc:
+            failure = exc.failure
+            failed = self._store.update_artifact_job(replace(
+                running,
+                status=ArtifactJobStatus.FAILED,
+                error_stage=failure.stage,
+                error_message="PPT generation failed",
+                failure_code=failure.code.value,
+                retryable=failure.retryable,
+                updated_at=_now(),
+            ))
+            self._emit("PPT_GENERATION_FAILED", failed, task)
         except Exception:
-            failed = self._store.update_artifact_job(replace(running, status=ArtifactJobStatus.FAILED, error_stage="ppt_generation", error_message="PPT generation failed", updated_at=_now()))
+            failed = self._store.update_artifact_job(replace(
+                running,
+                status=ArtifactJobStatus.FAILED,
+                error_stage="ppt_generation",
+                error_message="PPT generation failed",
+                failure_code=PptFailureCode.UNKNOWN_FAILURE.value,
+                retryable=False,
+                updated_at=_now(),
+            ))
             self._emit("PPT_GENERATION_FAILED", failed, task)
 
     def _generate_word(self, task_id: str, job_id: str) -> None:
