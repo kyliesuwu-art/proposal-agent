@@ -11,6 +11,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Protocol, Sequence
 from zipfile import is_zipfile
+from src.wecom.ppt_failures import (
+    PptFailureCode,
+    PptFailureInfo,
+    PptRunnerFailure,
+    read_ppt_failure,
+)
 
 
 @dataclass(frozen=True)
@@ -30,6 +36,8 @@ class PptRunner(Protocol):
         output_dir: Path,
         task_id: str,
         job_id: str,
+        *,
+        resume_from_job_root: Path | None = None,
     ) -> PptResult: ...
 
 
@@ -117,7 +125,14 @@ class ProductionPptRunner:
             command.append("--enable-visual-critic")
         started = datetime.now().astimezone()
         environment = dict(os.environ); environment["PPT_TASK_ID"], environment["PPT_JOB_ID"] = task_id, job_id
-        completed = subprocess.run(command, cwd=self._project_root, check=False, capture_output=True, text=True, shell=False, env=environment)
+        try:
+            completed = subprocess.run(command, cwd=self._project_root, check=False, capture_output=True, text=True, shell=False, env=environment)
+        except OSError as exc:
+            finished = datetime.now().astimezone()
+            (output_dir / "ppt_runner.stdout.log").write_text("", encoding="utf-8")
+            (output_dir / "ppt_runner.stderr.log").write_text("", encoding="utf-8")
+            failure = PptFailureInfo(PptFailureCode.CONFIG_INVALID, "runner_start", False, "PPT production runner could not be started.")
+            raise PptRunnerFailure(failure) from exc
         finished = datetime.now().astimezone()
         (output_dir / "ppt_runner.stdout.log").write_text(self._redact(completed.stdout or ""), encoding="utf-8")
         (output_dir / "ppt_runner.stderr.log").write_text(self._redact(completed.stderr or ""), encoding="utf-8")
@@ -130,7 +145,8 @@ class ProductionPptRunner:
             "model_max_calls": self._model_max_calls if self._model_enabled else 0,
         }, ensure_ascii=False, indent=2), encoding="utf-8")
         if completed.returncode:
-            raise subprocess.CalledProcessError(completed.returncode, command)
+            original = subprocess.CalledProcessError(completed.returncode, command, output=completed.stdout, stderr=completed.stderr)
+            raise PptRunnerFailure(read_ppt_failure(output_dir)) from original
         if not output_pptx.is_file() or output_pptx.stat().st_size == 0 or not is_zipfile(output_pptx):
             raise RuntimeError("PPT renderer completed without a valid PPTX")
         report_path = output_dir / "artifact_evaluation" / "evaluation_report.json"

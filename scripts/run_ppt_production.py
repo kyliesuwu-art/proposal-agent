@@ -27,9 +27,72 @@ from src.artifact_assets.manifest_builder import build_manifest
 from src.artifact_assets.safe_resolver import resolve_task_image
 from src.artifact_evaluation.report_writer import write_report
 from src.artifact_evaluation.runner import evaluate
+from src.wecom.ppt_failures import (
+    PPT_FAILURE_FILENAME,
+    PptFailureCode,
+    PptFailureInfo,
+    PptProducerConfigError,
+    PptProducerInputError,
+    PptProducerSecurityError,
+    load_ppt_failure_strict,
+    write_ppt_failure,
+)
 
 W, H = 13.333, 7.5
 SAFE_FOOTER_Y = 6.91
+
+class _ProductionContext:
+    """Mutable per-invocation state without module-registration requirements."""
+
+    def __init__(self, output_dir: Path | None = None, stage: str = "startup") -> None:
+        self.output_dir = output_dir
+        self.stage = stage
+        self.failure_report_preexisting = False
+
+
+def _has_valid_failure_report(output_dir: Path) -> bool:
+    try:
+        load_ppt_failure_strict(output_dir)
+    except Exception:
+        return False
+    return True
+
+
+def _write_failure_if_needed(context: _ProductionContext, failure: PptFailureInfo) -> None:
+    if context.output_dir is None or context.failure_report_preexisting:
+        return
+    try:
+        if not _has_valid_failure_report(context.output_dir):
+            write_ppt_failure(context.output_dir, failure)
+    except Exception:
+        print("PPT_FAILURE_REPORT_WRITE_FAILED", file=sys.stderr, flush=True)
+
+
+def _production_failure(exc: BaseException, *, stage: str) -> PptFailureInfo:
+    if isinstance(exc, PptProducerInputError) or isinstance(exc, FileNotFoundError):
+        code, message = PptFailureCode.INPUT_INVALID, "PPT production input is invalid."
+    elif isinstance(exc, PptProducerConfigError):
+        code, message = PptFailureCode.CONFIG_INVALID, "PPT production configuration is invalid."
+    elif isinstance(exc, PptProducerSecurityError):
+        code, message = PptFailureCode.SECURITY_REJECTED, "PPT production filesystem safety validation failed."
+    elif stage == "render":
+        code, message = PptFailureCode.RENDER_FAILED, "PPT rendering failed."
+    else:
+        code, message = PptFailureCode.UNKNOWN_FAILURE, "PPT production failed without a valid structured classification."
+    return PptFailureInfo(code=code, stage=stage, retryable=False, safe_message=message)
+
+
+def _producer_failed_report(output_dir: Path) -> None:
+    context = _ProductionContext(output_dir=output_dir, stage="producer")
+    _write_failure_if_needed(
+        context,
+        PptFailureInfo(
+            code=PptFailureCode.PRODUCER_FAILED,
+            stage="producer",
+            retryable=False,
+            safe_message="PPT Scene Graph producer failed.",
+        ),
+    )
 
 
 def _color(value: str | None, fallback: str = "#1A2A3A") -> RGBColor:
@@ -223,15 +286,23 @@ def generate_scene_graph(command_json: str, input_md: Path, task_root: Path, out
     if resume_from_job_root:
         if not resume_from_job_root.is_dir() or resume_from_job_root.is_symlink(): raise RuntimeError("resume source Job root is unsafe")
         args.extend(("--resume-from-job-root", str(resume_from_job_root.resolve())))
-    completed = subprocess.run(args, check=False, capture_output=True, text=True, shell=False)
+    try:
+        completed = subprocess.run(args, check=False, capture_output=True, text=True, shell=False)
+    except OSError as exc:
+        _write_failure_if_needed(
+            _ProductionContext(output_dir=output_dir, stage="producer"),
+            PptFailureInfo(PptFailureCode.CONFIG_INVALID, "producer", False, "PPT producer could not be started."),
+        )
+        raise PptProducerConfigError("PPT producer could not be started") from exc
     (output_dir / "model_scene_generator.stdout.log").write_text(completed.stdout or "", encoding="utf-8")
     (output_dir / "model_scene_generator.stderr.log").write_text(completed.stderr or "", encoding="utf-8")
     if completed.returncode or not any(path.stat().st_mtime >= started for path in scene_dir.glob("*.json")):
+        _producer_failed_report(output_dir)
         raise RuntimeError("approved model Scene Graph producer failed")
     return scene_dir
 
 
-def main() -> int:
+def _main(context: _ProductionContext) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-md", type=Path, required=True); parser.add_argument("--task-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True); parser.add_argument("--output-pptx", type=Path, required=True)
@@ -243,20 +314,38 @@ def main() -> int:
     parser.add_argument("--enable-visual-critic", action="store_true"); parser.add_argument("--max-revisions", type=int, default=0)
     parser.add_argument("--task-id", default=""); parser.add_argument("--job-id", default=""); parser.add_argument("--resume-from-job-root", type=Path)
     args = parser.parse_args()
+    context.output_dir = args.output_dir
     if args.disable_model and not args.existing_scene_dir:
         raise RuntimeError("--existing-scene-dir is required for model-disabled production")
     if args.enable_model and (args.existing_scene_dir or not args.model_scene_command_json or not args.model_max_calls or not args.visual_reference_root):
         raise RuntimeError("--enable-model requires producer argv, visual reference root, positive model call limit, and cannot reuse an existing Scene Graph")
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    context.failure_report_preexisting = os.path.lexists(args.output_dir / PPT_FAILURE_FILENAME)
+    if context.failure_report_preexisting:
+        raise PptProducerSecurityError("fresh production Job already contains a failure report")
     before = hashlib.sha256(args.input_md.read_bytes()).hexdigest()
-    manifest = build_manifest(args.input_md, args.task_root); args.output_dir.mkdir(parents=True, exist_ok=True)
+    manifest = build_manifest(args.input_md, args.task_root)
     manifest_path = args.output_dir / "assets_manifest.json"; manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    context.stage = "producer" if args.enable_model else "render"
     scene_dir = args.existing_scene_dir or generate_scene_graph(args.model_scene_command_json, args.input_md, args.task_root, args.output_dir, args.visual_reference_root, args.model_max_calls, resume_from_job_root=args.resume_from_job_root)
+    context.stage = "render"
     warnings, page_count = render(scene_dir, args.output_pptx, build_validated_asset_set(manifest, args.task_root), args.input_md.read_text(encoding="utf-8"), args.target_slides)
+    context.stage = "producer_finalize"
     report = evaluate(profile="client-delivery", markdown=str(args.input_md), pptx=str(args.output_pptx), expected_source_hash=before)
     write_report(report, args.output_dir / "artifact_evaluation")
     args.run_log.write_text(json.dumps({"model_calls": 1 if args.enable_model else 0, "visual_critic": False, "max_revisions": 0, "page_count": page_count, "warnings": warnings, "approved_sha256_before": before, "approved_sha256_after": hashlib.sha256(args.input_md.read_bytes()).hexdigest()}, ensure_ascii=False, indent=2), encoding="utf-8")
     return 1 if report.overall_status.value == "FAIL" else 0
 
+
+
+
+def main() -> int:
+    context = _ProductionContext()
+    try:
+        return _main(context)
+    except Exception as exc:
+        _write_failure_if_needed(context, _production_failure(exc, stage=context.stage))
+        raise
 
 if __name__ == "__main__":
     raise SystemExit(main())
