@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import time
 import http.client
+import urllib.error
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -35,6 +36,8 @@ ASSET_ROOT = ROOT / "outputs" / "ppt_style_v4"
 HYBRID_PNG = ROOT / "outputs" / "ppt_hybrid_v5" / "final" / "png" / "slide"
 STAB_ROOT = ROOT / "outputs" / "ppt_scene_graph_experiment"
 MODEL = "doubao-seed-2-1-pro-260628"
+HTTP_ERROR_DIAGNOSTICS = "ark_http_error_diagnostics.json"
+MAX_HTTP_ERROR_BODY_BYTES = 64 * 1024
 W, H = 13.333, 7.5
 BG = (247, 250, 252)
 BLUE = (79, 129, 189)
@@ -63,6 +66,51 @@ def read_env() -> dict[str, str]:
     if not values.get("ARK_API_KEY"):
         raise PptProducerConfigError("ARK_API_KEY is not present in the runtime environment or .env")
     return values
+
+
+def _safe_http_headers(headers) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for name in ("Content-Type", "request-id", "x-request-id", "x-tt-logid", "Retry-After"):
+        value = headers.get(name) if headers else None
+        if value:
+            result[name] = str(value)
+    return result
+
+
+def _redact_http_value(value: object, api_key: str) -> str:
+    text = str(value).replace(api_key, "[REDACTED]") if api_key else str(value)
+    text = re.sub(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s]+", r"\1[REDACTED]", text)
+    return re.sub(r"(?i)(api[_-]?key\s*[:=]\s*)[^\s,;]+", r"\1[REDACTED]", text)
+
+
+def _http_error_diagnostic(error: urllib.error.HTTPError, api_key: str) -> dict:
+    body, truncated, read_error = b"", False, None
+    try:
+        body = error.read(MAX_HTTP_ERROR_BODY_BYTES + 1)
+        truncated, body = len(body) > MAX_HTTP_ERROR_BODY_BYTES, body[:MAX_HTTP_ERROR_BODY_BYTES]
+    except Exception as exc:
+        read_error = type(exc).__name__
+    summary = _redact_http_value(body.decode("utf-8", "replace"), api_key)
+    try:
+        parsed = json.loads(summary)
+    except json.JSONDecodeError:
+        parsed = None
+    payload = parsed.get("error", parsed) if isinstance(parsed, dict) else {}
+    if not isinstance(payload, dict):
+        payload = {}
+    headers = _safe_http_headers(error.headers)
+    request_id = payload.get("request_id") or payload.get("requestId") or headers.get("request-id") or headers.get("x-request-id") or headers.get("x-tt-logid") or "UNKNOWN"
+    return {"http_status": error.code, "content_type": headers.get("Content-Type", "UNKNOWN"), "headers": headers, "provider_error_code": payload.get("code", "UNKNOWN"), "provider_error_type": payload.get("type", "UNKNOWN"), "provider_error_message": _redact_http_value(payload.get("message", "UNKNOWN"), api_key), "provider_request_id": request_id, "body_summary": summary, "body_truncated": truncated, "body_json_parsed": parsed is not None, "diagnostic_read_error": read_error}
+
+
+def _record_http_error_diagnostic(purpose: str, diagnostic: dict) -> None:
+    path = OUT / HTTP_ERROR_DIAGNOSTICS
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []
+        rows.append({"purpose": purpose, **diagnostic})
+        path.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
 
 
 class StreamInterruptedError(http.client.IncompleteRead):
@@ -142,6 +190,11 @@ def ask(messages: list[dict], purpose: str, *, max_tokens: int = 12000) -> tuple
                     first_chunk_at = first_chunk_at or now
                     last_chunk_at = now
                     parts.append(str(delta))
+    except urllib.error.HTTPError as exc:
+        diagnostic = _http_error_diagnostic(exc, cfg["ARK_API_KEY"])
+        exc.ark_http_diagnostic = diagnostic
+        _record_http_error_diagnostic(purpose, diagnostic)
+        raise
     except http.client.IncompleteRead as exc:
         raise StreamInterruptedError(exc.partial, exc.expected, telemetry()) from exc
 

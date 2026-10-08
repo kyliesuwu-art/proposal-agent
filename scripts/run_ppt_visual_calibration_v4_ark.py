@@ -339,6 +339,7 @@ def _attempt_record(*, call_id: str, attempt: int, started: float, meta: dict, c
         "error_type": type(error).__name__ if error else None,
         "error_message": _redact_error_message(error) if error else None,
         "error": _redact_error_message(error) if error else None,
+        "provider_error_diagnostic": getattr(error, "ark_http_diagnostic", None) if error else None,
         "json_line": error.line if isinstance(error, ModelJsonContractError) else None,
         "json_column": error.column if isinstance(error, ModelJsonContractError) else None,
         "budget_used": MODEL_CALL_BUDGET.used if MODEL_CALL_BUDGET else None,

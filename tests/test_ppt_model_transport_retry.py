@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import http.client
+import io
 import json
 import urllib.error
+from email.message import Message
 
 import pytest
 
@@ -233,3 +235,40 @@ def test_transport_error_messages_are_redacted(monkeypatch, tmp_path):
 ])
 def test_standard_transient_transport_errors_are_retryable(error):
     assert v4.is_retryable_transport_error(error) is True
+
+
+def _http_error(body: bytes, *, status: int = 403, headers: dict[str, str] | None = None):
+    message = Message()
+    for name, value in (headers or {}).items():
+        message[name] = value
+    return urllib.error.HTTPError("https://example.invalid/api", status, "Forbidden", message, io.BytesIO(body))
+
+
+def test_http_error_json_diagnostic_is_saved_without_changing_retry_or_budget(monkeypatch, tmp_path):
+    monkeypatch.setattr(v4.PAD, "OUT", tmp_path)
+    key = "sensitive-key"
+    monkeypatch.setattr(v4.PAD, "read_env", lambda: {"ARK_API_KEY": key, "ARK_BASE_URL": "https://example.invalid"})
+    error = _http_error(b'{"error":{"code":"AccessDenied","type":"permission_error","message":"Bearer sensitive-key denied","request_id":"body-request"}}', headers={"x-request-id": "header-request", "Content-Type": "application/json"})
+    monkeypatch.setattr(v4.PAD.urllib.request, "urlopen", lambda *_args, **_kwargs: (_ for _ in ()).throw(error))
+    v4.configure_model_call_budget(2)
+    with pytest.raises(v4.ModelTransportError):
+        v4.ask_json(call_id="page", system="x", content=[], raw_file=tmp_path / "raw.json", retry_delay_seconds=0)
+    diagnostic = records(tmp_path)[0]["provider_error_diagnostic"]
+    assert v4.MODEL_CALL_BUDGET.used == 1 and records(tmp_path)[0]["retryable"] is False
+    assert diagnostic["http_status"] == 403 and diagnostic["provider_error_code"] == "AccessDenied"
+    assert diagnostic["provider_error_type"] == "permission_error" and diagnostic["provider_request_id"] == "body-request"
+    assert key not in json.dumps(diagnostic)
+    assert json.loads((tmp_path / v4.PAD.HTTP_ERROR_DIAGNOSTICS).read_text(encoding="utf-8"))[0]["provider_error_code"] == "AccessDenied"
+
+
+def test_http_error_diagnostic_handles_non_json_limited_redacted_body(monkeypatch, tmp_path):
+    monkeypatch.setattr(v4.PAD, "OUT", tmp_path)
+    monkeypatch.setattr(v4.PAD, "read_env", lambda: {"ARK_API_KEY": "key", "ARK_BASE_URL": "https://example.invalid"})
+    error = _http_error(b"Authorization: Bearer key " + b"x" * (64 * 1024 + 20), headers={"x-tt-logid": "log-id", "Content-Type": "text/plain"})
+    monkeypatch.setattr(v4.PAD.urllib.request, "urlopen", lambda *_args, **_kwargs: (_ for _ in ()).throw(error))
+    with pytest.raises(v4.ModelTransportError):
+        v4.ask_json(call_id="page", system="x", content=[], raw_file=tmp_path / "raw.json", retry_delay_seconds=0)
+    diagnostic = records(tmp_path)[0]["provider_error_diagnostic"]
+    assert diagnostic["provider_error_code"] == "UNKNOWN" and diagnostic["provider_request_id"] == "log-id"
+    assert diagnostic["body_json_parsed"] is False and diagnostic["body_truncated"] is True
+    assert "Bearer key" not in diagnostic["body_summary"]
