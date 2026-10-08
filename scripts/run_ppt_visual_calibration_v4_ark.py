@@ -429,6 +429,35 @@ def art_direction() -> dict:
     return value
 
 
+def scene_validation_field_errors(value: dict, validation: dict) -> list[dict]:
+    """Describe hard Scene Graph failures without changing or repairing the scene.
+
+    The description is deliberately structural: it lets the existing second
+    attempt correct a rejected graph, while never inferring coordinates,
+    content, or asset references on the model's behalf.
+    """
+    elements = {
+        str(item.get("id")): item
+        for item in value.get("elements", [])
+        if isinstance(item, dict) and item.get("id")
+    }
+    details: list[dict] = []
+    for issue in validation.get("hard_errors", []):
+        if not isinstance(issue, str):
+            continue
+        node_id, separator, reason = issue.partition(":")
+        element = elements.get(node_id)
+        if separator and reason == "geometry_missing" and element is not None:
+            missing = [field for field in ("x", "y", "w", "h") if field not in element]
+            details.append({
+                "node_id": node_id,
+                "field_paths": [f"elements[id={node_id}].{field}" for field in missing],
+                "actual": {field: element.get(field, "MISSING") for field in ("x", "y", "w", "h")},
+                "required": "finite numeric x, y, w, h; w and h must be > 0",
+            })
+    return details
+
+
 def page_request(page: int, direction: dict, *, revision: bool = False) -> dict:
     scene_path = OUT / "scene_graphs" / f"page_{page:02}_{NAMES[page]}.json"
     if scene_path.is_file() and not revision:
@@ -445,7 +474,7 @@ def page_request(page: int, direction: dict, *, revision: bool = False) -> dict:
     content.append({"type": "text", "text": json.dumps({"global_art_direction": direction, "page_context": ctx, "canvas_inches": [13.333, 7.5], "safe_zones": {"logo": [0.45, 0.08, 2.05, 0.48], "footer": [0.55, 6.84, 12.15, 0.48]}, "schema": {"root": ["background", "elements"], "element_types": ["text", "image", "rectangle", "rounded_rectangle", "circle", "line", "arrow"], "common": ["id", "type", "x", "y", "w", "h", "z_order"], "text": ["text", "font_size", "font_weight", "alignment", "color"], "image": ["image_source", "crop"], "line_or_arrow": ["from", "to", "color", "line_width"]}, "requirements": ["Return a complete parseable Scene Graph only", "Do not draw logo/footer/page number", "Keep all main content outside safe zones", "Use only allowed_content_images as image_source. Node id is an element name, not an asset. STYLE_REFERENCE_ONLY attachments are NOT_A_CONTENT_ASSET and MUST_NOT_BE_REFERENCED_IN_SCENE_GRAPH. If none fit, omit the image node.", "All coordinates within canvas", "Text in normal body >=16pt; no markdown, URLs or new facts", "Do not rely on a local template; choose a page-specific composition", "The result must be directly editable with native PowerPoint shapes"]}, ensure_ascii=False)})
     if revision:
         previous = json.loads(scene_path.read_text(encoding="utf-8")); content.append({"type": "text", "text": "This is a single targeted revision after visual critique. Preserve locked facts and improve only the cited defects. Current Scene Graph: " + json.dumps(previous, ensure_ascii=False)})
-    system = "You are a senior enterprise presentation art director. You can see the attached actual images. Return ONLY one JSON object Scene Graph, with background and elements. Do not explain your work. Avoid card-grid/UI conventions; every line, arrow, color block, or image crop must carry information or hierarchy."
+    system = "You are a senior enterprise presentation art director. You can see the attached actual images. Return ONLY one JSON object Scene Graph, with background and elements. Do not explain your work. Every non-line/non-arrow element, including every circle, must include finite numeric x, y, w, h with w and h > 0. Avoid card-grid/UI conventions; every line, arrow, color block, or image crop must carry information or hierarchy."
     folder = OUT / ("revisions" if revision else "raw")
     raw = folder / f"page_{page:02}_{NAMES[page]}_{'revision_' if revision else ''}raw.json"
     def validate_scene_graph(value: dict) -> None:
@@ -465,7 +494,8 @@ def page_request(page: int, direction: dict, *, revision: bool = False) -> dict:
                 "STYLE_REFERENCE_ONLY attachments cannot be used as image_source."
                 if invalid_image_sources else ""
             )
-            raise ModelJsonContractError(f"page {page:02} invalid Ark scene:{detail} validation={validation}")
+            field_errors = scene_validation_field_errors(value, validation)
+            raise ModelJsonContractError(f"page {page:02} invalid Ark scene:{detail} validation={validation}; field_errors={field_errors}")
 
     value, _ = ask_json(call_id=f"page_{page:02}_{'revision' if revision else 'design'}", system=system, content=content, raw_file=raw, validator=validate_scene_graph)
     atomic_json_checkpoint(scene_path, value)

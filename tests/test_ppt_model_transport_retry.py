@@ -229,6 +229,39 @@ def test_transport_error_messages_are_redacted(monkeypatch, tmp_path):
     assert "super-secret" not in message and "signature=secret" not in message
 
 
+def test_scene_validation_field_errors_identify_missing_circle_geometry_without_mutation():
+    scene = {
+        "background": "#FFFFFF",
+        "elements": [
+            {"id": "circle1", "type": "circle"},
+            {"id": "headline", "type": "text", "x": 1, "y": 1, "w": 2, "h": 1, "font_size": 18, "text": "kept"},
+        ],
+    }
+    original = json.loads(json.dumps(scene))
+
+    validation = v4.PAD.validate(scene, set())
+    errors = v4.scene_validation_field_errors(scene, validation)
+
+    assert validation["hard_errors"] == ["circle1:geometry_missing"]
+    assert errors == [{
+        "node_id": "circle1",
+        "field_paths": ["elements[id=circle1].x", "elements[id=circle1].y", "elements[id=circle1].w", "elements[id=circle1].h"],
+        "actual": {"x": "MISSING", "y": "MISSING", "w": "MISSING", "h": "MISSING"},
+        "required": "finite numeric x, y, w, h; w and h must be > 0",
+    }]
+    assert scene == original
+
+
+def test_scene_validation_field_errors_do_not_relax_valid_or_unrelated_invalid_scenes():
+    valid = {"elements": [{"id": "circle1", "type": "circle", "x": 1, "y": 1, "w": 1, "h": 1}]}
+    unapproved_image = {"elements": [{"id": "image1", "type": "image", "x": 1, "y": 1, "w": 1, "h": 1, "image_source": "outside.png"}]}
+
+    assert v4.scene_validation_field_errors(valid, v4.PAD.validate(valid, set())) == []
+    validation = v4.PAD.validate(unapproved_image, set())
+    assert validation["hard_errors"] == ["image1:unapproved_or_missing_image_source:outside.png"]
+    assert v4.scene_validation_field_errors(unapproved_image, validation) == []
+
+
 @pytest.mark.parametrize("error", [
     ConnectionResetError(), ConnectionAbortedError(), BrokenPipeError(), TimeoutError(),
     urllib.error.URLError(TimeoutError()),
