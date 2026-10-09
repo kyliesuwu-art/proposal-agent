@@ -18,7 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.artifact_assets.bundle import build_validated_asset_set, load_manifest
-from src.wecom.ppt_checkpoint import CheckpointStore, ResumeRejected, import_resume_state
+from src.wecom.ppt_checkpoint import CheckpointStore, ResumeRejected, import_resume_state, load_checkpoint_manifest
 from src.wecom.ppt_failures import (
     PPT_FAILURE_FILENAME,
     PptFailureCode,
@@ -166,7 +166,7 @@ def finish() -> None:
     (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_root: Path, manifest_path: Path, model_max_calls: int, resume_from_job_root: Path | None = None, *, stage_callback: Callable[[str], None] | None = None) -> int:
+def _produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_root: Path, manifest_path: Path, model_max_calls: int, resume_from_job_root: Path | None = None, *, skip_ai_review: bool = False, stage_callback: Callable[[str], None] | None = None) -> int:
     """Fresh, job-scoped producer entry point used by ArtifactService.
 
     The producer never copies a prior Scene Graph.  Existing V4 rendered PNGs
@@ -205,12 +205,13 @@ def _produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference
     inherited = 0
     if resume_from_job_root:
         if stage_callback: stage_callback("resume_validation")
-        expected = {"contract_version": "ppt-generation-checkpoint/v1", "task_id": os.environ.get("PPT_TASK_ID", ""), "approved_md_sha256": approved_sha, "assets_manifest_sha256": assets_sha, "compatibility": compatibility, "model_max_calls": model_max_calls, "pages": 20}
+        source_checkpoint = load_checkpoint_manifest(resume_from_job_root)
+        expected = {"contract_version": "ppt-generation-checkpoint/v1", "task_id": os.environ.get("PPT_TASK_ID", ""), "source_job_id": resume_from_job_root.name, "approved_md_sha256": approved_sha, "assets_manifest_sha256": source_checkpoint["assets_manifest_sha256"], "compatibility": compatibility, "model_max_calls": model_max_calls, "pages": 20}
         def valid_global(value): v4.validate_global_art_direction(value)
         def valid_page(page, value):
             audit = v4.PAD.validate(value, set(v4.context_for(page)["allowed_image_sources"]))
             if audit.get("hard_errors") or audit.get("preclamp_out_of_bounds"): raise ResumeRejected(f"invalid page checkpoint {page}")
-        state = import_resume_state(parent_root=resume_from_job_root, child_root=output_dir, expected=expected, validate_global=valid_global, validate_page=valid_page)
+        state = import_resume_state(parent_root=resume_from_job_root, child_root=output_dir, expected=expected, validate_global=valid_global, validate_page=valid_page, current_assets_manifest=assets_manifest)
         inherited = state.historical_calls_used
         if state.global_direction: checkpoints.record(stage="global_art_direction", canonical_path=state.global_direction, page=None, calls_used=inherited)
         for page, source in state.page_paths: checkpoints.record(stage="page_scene_graph", canonical_path=source, page=page, calls_used=inherited)
@@ -228,11 +229,15 @@ def _produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference
         sheet = output_dir / "contact_sheet.png"; v4.contact(rendered, sheet, [f"V4 Full 20 | {page:02}" for page in range(1, 21)])
     except Exception as exc:
         raise PptProducerRenderError("PPT rendering failed") from exc
-    if stage_callback: stage_callback("critic")
-    critic_result = v4.critic(direction, v4.compare(rendered))
-    for page in critic_result.get("selected_pages", [])[:4]:
-        if stage_callback: stage_callback(f"revision:{page:02}")
-        scenes[page] = v4.page_request(page, direction, revision=True)
+    if skip_ai_review:
+        if stage_callback: stage_callback("critic")
+        critic_result = {"selected_pages": [], "status": "NOT_RUN", "reason": "deferred_for_human_visual_review"}
+    else:
+        if stage_callback: stage_callback("critic")
+        critic_result = v4.critic(direction, v4.compare(rendered))
+        for page in critic_result.get("selected_pages", [])[:4]:
+            if stage_callback: stage_callback(f"revision:{page:02}")
+            scenes[page] = v4.page_request(page, direction, revision=True)
     for page in range(1, 21):
         source = output_dir / "scene_graphs" / f"page_{page:02}_{NAMES[page]}.json"
         if not source.is_file():
@@ -241,7 +246,7 @@ def _produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference
     manifest = {
         "schema": "ppt-scene-producer/v1", "approved_md_sha256": hashlib.sha256(input_md.read_bytes()).hexdigest(),
         "model_max_calls": model_max_calls, "model_calls_used": v4.MODEL_CALL_BUDGET.used if v4.MODEL_CALL_BUDGET else None,
-        "scene_graph_dir": str(scene_dir.resolve().relative_to(output_dir.resolve())), "visual_reference_root_configured": True, "pages": 20, "critic_selected_pages": critic_result.get("selected_pages", []), "resume_from_job_root": str(resume_from_job_root) if resume_from_job_root else None, "historical_calls_used": inherited,
+        "scene_graph_dir": str(scene_dir.resolve().relative_to(output_dir.resolve())), "visual_reference_root_configured": True, "pages": 20, "critic_status": critic_result.get("status", "RUN"), "critic_selected_pages": critic_result.get("selected_pages", []), "revision_status": ("NOT_RUN" if skip_ai_review else "RUN"), "ai_review_skip_reason": ("deferred_for_human_visual_review" if skip_ai_review else None), "resume_from_job_root": str(resume_from_job_root) if resume_from_job_root else None, "historical_calls_used": inherited,
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True); manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0
@@ -280,7 +285,7 @@ def classify_producer_failure(exc: BaseException, *, stage: str, ark_attempts_us
     return PptFailureInfo(code=code, stage=stage, retryable=retryable, safe_message=message, ark_attempts_used=ark_attempts_used, ark_attempts_max=ark_attempts_max)
 
 
-def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_root: Path, manifest_path: Path, model_max_calls: int, resume_from_job_root: Path | None = None) -> int:
+def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_root: Path, manifest_path: Path, model_max_calls: int, resume_from_job_root: Path | None = None, *, skip_ai_review: bool = False) -> int:
     current_stage = "startup"
 
     def set_stage(value: str) -> None:
@@ -288,7 +293,7 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_
         current_stage = value
 
     try:
-        return _produce(input_md, output_dir, scene_dir, visual_reference_root, manifest_path, model_max_calls, resume_from_job_root, stage_callback=set_stage)
+        return _produce(input_md, output_dir, scene_dir, visual_reference_root, manifest_path, model_max_calls, resume_from_job_root, skip_ai_review=skip_ai_review, stage_callback=set_stage)
     except Exception as exc:
         budget = v4.MODEL_CALL_BUDGET
         failure = classify_producer_failure(exc, stage=current_stage, ark_attempts_used=budget.used if budget else None, ark_attempts_max=budget.maximum if budget else None)
@@ -301,11 +306,11 @@ def produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference_
         raise
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(); parser.add_argument("--generate-missing", action="store_true"); parser.add_argument("--finish", action="store_true"); parser.add_argument("--produce", action="store_true"); parser.add_argument("--input-md", type=Path); parser.add_argument("--output-dir", type=Path); parser.add_argument("--scene-dir", type=Path); parser.add_argument("--visual-reference-root", type=Path); parser.add_argument("--manifest-path", type=Path); parser.add_argument("--model-max-calls", type=int); parser.add_argument("--resume-from-job-root", type=Path); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument("--generate-missing", action="store_true"); parser.add_argument("--finish", action="store_true"); parser.add_argument("--produce", action="store_true"); parser.add_argument("--input-md", type=Path); parser.add_argument("--output-dir", type=Path); parser.add_argument("--scene-dir", type=Path); parser.add_argument("--visual-reference-root", type=Path); parser.add_argument("--manifest-path", type=Path); parser.add_argument("--model-max-calls", type=int); parser.add_argument("--resume-from-job-root", type=Path); parser.add_argument("--skip-ai-review", action="store_true"); args = parser.parse_args()
     if args.produce:
         if not all((args.input_md, args.output_dir, args.scene_dir, args.visual_reference_root, args.manifest_path, args.model_max_calls)):
             parser.error("--produce requires input, output, scene, visual-reference-root, manifest, and positive model-max-calls")
-        produce(args.input_md, args.output_dir, args.scene_dir, args.visual_reference_root, args.manifest_path, args.model_max_calls, args.resume_from_job_root)
+        produce(args.input_md, args.output_dir, args.scene_dir, args.visual_reference_root, args.manifest_path, args.model_max_calls, args.resume_from_job_root, skip_ai_review=args.skip_ai_review)
     elif args.generate_missing: generate_missing()
     elif args.finish: finish()
     else: parser.error("choose --generate-missing or --finish")

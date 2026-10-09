@@ -17,6 +17,7 @@ from src.wecom.ppt_failures import PptFailureCode, PptFailureInfo, PptRunnerFail
 from src.wecom.store import SQLiteTaskStore
 from src.wecom.task_service import TaskService
 from src.wecom.word_runner import WordResult
+from src.artifact_assets.manifest_builder import build_manifest
 
 
 class ProposalRunner:
@@ -99,7 +100,7 @@ def _source_job(store: SQLiteTaskStore, task, artifact_root: Path, *, pages: tup
     root = artifact_root / task.task_id / "source-job"
     root.mkdir(parents=True)
     assets = root / "assets_manifest.json"
-    assets.write_text('{"assets":[]}', encoding="utf-8")
+    assets.write_text(json.dumps(build_manifest(Path(task.approved_md_path), Path(task.approved_md_path).parent)), encoding="utf-8")
     manifest_digest = hashlib.sha256(assets.read_bytes()).hexdigest()
     global_path = root / "global_art_direction.json"
     global_path.write_text('{"theme":"hospital"}', encoding="utf-8")

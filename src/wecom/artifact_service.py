@@ -18,6 +18,7 @@ from src.wecom.ppt_checkpoint import ResumeRejected, inspect_resume_source, load
 from src.wecom.ppt_failures import PptFailureCode, PptRunnerFailure
 from src.wecom.word_runner import WordRunner
 from src.wecom.ppt_runner import PptRunner
+from src.artifact_assets.manifest_builder import build_manifest
 
 
 class PptResumeRejected(RuntimeError):
@@ -226,7 +227,7 @@ class ArtifactService:
                 "task_id": task_id,
                 "source_job_id": source.job_id,
                 "approved_md_sha256": approved_sha,
-                "assets_manifest_sha256": assets_sha,
+                "assets_manifest_sha256": checkpoint["assets_manifest_sha256"],
                 "compatibility": compatibility,
                 "model_max_calls": checkpoint["model_max_calls"],
                 "pages": checkpoint["total_slide_count"],
@@ -236,6 +237,7 @@ class ArtifactService:
                 expected=expected,
                 validate_global=lambda value: _validate_checkpoint_object(value, "global"),
                 validate_page=lambda _page, value: _validate_checkpoint_object(value, "page"),
+                current_assets_manifest=build_manifest(approved_path, self._task_output_root / task.task_id),
             )
         except (OSError, ResumeRejected, ValueError, KeyError) as exc:
             raise PptResumeRejected("PPT resume checkpoint is invalid") from exc

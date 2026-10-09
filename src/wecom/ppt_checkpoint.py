@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
+from src.artifact_assets.bundle import BundleError, validate_manifest_schema
 
 SCHEMA_VERSION="ppt-generation-checkpoint/v1"
 MANIFEST_NAME="ppt_generation_checkpoints.json"
@@ -73,7 +74,27 @@ def load_checkpoint_manifest(parent_root:Path)->dict:
  try: data=json.loads(path.read_text(encoding="utf-8"))
  except Exception as exc: raise ResumeRejected("checkpoint manifest is unreadable") from exc
  _validate(data); return data
-def inspect_resume_source(*,parent_root:Path,expected:dict,validate_global:Callable[[dict],None],validate_page:Callable[[int,dict],None])->ResumeState:
+def _stable_asset_manifest(value:dict)->str:
+ """Compare asset semantics while intentionally retaining every field but time."""
+ if not isinstance(value,dict): raise ResumeRejected("assets manifest is invalid")
+ value=dict(value); value.pop("generated_at",None)
+ return json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)
+def validate_resume_assets(*,parent_root:Path,locked_sha256:str,current_manifest:dict|None)->None:
+ """Require immutable source evidence and a freshly scanned, equivalent child input."""
+ root=parent_root.resolve()
+ source_path=_inside(root/"assets_manifest.json",root)
+ if not source_path.is_file(): raise ResumeRejected("source assets manifest is unavailable")
+ if sha256(source_path)!=locked_sha256: raise ResumeRejected("source assets manifest integrity mismatch")
+ try:
+  source=json.loads(source_path.read_text(encoding="utf-8")); validate_manifest_schema(source)
+ except (OSError,json.JSONDecodeError,BundleError,ValueError) as exc: raise ResumeRejected("source assets manifest is invalid") from exc
+ if current_manifest is None: return
+ try: validate_manifest_schema(current_manifest)
+ except (BundleError,ValueError) as exc: raise ResumeRejected("current assets manifest is invalid") from exc
+ try: compatible=_stable_asset_manifest(source)==_stable_asset_manifest(current_manifest)
+ except (TypeError,ValueError) as exc: raise ResumeRejected("current assets manifest is invalid") from exc
+ if not compatible: raise ResumeRejected("current assets differ from source manifest")
+def inspect_resume_source(*,parent_root:Path,expected:dict,validate_global:Callable[[dict],None],validate_page:Callable[[int,dict],None],current_assets_manifest:dict|None=None)->ResumeState:
  if _link(parent_root) or not parent_root.is_dir(): raise ResumeRejected("source Job root is unsafe")
  root=parent_root.resolve(); path=root/MANIFEST_NAME
  if not path.exists(): raise ResumeRejected("source Job has no checkpoint manifest")
@@ -82,6 +103,7 @@ def inspect_resume_source(*,parent_root:Path,expected:dict,validate_global:Calla
  for key in ("source_task_id","approved_md_sha256","assets_manifest_sha256","producer_compatibility_version","prompt_contract_version","scene_schema_version","total_slide_count","model_max_calls"):
   wanted=probe.base[key]
   if data.get(key)!=wanted: raise ResumeRejected("checkpoint compatibility mismatch: "+key)
+ validate_resume_assets(parent_root=root,locked_sha256=data["assets_manifest_sha256"],current_manifest=current_assets_manifest)
  def read(entry):
   if set(entry)!={"path","sha256","page"} or Path(entry["path"]).is_absolute() or ".." in Path(entry["path"]).parts: raise ResumeRejected("checkpoint path is invalid")
   file=_inside(root/entry["path"],root)
@@ -99,8 +121,8 @@ def inspect_resume_source(*,parent_root:Path,expected:dict,validate_global:Calla
   source,value=read(entry); validate_page(number,value); pages.append((number,source))
  used=recompute_call_budget(root,data["model_max_calls"])
  return ResumeState(global_path,tuple(pages),len(pages)+1,used,data["model_max_calls"]-used)
-def import_resume_state(*,parent_root:Path,child_root:Path,expected:dict,validate_global:Callable[[dict],None],validate_page:Callable[[int,dict],None])->ResumeState:
- state=inspect_resume_source(parent_root=parent_root,expected=expected,validate_global=validate_global,validate_page=validate_page)
+def import_resume_state(*,parent_root:Path,child_root:Path,expected:dict,validate_global:Callable[[dict],None],validate_page:Callable[[int,dict],None],current_assets_manifest:dict|None=None)->ResumeState:
+ state=inspect_resume_source(parent_root=parent_root,expected=expected,validate_global=validate_global,validate_page=validate_page,current_assets_manifest=current_assets_manifest)
  global_path=None
  if state.global_direction:
   global_path=child_root/"global_art_direction.json"; _atomic(global_path,json.loads(state.global_direction.read_text(encoding="utf-8")))
