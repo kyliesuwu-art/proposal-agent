@@ -738,6 +738,76 @@ def test_final_markdown_structure_uses_raw_standard_tokens_only(tmp_path: Path) 
     assert markdown_proposal._strict_image_links(markdown) == ["assets/image-001.png"]
 
 
+@pytest.mark.parametrize("proposal_request", [
+    "医院园区高可靠供电与智慧配电改造，包含故障预警、智能巡检和能源管理平台。",
+    "医院光伏与储能改造方案，重点为并网安全和负荷管理。",
+    "学校园区微电网建设方案，重点为光储协同和电能质量。",
+    "数据中心供配电可靠性改造，重点为双路供电和故障预警。",
+    "商业园区能源管理平台建设，重点为能耗分析和负荷管理。",
+    "工业园区综合能源方案，重点为储能、微电网和能源数字化。",
+    "工厂配电数字化与故障预警改造方案。",
+])
+def test_request_scope_gate_accepts_energy_and_power_solution_topics(proposal_request: str) -> None:
+    assert markdown_proposal._request_scope_error(proposal_request) is None
+
+
+@pytest.mark.parametrize("proposal_request", [
+    "帮我做一份云南旅游攻略。",
+    "请写一道家常菜菜谱。",
+    "起草一份劳动争议法律诉状。",
+    "写一条品牌社交媒体营销文案。",
+    "你好，今天天气怎么样。",
+])
+def test_request_scope_gate_rejects_unrelated_topics_before_any_model_call(proposal_request: str, tmp_path: Path) -> None:
+    class NoModel:
+        def generate(self, *_args, **_kwargs):
+            raise AssertionError("scope rejection must happen before a model call")
+
+    with pytest.raises(ProposalGenerationError, match="scope_gate") as error:
+        generate_markdown_proposal(proposal_request, tmp_path / "proposal.md", llm=NoModel(),
+                                   retriever=_retriever([]), image_root=_image_root(tmp_path))
+    assert "SCOPE_UNSUPPORTED_TOPIC" in str(error.value)
+    assert not (tmp_path / "proposal.md").exists()
+
+
+def test_content_scope_gate_allows_hospital_energy_loads_but_rejects_property_billing() -> None:
+    plan = markdown_proposal.SectionPlan("platform", "智慧能源管理平台", 2, "平台", ["能源"], "none")
+    allowed = markdown_proposal._SectionDraft(plan, "空调负荷可纳入能源管理的可选监测范围。", [], {})
+    rejected = markdown_proposal._SectionDraft(plan, "物业收费和租户收费作为核心模块。", [], {})
+    assert markdown_proposal._scope_content_errors({"platform": allowed}) == []
+    assert markdown_proposal._scope_content_errors({"platform": rejected}) == [
+        "SCOPE_CONTENT_LEAKAGE：章节“智慧能源管理平台”将物业收费或租户收费作为核心模块"
+    ]
+
+
+def test_content_scope_rejection_stops_before_review_and_revision(tmp_path: Path) -> None:
+    class LeakingLLM(FakeLLM):
+        calls: list[str] = []
+
+        def generate(self, prompt: str, system_prompt: str = "") -> str:
+            self.calls.append(system_prompt)
+            if "审查完整" in system_prompt or "只输出修订后的" in system_prompt:
+                raise AssertionError("a deterministic scope leak must not trigger review or revision")
+            if "只输出当前章节正文" in system_prompt:
+                return "物业收费和租户收费作为核心模块。【待确认】"
+            return super().generate(prompt, system_prompt)
+
+    llm = LeakingLLM()
+    progress: list[tuple[str, dict]] = []
+    with pytest.raises(ProposalGenerationError, match="scope_gate") as error:
+        generate_markdown_proposal("医院园区配电改造方案", tmp_path / "proposal.md", llm=llm,
+                                   retriever=_retriever([]), image_root=_image_root(tmp_path),
+                                   progress=lambda stage, details: progress.append((stage, details)))
+    assert "SCOPE_CONTENT_LEAKAGE" in str(error.value)
+    assert not any("审查完整" in call or "只输出修订后的" in call for call in llm.calls)
+    scope_event = [details for stage, details in progress if stage == "scope_gate"]
+    assert len(scope_event) == 1
+    assert scope_event[0]["event"] == "scope_gate_rejected"
+    assert scope_event[0]["gate_code"] == "SCOPE_CONTENT_LEAKAGE"
+    assert scope_event[0]["reason"].count("SCOPE_CONTENT_LEAKAGE") == 3
+    assert scope_event[0]["model_calls"] == 4
+
+
 def test_h1_quality_diagnostics_distinguish_missing_multiple_and_not_first(tmp_path: Path) -> None:
     assert "缺少合法 H1 标题" in _quality_gate("## 章节\n", tmp_path / "proposal.md", {}, "")
     assert "存在多个 H1 标题" in _quality_gate("# 一\n# 二\n", tmp_path / "proposal.md", {}, "")

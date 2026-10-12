@@ -17,7 +17,7 @@ class TaskStatus(StrEnum):
 
 class ArtifactType(StrEnum):
     WORD = "WORD"
-    PPT = "PPT"
+    PPTX = "PPTX"
 
 
 class ArtifactJobStatus(StrEnum):
@@ -71,6 +71,10 @@ class ArtifactJob:
     created_at: str
     updated_at: str
     delivered_at: str | None = None
+    parent_job_id: str | None = None
+    resume_from_job_id: str | None = None
+    retryable: bool = False
+    failure_code: str | None = None
 
     def payload(self) -> dict[str, Any]:
         data = asdict(self)

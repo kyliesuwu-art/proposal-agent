@@ -9,6 +9,7 @@ v3_candidate_db/
 v3_candidate_db_rebuilt/
 runtime_data/
 outputs/
+private_assets/
 
 # Python
 __pycache__/

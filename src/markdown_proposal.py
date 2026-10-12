@@ -661,11 +661,56 @@ def _apply_image_budget(sections: dict[str, _SectionDraft], image_root: Path, wa
         warnings.append("图片覆盖不足：存在足够合格候选但全文未达到 3 张目标")
 
 
+_ENERGY_SOLUTION_TERMS = (
+    "供电", "配电", "电力", "电网", "光伏", "储能", "微电网", "虚拟电厂",
+    "能源", "能耗", "负荷", "电能质量", "故障预警", "智能巡检", "综合能源", "并网",
+)
+
+
+def _request_scope_error(request: str) -> str | None:
+    """Classify the requested solution topic before retrieval or any model call.
+
+    Customer venue is deliberately not an eligibility criterion: hospitals,
+    campuses, data centres and commercial buildings can all have a legitimate
+    energy or power-distribution need.  This gate only rejects a request that
+    contains no supported energy/power solution topic at all.
+    """
+    compact = "".join(request.split())
+    if any(term in compact for term in _ENERGY_SOLUTION_TERMS):
+        return None
+    # Explicitly unrelated topics are rejected here. Ambiguous project-shaped
+    # requests remain available to the upstream clarification flow rather
+    # than being mistaken for an out-of-domain proposal after generation.
+    unrelated = ("旅游", "菜谱", "诉状", "法律", "社交媒体", "营销文案", "天气")
+    if not compact or any(term in compact for term in unrelated):
+        return "SCOPE_UNSUPPORTED_TOPIC：需求未包含能源、电力、供配电或相关方案主题"
+    return None
+
+
+def _scope_content_errors(sections: dict[str, _SectionDraft]) -> list[str]:
+    """Reject only genuinely unrelated building/property functions as core scope.
+
+    HVAC and other energy loads may be valid telemetry subjects for an energy
+    platform, so they must not be rejected merely because the customer is a
+    hospital or public building.
+    """
+    errors: list[str] = []
+    unrelated_core = re.compile(r"物业收费|租户收费|停车收费|车位管理|预付费|水表管理|室内温湿度")
+    for draft in sections.values():
+        for paragraph in re.split(r"\n\s*\n", draft.raw_body):
+            if (unrelated_core.search(paragraph)
+                    and (draft.plan.level <= 2 or re.search(r"核心功能|核心模块", draft.plan.heading))
+                    and "可选扩展（非本期核心范围）" not in paragraph):
+                errors.append(
+                    f"SCOPE_CONTENT_LEAKAGE：章节“{draft.plan.heading}”将物业收费或租户收费作为核心模块"
+                )
+    return errors
+
+
 def _role_and_scope_errors(sections: dict[str, _SectionDraft]) -> list[str]:
     errors: list[str] = []
     commitment = re.compile(r"本项目(?:拟建设|将|必须|应当|应|需|具备|实现)|既定(?:指标|参数)|硬性承诺")
     boundary = re.compile(r"参考|仅供|可考虑|【设计建议】|用户输入条件|【待确认】")
-    building = re.compile(r"水表|水电|空调|办公时段|室内温湿度|无人空转|物业收费|租户收费")
     for draft in sections.values():
         for paragraph in re.split(r"\n\s*\n", draft.raw_body):
             ids = [value for value in _ID_RE.findall(paragraph) if value.startswith("S")]
@@ -674,9 +719,7 @@ def _role_and_scope_errors(sections: dict[str, _SectionDraft]) -> list[str]:
                 errors.append(f"证据角色越界：章节“{draft.plan.heading}”将 {', '.join(sorted(roles))} 证据写为项目承诺")
             if "case" in roles and re.search(r"投资估算|投资", draft.plan.heading) and len(re.findall(r"\d+(?:\.\d+)?\s*万元", paragraph)) >= 2:
                 errors.append(f"案例金额污染：章节“{draft.plan.heading}”包含多项案例投资金额，不能作为本项目估算主体")
-            if building.search(paragraph) and (draft.plan.level <= 2 or re.search(r"核心功能|核心模块", draft.plan.heading)) and "可选扩展（非本期核心范围）" not in paragraph:
-                errors.append(f"范围越界：章节“{draft.plan.heading}”将非工业园区能源核心内容作为核心模块")
-    return errors
+    return [*errors, *_scope_content_errors(sections)]
 
 
 def _deduplicate_selected_image_markers(sections: dict[str, _SectionDraft], telemetry: dict) -> None:
@@ -1360,6 +1403,17 @@ def generate_markdown_proposal(
                                      "elapsed_seconds": round(time.monotonic() - call_started, 6)})
         return response
 
+    request_scope_error = _request_scope_error(request)
+    if request_scope_error:
+        if progress is not None:
+            progress("scope_gate", {
+                "event": "scope_gate_rejected",
+                "gate_code": "SCOPE_UNSUPPORTED_TOPIC",
+                "reason": request_scope_error,
+                "model_calls": 0,
+            })
+        raise ProposalGenerationError("scope_gate", ProposalQualityError(request_scope_error))
+
     pre_started = time.monotonic()
     overview = ""
     try:
@@ -1405,6 +1459,24 @@ def generate_markdown_proposal(
         raw = _validated_raw(llm, raw, draft, stage=f"citation_validation:{section.section_id}", repair_prompt="你的章节包含无效 ID 或直接路径", system_prompt=_WRITE_SYSTEM, warnings=warnings, call=call)
         draft = _with_draft(draft, raw_body=raw)
         sections[section.section_id] = draft
+
+    # This deterministic content-scope gate runs before review/revisions. A
+    # property/billing scope leak cannot be fixed by repeatedly asking the
+    # model to revise a technically unrelated chapter.
+    content_scope_errors = _scope_content_errors(sections)
+    if content_scope_errors:
+        if progress is not None:
+            progress("scope_gate", {
+                "event": "scope_gate_rejected",
+                "gate_code": "SCOPE_CONTENT_LEAKAGE",
+                "reason": ";".join(content_scope_errors),
+                "model_calls": sum(metrics[key] for key in (
+                    "planning_llm_calls", "planning_repair_calls", "section_writing_calls",
+                    "section_reference_repair_calls", "review_calls", "review_repair_calls",
+                    "section_revision_calls",
+                )),
+            })
+        raise ProposalGenerationError("scope_gate", ProposalQualityError("；".join(content_scope_errors)))
 
     try:
         review_started = time.monotonic()
