@@ -7,9 +7,11 @@ import importlib.util
 import json
 import shutil
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Callable
+from zipfile import is_zipfile
 
 # This producer is launched by an absolute script path from a job subprocess.
 # Make its own worktree root importable before importing application modules.
@@ -18,6 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.artifact_assets.bundle import build_validated_asset_set, load_manifest
+from src.artifact_assets.manifest_builder import build_manifest
 from src.wecom.ppt_checkpoint import CheckpointStore, ResumeRejected, import_resume_state, load_checkpoint_manifest
 from src.wecom.ppt_failures import (
     PPT_FAILURE_FILENAME,
@@ -49,6 +52,76 @@ def set_context() -> None:
     v4.OUT = OUT
     v4.PICK = tuple(range(1, 21))
     v4.NAMES = NAMES
+
+
+def bind_task_assets(assets, task_root: Path) -> dict[str, str]:
+    """Bind the V4 literal renderer to the validated Task asset root.
+
+    Scene Graphs may refer to a manifest asset id or to its safe relative
+    reference.  The renderer only ever receives normalized manifest paths;
+    it never discovers an image via cwd or a visual-reference directory.
+    """
+    task_root = Path(task_root).resolve(strict=True)
+    mapping = {str(asset["asset_id"]): str(asset["normalized_relative_path"])
+               for asset in assets.valid_assets}
+    v4.PAD.ASSET_ROOT = task_root
+    return mapping
+
+
+def bind_scene_asset_ids(scene: dict, asset_paths: dict[str, str]) -> dict:
+    value = json.loads(json.dumps(scene))
+    for element in value.get("elements", []):
+        if element.get("type") == "image":
+            source = str(element.get("image_source", ""))
+            if source in asset_paths:
+                element["image_source"] = asset_paths[source]
+    return value
+
+
+_CLIENT_SOURCE_TAIL = re.compile(r"\s*(?:来源|图片来源)\s*[:：]\s*[^\n]*?\.(?:pdf|docx?|pptx?)\s*[,，]?(?:第\s*\d+\s*页|page\s*\d+)", re.I)
+_CLIENT_INTERNAL_MARKER = re.compile(r"(?:【待确认】|核心提示|\[S\d+\]|\[IMG\d+\])", re.I)
+_DISPLAY_TEXT_KEYS = frozenset({"text", "title", "subtitle", "label", "caption"})
+
+
+def sanitize_client_display_scene(scene: dict) -> dict:
+    """Create a customer-display derivative without mutating canonical scenes."""
+    value = json.loads(json.dumps(scene))
+    def visit(node):
+        if isinstance(node, dict):
+            for key, item in list(node.items()):
+                if key in _DISPLAY_TEXT_KEYS and isinstance(item, str):
+                    node[key] = _CLIENT_SOURCE_TAIL.sub("", _CLIENT_INTERNAL_MARKER.sub("", item)).strip()
+                else: visit(item)
+        elif isinstance(node, list):
+            for item in node: visit(item)
+    visit(value)
+    return value
+
+
+def render_existing(input_md: Path, task_root: Path, output_dir: Path, source_root: Path, visual_reference_root: Path) -> None:
+    """Render a verified, complete V4 checkpoint without invoking Ark."""
+    source_root = source_root.resolve(strict=True); checkpoint = load_checkpoint_manifest(source_root)
+    if checkpoint.get("source_job_id") != source_root.name or checkpoint.get("approved_md_sha256") != hashlib.sha256(input_md.read_bytes()).hexdigest():
+        raise PptProducerInputError("offline V4 source identity is invalid")
+    source_scenes = source_root / "scene_graphs"; pages = checkpoint.get("pages", [])
+    if checkpoint.get("total_slide_count") != 20 or len(pages) != 20 or not source_scenes.is_dir():
+        raise PptProducerInputError("offline V4 source is incomplete")
+    for item in pages:
+        path = source_root / item["path"]
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != item.get("sha256"):
+            raise PptProducerInputError("offline V4 Scene Graph integrity failed")
+    manifest = build_manifest(input_md, task_root); assets = build_validated_asset_set(manifest, task_root)
+    paths = bind_task_assets(assets, task_root); configure_production_visual_resources(visual_reference_root)
+    global OUT; OUT = output_dir; set_context(); v4.OUT = output_dir; v4.PICK = tuple(range(1, 21)); v4.NAMES = NAMES
+    canonical = {page: bind_scene_asset_ids(json.loads((source_scenes / f"page_{page:02}_{NAMES[page]}.json").read_text(encoding="utf-8")), paths) for page in range(1, 21)}
+    scenes = {page: sanitize_client_display_scene(value) for page, value in canonical.items()}
+    derived = output_dir / "client_scene_graphs"; derived.mkdir(parents=True, exist_ok=True)
+    for page, value in scenes.items(): (derived / f"page_{page:02}_{NAMES[page]}.json").write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
+    deck = v4.draw(scenes); deck.replace(output_dir / "proposal.pptx")
+    rendered = v4.render(output_dir / "proposal.pptx"); pdf = output_dir / "pure_art_director_visual_calibration_v4_ark.pdf"
+    if pdf.is_file(): pdf.replace(output_dir / "proposal.pdf")
+    v4.contact(rendered, output_dir / "contact_sheet.png", [f"V4 Full 20 | {page:02}" for page in range(1, 21)])
+    (output_dir / "v4_offline_recovery_manifest.json").write_text(json.dumps({"source_job_id": source_root.name, "approved_md_sha256": checkpoint["approved_md_sha256"], "scene_graph_hashes": {str(x["page"]): x["sha256"] for x in pages}, "client_scene_graph_dir": "client_scene_graphs", "assets_manifest_sha256": hashlib.sha256(json.dumps(manifest, ensure_ascii=False, indent=2).encode()).hexdigest(), "model_requests_started": 0, "historical_model_requests": checkpoint.get("ark_attempts_used")}, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def configure_production_visual_resources(visual_reference_root: Path) -> None:
@@ -191,6 +264,7 @@ def _produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference
         assets = build_validated_asset_set(assets_manifest, input_md.parent)
     except Exception as exc:
         raise PptProducerInputError("producer assets manifest is invalid") from exc
+    asset_paths = bind_task_assets(assets, input_md.parent)
     v4.CONTENT_ASSETS = tuple({
         "asset_id": asset["asset_id"],
         "image_source": asset["normalized_relative_path"],
@@ -221,11 +295,19 @@ def _produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference
     scenes = {}
     for page in range(1, 21):
         if stage_callback: stage_callback(f"page_design:{page:02}")
-        scenes[page] = v4.page_request(page, direction)
+        scenes[page] = bind_scene_asset_ids(v4.page_request(page, direction), asset_paths)
     try:
         if stage_callback: stage_callback("producer_finalize")
-        deck = v4.draw(scenes)
+        display_scenes = {page: sanitize_client_display_scene(value) for page, value in scenes.items()}
+        deck = v4.draw(display_scenes)
         rendered = v4.render(deck)
+        # The V4 producer owns its drawing contract.  Publish that freshly
+        # rendered deck at the ProductionPptRunner's canonical location so the
+        # outer production CLI does not attempt to interpret V4 Scene Graphs
+        # with the legacy generic renderer.
+        rendered_pptx = output_dir / "proposal.pptx"
+        if deck.is_file() and deck.suffix.lower() == ".pptx" and is_zipfile(deck):
+            shutil.copy2(deck, rendered_pptx)
         sheet = output_dir / "contact_sheet.png"; v4.contact(rendered, sheet, [f"V4 Full 20 | {page:02}" for page in range(1, 21)])
     except Exception as exc:
         raise PptProducerRenderError("PPT rendering failed") from exc
@@ -246,7 +328,7 @@ def _produce(input_md: Path, output_dir: Path, scene_dir: Path, visual_reference
     manifest = {
         "schema": "ppt-scene-producer/v1", "approved_md_sha256": hashlib.sha256(input_md.read_bytes()).hexdigest(),
         "model_max_calls": model_max_calls, "model_calls_used": v4.MODEL_CALL_BUDGET.used if v4.MODEL_CALL_BUDGET else None,
-        "scene_graph_dir": str(scene_dir.resolve().relative_to(output_dir.resolve())), "visual_reference_root_configured": True, "pages": 20, "critic_status": critic_result.get("status", "RUN"), "critic_selected_pages": critic_result.get("selected_pages", []), "revision_status": ("NOT_RUN" if skip_ai_review else "RUN"), "ai_review_skip_reason": ("deferred_for_human_visual_review" if skip_ai_review else None), "resume_from_job_root": str(resume_from_job_root) if resume_from_job_root else None, "historical_calls_used": inherited,
+        "scene_graph_dir": str(scene_dir.resolve().relative_to(output_dir.resolve())), "rendered_pptx": ("proposal.pptx" if rendered_pptx.is_file() else None), "visual_reference_root_configured": True, "pages": 20, "critic_status": critic_result.get("status", "RUN"), "critic_selected_pages": critic_result.get("selected_pages", []), "revision_status": ("NOT_RUN" if skip_ai_review else "RUN"), "ai_review_skip_reason": ("deferred_for_human_visual_review" if skip_ai_review else None), "resume_from_job_root": str(resume_from_job_root) if resume_from_job_root else None, "historical_calls_used": inherited,
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True); manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0

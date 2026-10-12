@@ -82,6 +82,10 @@ def _validate_ppt_model_scene_command(producer: list[str]) -> None:
 
 def build_ppt_runner_from_args(args: argparse.Namespace, *, environ: dict[str, str] | None = None) -> ProductionPptRunner:
     """The sole bot entry point for PPT runner configuration."""
+    if args.ppt_v4_offline_source_root:
+        if args.enable_ppt_model or not args.ppt_v4_offline_source_root.is_dir() or not args.ppt_visual_reference_root or not args.ppt_visual_reference_root.is_dir():
+            raise ValueError("V4 offline PPT requires an existing source root and visual-reference root, with model disabled")
+        return ProductionPptRunner(PROJECT_ROOT, v4_offline_source_root=args.ppt_v4_offline_source_root, visual_reference_root=args.ppt_visual_reference_root)
     if not args.enable_ppt_model:
         return ProductionPptRunner(PROJECT_ROOT)
     env = os.environ if environ is None else environ
@@ -153,6 +157,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     producer_source.add_argument("--ppt-model-scene-command-file", type=Path, help="UTF-8 JSON argv file for the approved Scene Graph producer")
     parser.add_argument("--ppt-model-max-calls", type=int, help="positive Ark-call budget for the producer")
     parser.add_argument("--ppt-visual-reference-root", type=Path, help="explicit root containing the approved V4 visual reference resources")
+    parser.add_argument("--ppt-v4-offline-source-root", type=Path, help="explicit completed V4 checkpoint root for model-disabled re-render")
     parser.add_argument("--proactive-markdown-chatid", help="confirmed live-test chat ID")
     parser.add_argument("--proactive-markdown", help="one-time live-test Markdown content")
     parser.add_argument("--proactive-file-chatid", help="confirmed live-test chat ID")

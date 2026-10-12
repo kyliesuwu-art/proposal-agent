@@ -205,6 +205,39 @@ def test_v4_producer_requires_explicit_complete_visual_reference_root(tmp_path):
     import scripts.run_ppt_v4_ark_full20 as producer
     with pytest.raises(RuntimeError, match="visual resources"):
         producer.configure_production_visual_resources(tmp_path)
+
+
+def test_client_display_sanitizer_preserves_business_text_and_canonical_scene():
+    import scripts.run_ppt_v4_ark_full20 as producer
+    canonical = {"elements": [{"type": "text", "text": "容量 20 MW；【待确认】来源：设计母稿.pdf，第10页"}]}
+    display = producer.sanitize_client_display_scene(canonical)
+    assert canonical["elements"][0]["text"].endswith("第10页")
+    assert display["elements"][0]["text"] == "容量 20 MW；"
+
+
+def test_v4_offline_render_uses_customer_display_derivative(tmp_path, monkeypatch):
+    import hashlib
+    import scripts.run_ppt_v4_ark_full20 as producer
+
+    approved = tmp_path / "approved.md"; approved.write_text("# approved", encoding="utf-8")
+    source = tmp_path / "source-job"; scenes = source / "scene_graphs"; scenes.mkdir(parents=True)
+    pages = []
+    for page in range(1, 21):
+        name = f"page_{page:02}_{producer.NAMES[page]}.json"; path = scenes / name
+        path.write_text(json.dumps({"elements": [{"type": "text", "text": f"page {page} 【待确认】来源：mother.pdf，第{page}页"}]}), encoding="utf-8")
+        pages.append({"page": page, "path": str(Path("scene_graphs") / name), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+    (source / "ppt_generation_checkpoints.json").write_text(json.dumps({"schema_version": "ppt-generation-checkpoint/v1", "source_task_id": "task", "source_job_id": source.name, "approved_md_sha256": hashlib.sha256(approved.read_bytes()).hexdigest(), "assets_manifest_sha256": "asset-hash", "producer_compatibility_version": "producer", "prompt_contract_version": "prompt", "scene_schema_version": "scene", "total_slide_count": 20, "model_max_calls": 26, "ark_attempts_used": 21, "created_at": "2026-10-12T00:00:00+00:00", "global": {}, "pages": pages}), encoding="utf-8")
+    captured = {}
+    monkeypatch.setattr(producer, "configure_production_visual_resources", lambda _root: None)
+    monkeypatch.setattr(producer.v4, "draw", lambda value: (captured.setdefault("scenes", value), (tmp_path / "deck.pptx"))[1])
+    (tmp_path / "deck.pptx").write_bytes(b"fake")
+    monkeypatch.setattr(producer.v4, "render", lambda _deck: [])
+    monkeypatch.setattr(producer.v4, "contact", lambda *_args: None)
+    output = tmp_path / "output"; output.mkdir()
+    producer.render_existing(approved, tmp_path, output, source, tmp_path)
+    assert "【待确认】" not in captured["scenes"][1]["elements"][0]["text"]
+    assert "mother.pdf" not in captured["scenes"][1]["elements"][0]["text"]
+    assert "mother.pdf" in (scenes / f"page_01_{producer.NAMES[1]}.json").read_text(encoding="utf-8")
 def test_v4_fake_producer_serializes_runtime_paths_relative_to_cross_root_job(tmp_path, monkeypatch):
     import scripts.run_ppt_v4_ark_full20 as producer
 
@@ -219,8 +252,15 @@ def test_v4_fake_producer_serializes_runtime_paths_relative_to_cross_root_job(tm
         return {"direction": "fake"}
 
     monkeypatch.setattr(producer.v4, "art_direction", fake_art_direction)
-    monkeypatch.setattr(producer.v4, "page_request", lambda page, _direction, revision=False: {"elements": [], "page": page, "revision": revision})
-    monkeypatch.setattr(producer.v4, "draw", lambda _scenes: job_root / "fake.pptx")
+    monkeypatch.setattr(producer.v4, "page_request", lambda page, _direction, revision=False: {"elements": [{"type": "text", "text": f"page {page} 【待确认】来源：mother.pdf，第{page}页"}], "page": page, "revision": revision})
+    drawn = {}
+    def fake_draw(_scenes):
+        drawn.update(_scenes)
+        deck = job_root / "fake.pptx"
+        deck.write_bytes(b"fake-pptx")
+        return deck
+
+    monkeypatch.setattr(producer.v4, "draw", fake_draw)
 
     def fake_render(_deck):
         pages = job_root / "pages" / "slide"; pages.mkdir(parents=True, exist_ok=True)
@@ -236,6 +276,9 @@ def test_v4_fake_producer_serializes_runtime_paths_relative_to_cross_root_job(tm
     producer.produce(input_md, job_root, scene_dir, tmp_path / "visual root", manifest_path, 26)
     assert json.loads(manifest_path.read_text(encoding="utf-8"))["scene_graph_dir"] == "generated_scene_graph"
     assert (scene_dir / "page_01_G.json").is_file()
+    assert "【待确认】" not in drawn[1]["elements"][0]["text"]
+    assert "mother.pdf" not in drawn[1]["elements"][0]["text"]
+    assert "mother.pdf" in (scene_dir / "page_01_G.json").read_text(encoding="utf-8")
 
     calibration = producer.v4; calibration.OUT = job_root
     raw = job_root / "raw" / "cross-root.json"

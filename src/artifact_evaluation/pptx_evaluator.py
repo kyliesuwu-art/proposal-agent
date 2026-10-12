@@ -4,7 +4,7 @@ from collections import Counter
 from pathlib import Path
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
-from .common import check,digest,zip_is_safe
+from .common import check,digest,zip_is_safe,text_counts
 from .models import ArtifactReport,EvaluationStatus,Severity,aggregate
 from .profiles import Profile
 
@@ -16,7 +16,7 @@ def evaluate_pptx(value: str|Path,profile:Profile)->ArtifactReport:
  if not ok: report.checks.append(check("PPTX_OOXML_INVALID",EvaluationStatus.FAIL,Severity.ERROR,"pptx","Invalid PPTX package",evidence=detail));report.status=EvaluationStatus.FAIL;return report
  try: prs=Presentation(path)
  except Exception as exc: report.checks.append(check("PPTX_PARSE_FAILED",EvaluationStatus.FAIL,Severity.ERROR,"pptx","python-pptx cannot open file",evidence=type(exc).__name__));report.status=EvaluationStatus.FAIL;return report
- out=low=blank=oob=small=0; signatures=[]; page_errors=0; all_images=[]
+ out=low=blank=oob=small=0; signatures=[]; page_errors=0; all_images=[]; delivery_text=[]
  for number,slide in enumerate(prs.slides,1):
   texts=[]; shapes=[]; has_content=False
   for shape in slide.shapes:
@@ -24,6 +24,7 @@ def evaluate_pptx(value: str|Path,profile:Profile)->ArtifactReport:
    kind=str(shape.shape_type); shapes.append((kind,round(shape.left/prs.slide_width,2),round(shape.top/prs.slide_height,2),round(shape.width/prs.slide_width,2),round(shape.height/prs.slide_height,2)))
    if getattr(shape,"has_text_frame",False):
     texts.append(shape.text or ""); has_content|=bool(shape.text.strip())
+    delivery_text.append(shape.text or "")
     for paragraph in shape.text_frame.paragraphs:
      for run in paragraph.runs:
       if run.font.size and run.font.size.pt<profile.min_font_pt:small+=1
@@ -39,10 +40,13 @@ def evaluate_pptx(value: str|Path,profile:Profile)->ArtifactReport:
   signatures.append(tuple(sorted(shapes)))
   if number>1 and str(number) not in " ".join(texts): page_errors+=1
  counts=Counter(signatures); repeated=sum(1 for count in counts.values() if count>1)
- report.metrics={"slide_count":len(prs.slides),"image_count":out,"low_resolution_image_count":low,"out_of_bounds_shape_count":oob,"missing_logo_slide_count":None,"duplicate_logo_slide_count":None,"missing_footer_slide_count":None,"page_number_error_count":page_errors,"small_font_count":small,"blank_slide_count":blank,"repeated_layout_group_count":repeated,"duplicate_image_count":len(all_images)-len(set(all_images)),"visual_checks_status":"NOT_RUN"}
+ internal,source,paths=text_counts("\n".join(delivery_text))
+ report.metrics={"slide_count":len(prs.slides),"image_count":out,"low_resolution_image_count":low,"out_of_bounds_shape_count":oob,"missing_logo_slide_count":None,"duplicate_logo_slide_count":None,"missing_footer_slide_count":None,"page_number_error_count":page_errors,"small_font_count":small,"blank_slide_count":blank,"repeated_layout_group_count":repeated,"duplicate_image_count":len(all_images)-len(set(all_images)),"internal_label_count":internal,"source_leak_count":source+paths,"visual_checks_status":"NOT_RUN"}
  if blank:report.checks.append(check("PPTX_BLANK_SLIDE",EvaluationStatus.FAIL,Severity.ERROR,"pptx","blank slide found",metric_value=blank))
  if oob:report.checks.append(check("PPTX_SHAPE_OUT_OF_BOUNDS",EvaluationStatus.FAIL,Severity.ERROR,"pptx","shape exceeds canvas",metric_value=oob))
  if low:report.checks.append(check("PPTX_LOW_RESOLUTION_IMAGE",EvaluationStatus.PASS_WITH_WARNINGS,Severity.WARNING,"pptx","low resolution image risk",metric_value=low))
  if repeated:report.checks.append(check("PPTX_REPEATED_LAYOUT",EvaluationStatus.PASS_WITH_WARNINGS,Severity.WARNING,"pptx","repeated layout group",metric_value=repeated))
  if small:report.checks.append(check("PPTX_SMALL_FONT",EvaluationStatus.PASS_WITH_WARNINGS,Severity.WARNING,"pptx","small font risk",metric_value=small))
+ if profile.delivery and internal:report.checks.append(check("PPTX_INTERNAL_LABEL",EvaluationStatus.FAIL,Severity.ERROR,"pptx","internal labels found",metric_value=internal))
+ if profile.delivery and (source or paths):report.checks.append(check("PPTX_SOURCE_LEAK",EvaluationStatus.FAIL,Severity.ERROR,"pptx","source chain or local path found",metric_value=source+paths))
  report.checks.extend([check("PPTX_PARSED",EvaluationStatus.PASS,Severity.INFO,"pptx","PPTX parsed"),check("PPTX_VISUAL_RENDER",EvaluationStatus.NOT_RUN,Severity.INFO,"pptx","text overflow and visual collisions require rendered pages")]);report.status=aggregate(report.checks);return report

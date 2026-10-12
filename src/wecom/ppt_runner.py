@@ -49,6 +49,7 @@ class ProductionPptRunner:
         project_root: Path,
         *,
         existing_scene_dir: Path | None = None,
+        v4_offline_source_root: Path | None = None,
         target_slides: int | None = 20,
         visual_critic: bool = False,
         max_revisions: int = 0,
@@ -59,6 +60,7 @@ class ProductionPptRunner:
     ) -> None:
         self._project_root = project_root
         self._existing_scene_dir = existing_scene_dir
+        self._v4_offline_source_root = v4_offline_source_root.resolve() if v4_offline_source_root else None
         self._target_slides = target_slides
         self._visual_critic = visual_critic
         self._max_revisions = max_revisions
@@ -121,6 +123,10 @@ class ProductionPptRunner:
             command.extend(("--target-slides", str(self._target_slides)))
         if self._existing_scene_dir:
             command.extend(("--existing-scene-dir", str(self._existing_scene_dir)))
+        if self._v4_offline_source_root:
+            command.extend(("--v4-offline-source-root", str(self._v4_offline_source_root)))
+            if self._visual_reference_root:
+                command.extend(("--visual-reference-root", str(self._visual_reference_root)))
         if self._visual_critic:
             command.append("--enable-visual-critic")
         started = datetime.now().astimezone()

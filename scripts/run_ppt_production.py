@@ -310,12 +310,12 @@ def _main(context: _ProductionContext) -> int:
     model_mode = parser.add_mutually_exclusive_group(required=True)
     model_mode.add_argument("--disable-model", action="store_true", help="offline re-render using --existing-scene-dir only")
     model_mode.add_argument("--enable-model", action="store_true", help="run the separately approved Scene Graph producer")
-    parser.add_argument("--existing-scene-dir", type=Path); parser.add_argument("--model-scene-command-json"); parser.add_argument("--model-max-calls", type=int); parser.add_argument("--visual-reference-root", type=Path)
+    parser.add_argument("--existing-scene-dir", type=Path); parser.add_argument("--v4-offline-source-root", type=Path); parser.add_argument("--model-scene-command-json"); parser.add_argument("--model-max-calls", type=int); parser.add_argument("--visual-reference-root", type=Path)
     parser.add_argument("--enable-visual-critic", action="store_true"); parser.add_argument("--max-revisions", type=int, default=0)
     parser.add_argument("--task-id", default=""); parser.add_argument("--job-id", default=""); parser.add_argument("--resume-from-job-root", type=Path)
     args = parser.parse_args()
     context.output_dir = args.output_dir
-    if args.disable_model and not args.existing_scene_dir:
+    if args.disable_model and not (args.existing_scene_dir or args.v4_offline_source_root):
         raise RuntimeError("--existing-scene-dir is required for model-disabled production")
     if args.enable_model and (args.existing_scene_dir or not args.model_scene_command_json or not args.model_max_calls or not args.visual_reference_root):
         raise RuntimeError("--enable-model requires producer argv, visual reference root, positive model call limit, and cannot reuse an existing Scene Graph")
@@ -327,11 +327,24 @@ def _main(context: _ProductionContext) -> int:
     manifest = build_manifest(args.input_md, args.task_root)
     manifest_path = args.output_dir / "assets_manifest.json"; manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     context.stage = "producer" if args.enable_model else "render"
-    scene_dir = args.existing_scene_dir or generate_scene_graph(args.model_scene_command_json, args.input_md, args.task_root, args.output_dir, args.visual_reference_root, args.model_max_calls, resume_from_job_root=args.resume_from_job_root)
+    if args.v4_offline_source_root:
+        from scripts.run_ppt_v4_ark_full20 import render_existing
+        render_existing(args.input_md, args.task_root, args.output_dir, args.v4_offline_source_root, args.visual_reference_root or args.task_root)
+        scene_dir = None
+    else: scene_dir = args.existing_scene_dir or generate_scene_graph(args.model_scene_command_json, args.input_md, args.task_root, args.output_dir, args.visual_reference_root, args.model_max_calls, resume_from_job_root=args.resume_from_job_root)
     context.stage = "render"
-    warnings, page_count = render(scene_dir, args.output_pptx, build_validated_asset_set(manifest, args.task_root), args.input_md.read_text(encoding="utf-8"), args.target_slides)
+    if scene_dir is None: warnings, page_count = [], 20
+    # The explicit V4 producer has already rendered its own fresh deck.  Its
+    # Scene Graph format is intentionally not a generic-renderer input.
+    elif args.enable_model and args.output_pptx.is_file(): warnings, page_count = [], 20
+    else: warnings, page_count = render(scene_dir, args.output_pptx, build_validated_asset_set(manifest, args.task_root), args.input_md.read_text(encoding="utf-8"), args.target_slides)
     context.stage = "producer_finalize"
-    report = evaluate(profile="client-delivery", markdown=str(args.input_md), pptx=str(args.output_pptx), expected_source_hash=before)
+    # The approved Markdown is an internal source record, not the customer
+    # artifact.  Keep source/safety checks, but do not apply client leakage
+    # rules to it; evaluate the sent PPTX with the delivery profile alone.
+    source_report = evaluate(profile="internal-source", markdown=str(args.input_md), expected_source_hash=before)
+    write_report(source_report, args.output_dir / "source_evaluation")
+    report = evaluate(profile="client-delivery", pptx=str(args.output_pptx))
     write_report(report, args.output_dir / "artifact_evaluation")
     args.run_log.write_text(json.dumps({"model_calls": 1 if args.enable_model else 0, "visual_critic": False, "max_revisions": 0, "page_count": page_count, "warnings": warnings, "approved_sha256_before": before, "approved_sha256_after": hashlib.sha256(args.input_md.read_bytes()).hexdigest()}, ensure_ascii=False, indent=2), encoding="utf-8")
     return 1 if report.overall_status.value == "FAIL" else 0

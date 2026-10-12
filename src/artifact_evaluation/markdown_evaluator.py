@@ -20,7 +20,13 @@ def evaluate_markdown(value: str | Path, profile: Profile) -> ArtifactReport:
     headings = [(len(m.group(1)), m.group(2).strip(), index) for index, line in enumerate(text.splitlines(), 1) if (m := HEADING.match(line))]
     # A document H1 is often only a container for H2 sections; do not call it
     # empty merely because its first child heading follows immediately.
-    empty_sections = sum(1 for n, (level, _, line) in enumerate(headings) if level > 1 and not any(x.strip() and not x.lstrip().startswith("#") for x in text.splitlines()[line:(headings[n+1][2]-1 if n+1 < len(headings) else len(text.splitlines()))]))
+    # A section heading that immediately contains lower-level headings is a
+    # structural container, just like an H1 followed by H2 sections.
+    empty_sections = sum(1 for n, (level, _, line) in enumerate(headings)
+                         if level > 1
+                         and not (n + 1 < len(headings) and headings[n + 1][0] > level)
+                         and not any(x.strip() and not x.lstrip().startswith("#")
+                                     for x in text.splitlines()[line:(headings[n+1][2]-1 if n+1 < len(headings) else len(text.splitlines()))]))
     jumps = sum(1 for index in range(1, len(headings)) if headings[index][0] > headings[index-1][0] + 1)
     duplicates = len(headings) - len({title.casefold() for _, title, _ in headings})
     images = IMAGE.findall(text); broken_syntax = text.count("![") - len(images)
