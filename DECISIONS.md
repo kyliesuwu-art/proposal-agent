@@ -161,3 +161,9 @@ Impact: Failed jobs are never returned to RUNNING and are never overwritten. Str
 Decision: `继续生成PPT <task_id>` is the sole user-facing resume command. ControlService resolves only the caller-owned task and its newest Store-ranked resumable PPT Job, then delegates all checkpoint, lineage, path and budget validation to ArtifactService. Malformed PPT-like commands are handled as control usage errors rather than ordinary proposal requests.
 
 Impact: Resume never silently falls back to an older source, never resets model budget, and never auto-retries. Message-ID deduplication and Store-level atomic child creation keep a replay or concurrent command from launching another runner.
+
+## 2026-11 – Unified generation remains Markdown-first and adapter-driven
+
+Decision: `ProposalWorkflow` is the application-layer entry point for a single proposal delivery. It composes the existing evidence retriever, LLM-backed Markdown generator, local Word renderer, slide-plan builder and local PPTX renderer through injected callables. The `generate` CLI command requests `md`, `docx` and/or `pptx`; Markdown is always generated first and remains the only content source for requested downstream artifacts.
+
+Impact: No RAG algorithm, prompt, source/citation rule, Office renderer or production WeCom runner is replaced. Each artifact remains individually callable through its existing command. A failure in Word, slide planning or PPTX rendering records a stage-labelled error and leaves the already published Markdown and its source sidecar intact for diagnosis or safe retry.

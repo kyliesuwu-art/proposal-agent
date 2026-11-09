@@ -5,6 +5,7 @@
     uv run python src/main.py ingest-cache-dir <缓存目录> [--db runtime_data/word_test_db] --dry-run
     uv run python src/main.py ingest-cache-dir <缓存目录> [--db runtime_data/word_test_db] --resume --limit 10 --batch-size 32
     uv run python src/main.py proposal "需求描述" --output outputs/proposal.md
+    uv run python src/main.py generate "需求描述" --formats md docx pptx [--output-dir outputs/generate-run]
     uv run python src/main.py proposal-diagnose outputs/proposal.md
     uv run python src/main.py annotate <source_file> # 为源文件进行标注/打标签
     uv run python src/main.py status                 # 查看库状态
@@ -31,6 +32,7 @@ from src.adapters.llm_client import LLMClient
 from src.markdown_proposal import ProposalGenerationError, ProposalQualityError, ProposalWriteError, diagnose_markdown_proposal, generate_markdown_proposal
 from src.render_word import RenderWordError, render_word
 from src.render_pptx import RenderPptxError, render_pptx, write_pptx_layout_audit
+from src.application import GenerateRequest, GenerateWorkflowError, ProposalWorkflow
 
 
 def _write_proposal_request(output_path: Path, request: str, *, run_log: Path, debug: bool) -> Path:
@@ -129,6 +131,26 @@ def _ingest_cache_dir_resume(path_str: str, target_db: str, limit: int, batch_si
         print(json.dumps(ingestor.ingest(limit=limit, batch_size=batch_size), ensure_ascii=False, indent=2))
     finally:
         ingestor.close()
+
+
+def _proposal_workflow() -> ProposalWorkflow:
+    """Compose the unified workflow from the existing production functions.
+
+    Keeping construction here lets the CLI remain the composition root while the
+    workflow itself stays testable with fakes and owns no provider-specific code.
+    """
+    from src.render_pptx import build_slides_markdown
+
+    return ProposalWorkflow(
+        llm_factory=LLMClient,
+        retriever=pipeline.retrieve_evidence,
+        markdown_generator=generate_markdown_proposal,
+        word_renderer=render_word,
+        slides_builder=build_slides_markdown,
+        pptx_renderer=render_pptx,
+        run_log_writer=_write_proposal_run_log,
+        request_writer=_write_proposal_request,
+    )
 
 
 def main() -> None:
@@ -247,6 +269,43 @@ def main() -> None:
         except RenderPptxError as exc:
             parser.error(str(exc))
         print(f"Visual audit JSON: {json_path}\nVisual audit Markdown: {md_path}")
+    elif command == "generate":
+        import argparse
+        parser = argparse.ArgumentParser(
+            prog="python src/main.py generate",
+            description="Generate Markdown first, then optionally render DOCX and PPTX from that same Markdown.",
+        )
+        parser.add_argument("request")
+        parser.add_argument("--formats", required=True, nargs="+", choices=("md", "docx", "pptx"))
+        parser.add_argument("--output-dir", help="Directory for proposal.md and requested artifacts")
+        parser.add_argument("--run-log")
+        parser.add_argument("--debug", action="store_true")
+        parser.add_argument("--ppt-mode", choices=("briefing", "faithful", "presentation"), default="presentation")
+        parser.add_argument("--max-slides", type=int, default=15)
+        args = parser.parse_args(sys.argv[2:])
+        output_dir = Path(args.output_dir) if args.output_dir else Path("outputs") / f"generate-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}"
+        try:
+            result = _proposal_workflow().run(GenerateRequest(
+                request=args.request,
+                output_dir=output_dir,
+                formats=tuple(args.formats),
+                debug=args.debug,
+                run_log_path=Path(args.run_log) if args.run_log else None,
+                ppt_mode=args.ppt_mode,
+                max_slides=args.max_slides,
+            ))
+        except (GenerateWorkflowError, ValueError) as exc:
+            stage = exc.stage if isinstance(exc, GenerateWorkflowError) else "input_validation"
+            cause = exc.cause if isinstance(exc, GenerateWorkflowError) else exc
+            print(f"统一生成失败 [{stage}] {type(cause).__name__}: {cause}", file=sys.stderr)
+            if args.debug:
+                traceback.print_exception(exc, file=sys.stderr)
+            sys.exit(1)
+        print(f"Markdown: {result.markdown_path.resolve()}\nRun log: {result.run_log_path.resolve()}\nQuality: {result.quality_status}")
+        if result.word_path:
+            print(f"DOCX: {result.word_path.resolve()}\nWord report: {result.word_report_path}")
+        if result.pptx_path:
+            print(f"Slides Markdown: {result.slides_markdown_path.resolve()}\nSlide plan: {result.slide_plan_path.resolve()}\nPPTX: {result.pptx_path.resolve()}\nPPTX report: {result.pptx_report_path}")
     elif command == "proposal":
         if len(sys.argv) == 3 and sys.argv[2] in {"-h", "--help"}:
             print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug]')
