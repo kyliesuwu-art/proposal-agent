@@ -72,7 +72,10 @@ class HybridTestStore:
     ) -> None:
         self.root = Path(test_db).resolve()
         if readonly:
-            if not self.root.is_dir() or not (self.root / "hybrid_lexical.sqlite3").is_file():
+            if (not self.root.is_dir()
+                    or not (self.root / "hybrid_lexical.sqlite3").is_file()
+                    or not (self.root / "chroma_v2").is_dir()
+                    or not (self.root / "chroma_v2" / "chroma.sqlite3").is_file()):
                 raise FileNotFoundError(f"检索库不存在或不完整：{self.root}")
             self._db = sqlite3.connect(
                 f"file:{(self.root / 'hybrid_lexical.sqlite3').as_posix()}?mode=ro", uri=True
@@ -80,26 +83,38 @@ class HybridTestStore:
         else:
             self.root.mkdir(parents=True, exist_ok=True)
             self._db = sqlite3.connect(self.root / "hybrid_lexical.sqlite3")
-        self._db.row_factory = sqlite3.Row
-        if not readonly:
-            self._db.executescript("""
+        try:
+            self._db.row_factory = sqlite3.Row
+            if readonly:
+                # Validate required lexical tables before opening the persistent
+                # Chroma client; the latter is not a strictly read-only client.
+                self._db.execute("SELECT page_id, document_id, version_id, source_key, page_number, payload FROM pages LIMIT 0")
+                self._db.execute("SELECT page_id, title, section_title, keywords, entities, parameters, content FROM page_fts LIMIT 0")
+            else:
+                self._db.executescript("""
                 CREATE TABLE IF NOT EXISTS pages (
                     page_id TEXT PRIMARY KEY, document_id TEXT NOT NULL, version_id TEXT NOT NULL,
                     source_key TEXT NOT NULL, page_number INTEGER NOT NULL, payload TEXT NOT NULL);
                 CREATE INDEX IF NOT EXISTS pages_document_version ON pages(document_id, version_id);
                 CREATE VIRTUAL TABLE IF NOT EXISTS page_fts USING fts5(page_id UNINDEXED, title, section_title, keywords, entities, parameters, content);
             """)
-            self._db.commit()
-        client = chromadb.PersistentClient(path=str(self.root / "chroma_v2"))
-        if readonly:
-            self._collection = client.get_collection(
-                "electrical_pages_v2", embedding_function=embedding_function or DashScopeEmbeddingFunction()
-            )
-        else:
-            self._collection = client.get_or_create_collection(
-                "electrical_pages_v2", metadata={"hnsw:space": "cosine", "hnsw:sync_threshold": 100000},
-                embedding_function=embedding_function or DashScopeEmbeddingFunction(),
-            )
+                self._db.commit()
+            client = chromadb.PersistentClient(path=str(self.root / "chroma_v2"))
+            if readonly:
+                self._collection = client.get_collection(
+                    "electrical_pages_v2", embedding_function=embedding_function or DashScopeEmbeddingFunction()
+                )
+            else:
+                self._collection = client.get_or_create_collection(
+                    "electrical_pages_v2", metadata={"hnsw:space": "cosine", "hnsw:sync_threshold": 100000},
+                    embedding_function=embedding_function or DashScopeEmbeddingFunction(),
+                )
+        except BaseException:
+            try:
+                self._db.close()
+            except BaseException:
+                pass  # Keep the initialization failure, including interruptions.
+            raise
 
     def close(self) -> None:
         self._db.close()
