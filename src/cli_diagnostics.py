@@ -33,5 +33,3 @@ def audit_pptx(context) -> None:
     except RenderPptxError as exc:
         parser.error(str(exc))
     print(f"Visual audit JSON: {json_path}\nVisual audit Markdown: {md_path}")
-
-

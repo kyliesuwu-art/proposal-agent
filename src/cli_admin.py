@@ -44,5 +44,3 @@ def reindex_affected(context) -> None:
         parser.error(str(exc))
 
     # 【知识库查询】将用户问题交给 pipeline 检索，并把结构化结果渲染为 Markdown。
-
-

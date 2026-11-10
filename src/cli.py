@@ -218,4 +218,3 @@ def dispatch(context) -> None:
         print(f"未知命令: {command}")
         print(help_text)
         sys.exit(1)
-
