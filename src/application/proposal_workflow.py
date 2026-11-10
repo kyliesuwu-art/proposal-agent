@@ -12,6 +12,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Protocol
 
+from src.markdown_proposal import (
+    ProposalGenerationError,
+    ProposalQualityError,
+    ProposalWriteError,
+)
+
 
 SUPPORTED_FORMATS = frozenset({"md", "docx", "pptx"})
 _MANAGED_OUTPUT_NAMES = frozenset({
@@ -112,13 +118,20 @@ class ProposalWorkflow:
         return formats
 
     def _fatal(self, run_log: Path, stage: str, cause: BaseException) -> GenerateWorkflowError:
+        # Mirror the legacy proposal CLI FATAL contract: deterministic type and
+        # quality-gate evidence only, never prompts, bodies or credential data.
+        details: dict[str, object] = {"error_type": type(cause).__name__}
+        if isinstance(cause, ProposalGenerationError):
+            details["cause_type"] = type(cause.cause).__name__
+            if cause.stage in {"quality_gate", "scope_gate"} and isinstance(
+                cause.cause, ProposalQualityError
+            ):
+                details["quality_gate_error_message"] = str(cause.cause)
+            if isinstance(cause.cause, ProposalWriteError):
+                details["write_operation"] = cause.cause.operation
+                details["write_cause_type"] = type(cause.cause.cause).__name__
         try:
-            self._run_log_writer(
-                run_log,
-                status="FATAL",
-                stage=stage,
-                error_type=type(cause).__name__,
-            )
+            self._run_log_writer(run_log, status="FATAL", stage=stage, **details)
         except OSError:
             # The original error remains more actionable when the output path
             # itself is unavailable, so never replace it with a log failure.

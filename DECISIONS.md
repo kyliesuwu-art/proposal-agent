@@ -167,3 +167,9 @@ Impact: Resume never silently falls back to an older source, never resets model 
 Decision: `ProposalWorkflow` is the application-layer entry point for a single proposal delivery. It composes the existing evidence retriever, LLM-backed Markdown generator, local Word renderer, slide-plan builder and local PPTX renderer through injected callables. The `generate` CLI command requests `md`, `docx` and/or `pptx`; Markdown is always generated first and remains the only content source for requested downstream artifacts.
 
 Impact: No RAG algorithm, prompt, source/citation rule, Office renderer or production WeCom runner is replaced. Each artifact remains individually callable through its existing command. A failure in Word, slide planning or PPTX rendering records a stage-labelled error and leaves the already published Markdown and its source sidecar intact for diagnosis or safe retry.
+
+## 2026-11 — Unified generate FATAL logs match the legacy proposal contract
+
+Decision: `ProposalWorkflow._fatal` now records the same deterministic FATAL fields as the legacy `proposal` CLI. When the Markdown generator raises `ProposalGenerationError`, the run log keeps `cause_type`; `quality_gate`/`scope_gate` failures additionally keep `quality_gate_error_message`, and publication failures keep `write_operation` plus `write_cause_type`. Stage labelling, exception wrapping and propagation are unchanged.
+
+Impact: The unified `generate` workflow no longer loses quality-gate and publication diagnostics. Only exception type names and the existing deterministic rule messages are logged; prompts, proposal bodies, tracebacks, API keys and raw internal exception data are never written. Offline unit tests cover both gate stages, the write failure path, and a plain-exception case asserting that messages and secrets never reach the run log.

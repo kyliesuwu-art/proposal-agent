@@ -9,7 +9,11 @@ import pytest
 
 from src import main
 from src.application import GenerateRequest, GenerateWorkflowError, ProposalWorkflow
-from src.markdown_proposal import ProposalGenerationError
+from src.markdown_proposal import (
+    ProposalGenerationError,
+    ProposalQualityError,
+    ProposalWriteError,
+)
 
 
 class FakeLLM:
@@ -226,3 +230,77 @@ def test_generate_cli_builds_a_request_without_opening_real_services(monkeypatch
     assert captured["request"].formats == ("md", "docx")
     assert captured["request"].output_dir == tmp_path
     assert "Markdown:" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("gate_stage", ["quality_gate", "scope_gate"])
+def test_workflow_fatal_log_keeps_quality_gate_contract(tmp_path: Path, gate_stage: str) -> None:
+    """The unified workflow must preserve the legacy proposal FATAL fields."""
+    harness = Harness(tmp_path)
+    workflow = harness.workflow()
+    deterministic_message = "scope gate rejected a non-core section"
+
+    def quality_failure(*_args: object, **_kwargs: object):
+        raise ProposalGenerationError(gate_stage, ProposalQualityError(deterministic_message))
+
+    workflow._markdown_generator = quality_failure
+    output = tmp_path / f"{gate_stage}-failure"
+    with pytest.raises(GenerateWorkflowError) as raised:
+        workflow.run(GenerateRequest("hospital solar storage proposal", output, ("md",)))
+    assert raised.value.stage == gate_stage
+
+    log = json.loads((output / "proposal.run.log").read_text(encoding="utf-8"))
+    assert log["status"] == "FATAL"
+    assert log["stage"] == gate_stage
+    assert log["error_type"] == "ProposalGenerationError"
+    assert log["cause_type"] == "ProposalQualityError"
+    assert log["quality_gate_error_message"] == deterministic_message
+
+
+def test_workflow_fatal_log_keeps_publication_write_contract(tmp_path: Path) -> None:
+    """Publication failures keep the safe operation name instead of raw content."""
+    harness = Harness(tmp_path)
+    workflow = harness.workflow()
+
+    def write_failure(*_args: object, **_kwargs: object):
+        raise ProposalGenerationError(
+            "markdown_write",
+            ProposalWriteError("atomic_publish", OSError("disk full")),
+        )
+
+    workflow._markdown_generator = write_failure
+    output = tmp_path / "write-failure"
+    with pytest.raises(GenerateWorkflowError) as raised:
+        workflow.run(GenerateRequest("hospital solar storage proposal", output, ("md",)))
+    assert raised.value.stage == "markdown_write"
+
+    log = json.loads((output / "proposal.run.log").read_text(encoding="utf-8"))
+    assert log["status"] == "FATAL"
+    assert log["error_type"] == "ProposalGenerationError"
+    assert log["cause_type"] == "ProposalWriteError"
+    assert log["write_operation"] == "atomic_publish"
+    assert log["write_cause_type"] == "OSError"
+
+
+def test_workflow_fatal_log_never_leaks_plain_exception_payload(tmp_path: Path) -> None:
+    """Non-domain failures record only the type name, never messages or repr."""
+    harness = Harness(tmp_path)
+    workflow = harness.workflow()
+
+    def secret_failure(*_args: object, **_kwargs: object):
+        raise RuntimeError("api-key sk-1234567890 secret payload")
+
+    workflow._markdown_generator = secret_failure
+    output = tmp_path / "plain-failure"
+    with pytest.raises(GenerateWorkflowError) as raised:
+        workflow.run(GenerateRequest("hospital solar storage proposal", output, ("md",)))
+    assert raised.value.stage == "markdown_generation"
+
+    log = json.loads((output / "proposal.run.log").read_text(encoding="utf-8"))
+    assert log["status"] == "FATAL"
+    assert log["error_type"] == "RuntimeError"
+    assert "cause_type" not in log
+    assert "quality_gate_error_message" not in log
+    assert "write_operation" not in log
+    serialized = json.dumps(log, ensure_ascii=False)
+    assert "sk-1234567890" not in serialized
+    assert "secret payload" not in serialized
