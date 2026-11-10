@@ -1,14 +1,42 @@
 # main.py
-"""方案知识库 CLI 入口：解析命令行参数，分发到 pipeline.py 里的业务逻辑。
+"""方案知识库的命令行入口。
 
-用法：
-    uv run python src/main.py ingest-cache-dir <缓存目录> [--db runtime_data/word_test_db] --dry-run
-    uv run python src/main.py ingest-cache-dir <缓存目录> [--db runtime_data/word_test_db] --resume --limit 10 --batch-size 32
-    uv run python src/main.py proposal "需求描述" --output outputs/proposal.md
+本文件只负责解析命令行参数和调用业务模块；检索、生成、渲染等具体逻辑分别在
+``pipeline.py``、``markdown_proposal.py``、``render_word.py`` 和 ``render_pptx.py`` 中。
+
+核心业务命令：
+    # 查询知识库，将检索结果输出为 Markdown。
+    uv run python src/main.py query "需求描述" [--output outputs/query.md]
+
+    # 使用 RAG 检索和大模型生成方案 Markdown。
+    uv run python src/main.py proposal "需求描述" --output outputs/proposal.md [--debug] [--run-log outputs/proposal.run.log]
     uv run python src/main.py generate "需求描述" --formats md docx pptx [--output-dir outputs/generate-run]
-    uv run python src/main.py proposal-diagnose outputs/proposal.md
-    uv run python src/main.py annotate <source_file> # 为源文件进行标注/打标签
-    uv run python src/main.py status                 # 查看库状态
+
+    # 将已有方案 Markdown 渲染为 Word。
+    uv run python src/main.py render-word --input outputs/proposal.md --output outputs/proposal.docx
+
+    # 从方案 Markdown 生成适合演示的中间 Markdown 和幻灯片计划。
+    uv run python src/main.py build-slides --input outputs/proposal.md --output outputs/slides.md [--sources outputs/proposal.sources.json] [--mode briefing] [--max-slides 15]
+
+    # 将方案或中间 Markdown 渲染为 PPTX；可复用 build-slides 生成的计划。
+    uv run python src/main.py render-pptx --input outputs/slides.md --output outputs/proposal.pptx [--plan outputs/slides.slide-plan.json]
+
+数据库维护命令：
+    # 只读检查 MinerU 缓存目录，不打开目标数据库。
+    uv run python src/main.py ingest-cache-dir <缓存目录> --db <候选数据库目录> --dry-run
+
+    # 将缓存恢复并分批写入明确指定的候选数据库。
+    uv run python src/main.py ingest-cache-dir <缓存目录> --db <候选数据库目录> --resume --limit 10 --batch-size 32
+
+    # 只读生成受影响文档的定向重建预检报告；当前不执行实际重建。
+    uv run python src/main.py reindex-affected --cache-dir <缓存目录> --source-db <源数据库目录> --target-db <候选数据库目录> --plan <计划文件> --dry-run
+
+诊断命令：
+    # 检查已有方案 Markdown，并输出可移植的诊断报告。
+    uv run python src/main.py proposal-diagnose outputs/proposal.md [--output outputs/proposal.diagnosis.md]
+
+    # 检查 PPTX 几何布局；未提供页面渲染图时，视觉检查会标记为受阻。
+    uv run python src/main.py audit-pptx --input outputs/proposal.pptx --plan outputs/slides.slide-plan.json --output-dir outputs/pptx-audit
 """
 
 import sys
@@ -36,7 +64,10 @@ from src.application import GenerateRequest, GenerateWorkflowError, ProposalWork
 
 
 def _write_proposal_request(output_path: Path, request: str, *, run_log: Path, debug: bool) -> Path:
-    """Persist reproducibility metadata only after a successful proposal delivery."""
+    """在方案成功写入后，保存用户需求和可复现运行元数据。
+
+    输入是方案输出路径、用户需求和运行日志路径；返回写出的 JSON 文件路径。
+    """
     path = output_path.with_name("proposal.request.json")
     path.write_text(json.dumps({
         "request": request,
@@ -51,7 +82,10 @@ def _write_proposal_request(output_path: Path, request: str, *, run_log: Path, d
 
 
 def _write_proposal_run_log(path: Path, *, status: str, stage: str, **details: object) -> None:
-    """Persist prompt-free, credential-free progress before and after remote work."""
+    """记录方案生成的阶段状态，供失败诊断和后续追踪使用。
+
+    日志只保存状态和结构化元数据，不保存提示词或凭据；由 ``proposal`` 分支在关键阶段调用。
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().astimezone().isoformat()
     try:
@@ -67,7 +101,10 @@ def _write_proposal_run_log(path: Path, *, status: str, stage: str, **details: o
 
 
 def _ingest_path(path_str: str) -> None:
-    """支持传入单个文件，也支持传入目录（自动遍历目录下所有受支持格式的文件）。"""
+    """将单个资料文件或目录中的受支持文件交给 ``pipeline.ingest`` 入库。
+
+    目录输入会逐个调用 ``pipeline.ingest`` 并汇总成功和失败项；当前 CLI 尚未注册此旧辅助函数。
+    """
     path = Path(path_str)
     if not path.exists():
         print(f"路径不存在: {path}")
@@ -110,7 +147,10 @@ def _ingest_path(path_str: str) -> None:
 
 
 def _ingest_cache_dir_dry_run(path_str: str, target_db: str) -> None:
-    """Read-only directory inspection; deliberately does not open the target DB."""
+    """只读检查 MinerU 缓存目录，并输出候选入库报告。
+
+    调用 ``cache_batch.inspect_cache_directory``；目标数据库仅作为报告中的计划目标，不会被打开。
+    """
     from src.cache_batch import inspect_cache_directory
     import json
 
@@ -123,6 +163,10 @@ def _ingest_cache_dir_dry_run(path_str: str, target_db: str) -> None:
 
 
 def _ingest_cache_dir_resume(path_str: str, target_db: str, limit: int, batch_size: int) -> None:
+    """从缓存恢复资料并分批写入指定的候选数据库。
+
+    调用 ``CacheBatchIngestor.ingest``，参数 ``limit`` 和 ``batch_size`` 控制本次处理范围和批大小。
+    """
     from src.cache_batch import CacheBatchIngestor
     import json
 
@@ -154,17 +198,22 @@ def _proposal_workflow() -> ProposalWorkflow:
 
 
 def main() -> None:
-    """CLI 入口：解析命令，分发到对应函数。"""
+    """解析 CLI 命令并将请求分发到对应业务模块。
+
+    该函数只处理参数、错误展示和结果打印；具体业务由各分支导入或调用的模块完成。
+    """
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
 
     command = sys.argv[1].lower()
 
+    # 【帮助】不执行任何业务，只显示当前实际支持的命令说明。
     if command in {"-h", "--help"}:
         print(__doc__)
         return
 
+    # 【缓存入库】先只读检查，或在显式 --resume 时将 MinerU 缓存恢复到候选数据库。
     if command == "ingest-cache-dir":
         if len(sys.argv) == 6 and sys.argv[3] == "--db" and sys.argv[5] == "--dry-run":
             _ingest_cache_dir_dry_run(sys.argv[2], sys.argv[4])
@@ -174,6 +223,7 @@ def main() -> None:
             print("用法: python main.py ingest-cache-dir <缓存目录> --db <候选库目录> --dry-run | --resume --limit <数量> --batch-size <数量>")
             sys.exit(1)
 
+    # 【定向重建预检】验证计划和数据库路径；当前版本只支持不写库的 --dry-run。
     elif command == "reindex-affected":
         import argparse
         parser = argparse.ArgumentParser(prog="python src/main.py reindex-affected")
@@ -196,6 +246,7 @@ def main() -> None:
         except ValueError as exc:
             parser.error(str(exc))
 
+    # 【知识库查询】将用户问题交给 pipeline 检索，并把结构化结果渲染为 Markdown。
     elif command == "query":
         if len(sys.argv) < 3:
             print("用法: python main.py query \"需求描述\" [--output <路径>]")
@@ -208,6 +259,7 @@ def main() -> None:
                 sys.exit(1)
             output_path = Path(extra_args[1])
 
+        # pipeline 返回 QueryResult；再由同一模块统一转换为可查看、可保存的 Markdown。
         result = pipeline.query_rag(sys.argv[2])
         markdown = pipeline.render_markdown(result)
         if output_path is not None:
@@ -216,6 +268,7 @@ def main() -> None:
             print(f"已写入 Markdown：{output_path.resolve()}")
         print(markdown)
 
+    # 【方案诊断】只读检查已生成的 Markdown，输出独立的诊断报告。
     elif command == "proposal-diagnose":
         if len(sys.argv) not in {3, 5} or (len(sys.argv) == 5 and sys.argv[3] != "--output"):
             print('用法: python main.py proposal-diagnose <proposal.md> [--output <proposal.diagnosis.md>]', file=sys.stderr)
@@ -227,12 +280,14 @@ def main() -> None:
             sys.exit(1)
         print(f"已写入诊断：{output.resolve()}")
 
+    # 【生成 Word】消费已有方案 Markdown，离线渲染 DOCX，不重新检索或调用模型。
     elif command == "render-word":
         if len(sys.argv) != 6 or sys.argv[2] != "--input" or sys.argv[4] != "--output":
             print("用法: python src/main.py render-word --input <proposal.md> --output <proposal.docx>", file=sys.stderr); sys.exit(1)
         try: report = render_word(sys.argv[3], sys.argv[5])
         except RenderWordError as exc: print(f"Word 渲染失败: {exc}", file=sys.stderr); sys.exit(1)
         print(f"已写入 DOCX: {Path(sys.argv[5]).resolve()}\n报告: {report}")
+    # 【生成 PPT】消费 Markdown 和可选幻灯片计划，离线渲染为 PPTX。
     elif command == "render-pptx":
         import argparse
         parser = argparse.ArgumentParser(prog="python src/main.py render-pptx")
@@ -249,6 +304,7 @@ def main() -> None:
             print(f"PPTX render failed: {exc}", file=sys.stderr)
             sys.exit(1)
         print(f"PPTX: {Path(args.output).resolve()}\nSlide plan: {Path(args.output).with_suffix('.slide-plan.json')}\nReport: {report}")
+    # 【构建幻灯片计划】先生成演示用 Markdown 与 slide-plan，供人工检查或 render-pptx 复用。
     elif command == "build-slides":
         import argparse
         from src.render_pptx import build_slides_markdown
@@ -259,6 +315,7 @@ def main() -> None:
         args = parser.parse_args(sys.argv[2:])
         output, plan, warnings = build_slides_markdown(args.input, args.output, mode=args.mode, max_slides=args.max_slides, sources_path=args.sources)
         print(f"Slides Markdown: {output}\nSlide plan: {plan}\nWarnings: {json.dumps(warnings, ensure_ascii=False)}")
+    # 【PPT 布局诊断】读取 PPTX 与 slide-plan，输出几何布局审计报告。
     elif command == "audit-pptx":
         import argparse
         parser = argparse.ArgumentParser(prog="python src/main.py audit-pptx", description="Write PPTX geometry audit. It reports visual rendering as BLOCKED until a renderer produces page PNGs.")
@@ -306,6 +363,7 @@ def main() -> None:
             print(f"DOCX: {result.word_path.resolve()}\nWord report: {result.word_report_path}")
         if result.pptx_path:
             print(f"Slides Markdown: {result.slides_markdown_path.resolve()}\nSlide plan: {result.slide_plan_path.resolve()}\nPPTX: {result.pptx_path.resolve()}\nPPTX report: {result.pptx_report_path}")
+    # 【生成方案】用户需求先转为检索计划，再以检索证据为依据生成并校验 Markdown。
     elif command == "proposal":
         if len(sys.argv) == 3 and sys.argv[2] in {"-h", "--help"}:
             print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug]')
@@ -326,15 +384,19 @@ def main() -> None:
                 print('用法: python main.py proposal "需求描述" --output <proposal.md> [--debug] [--run-log <proposal.run.log>]', file=sys.stderr)
                 sys.exit(1)
             run_log = Path(extras[index + 1])
+        # 先写入本地运行日志，使配置或远程调用失败时也能定位停在了哪个阶段。
         _write_proposal_run_log(run_log, status="RUNNING", stage="initializing", output_file=output_path.name)
         try:
             try:
+                # 初始化大模型客户端；连接配置会写入日志，但不记录密钥。
                 llm = LLMClient()
                 _write_proposal_run_log(run_log, status="RUNNING", stage="planning", provider="dashscope_openai_compatible", **llm.connection_settings)
             except Exception as exc:  # noqa: BLE001
                 raise ProposalGenerationError("planning", exc) from exc
             def progress(stage: str, details: dict) -> None:
+                # 方案生成模块在规划、检索、写作等阶段回调此函数，持续更新本地运行日志。
                 _write_proposal_run_log(run_log, status="RUNNING", stage=stage, **details)
+            # 生成模块负责方案编排；retriever 将它需要的查询交回 pipeline 取得知识库证据。
             result = generate_markdown_proposal(
                 sys.argv[2], output_path, llm=llm,
                 retriever=lambda queries: pipeline.retrieve_evidence(queries),
@@ -361,6 +423,7 @@ def main() -> None:
         print(f"质量状态：{result.quality_status}；通过项：{result.metrics['quality_passed_checks']}；warning：{len(result.warnings)}；DOCX：未生成")
         for warning in result.warnings[:5]:
             print(f"  - {warning}")
+        # 成功后保存质量摘要和请求元数据，便于复盘本次已交付的方案。
         _write_proposal_run_log(run_log, status=result.quality_status, stage="complete", warnings=result.warnings, metrics=result.metrics)
         _write_proposal_request(output_path, sys.argv[2], run_log=run_log, debug=debug)
 

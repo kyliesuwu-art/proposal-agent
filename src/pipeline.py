@@ -32,7 +32,7 @@ from src.retrieval import (
 _MANIFEST_PATH = INGEST_MANIFEST_PATH
 _manifest_cache: dict[str, str] | None = None
 
-# 相邻 slide 扩展：命中的 slide 前后各带几张，见 claude.md 检索流程第 4 步
+# 相邻 slide 扩展：命中的 slide 前后各带几张，见 AGENTS.md 的检索流程说明。
 #！！！！后期可以思考一下，有没有更好的减少上下文损益的方式
 _ADJACENT_WINDOW = 1
 _CANDIDATE_MULTIPLIER = 3
@@ -348,7 +348,7 @@ def query(need_description: str, top_n: int = 10) -> None:
 
     # 第二步：向量检索。每个改写后的 query 各自查一遍，按 slide 去重合并，
     # 同一张 slide 被多个 query 命中时，保留距离最小（最相关）的一条。
-    # 目前 <100 份文档规模，纯语义检索够用，不接 hybrid（见 claude.md）。
+    # 目前 <100 份文档规模，纯语义检索够用，不接 hybrid（见 AGENTS.md）。
     print("\n[2/4] 向量检索...")
     merged: dict[str, dict] = {}
     for q in queries:

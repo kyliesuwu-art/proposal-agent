@@ -165,7 +165,7 @@ class LLMClient:
     def rewrite_query(self, need_description: str) -> dict:
         """把用户的方案需求描述改写成 1-3 个检索用 query，并尝试判断方案类型。
 
-        对应 claude.md 检索流程第 1 步。用户口语化的需求描述和历史 slide
+        对应 AGENTS.md 的检索流程第 1 步。用户口语化的需求描述和历史 slide
         里的专业表述经常对不上，改写成更贴近素材措辞的查询能提高检索命中率；
         顺带判断方案类型是为了给检索的 metadata 过滤用（相当于低成本的
         大纲引导式检索），判断不出来就留空，不强行过滤。
@@ -213,7 +213,7 @@ class LLMClient:
     ) -> dict:
         """为单张 slide 生成 context 摘要 + metadata，用于入库前 embedding 增强。
 
-        对应 claude.md 里"检索策略设计"确定的方案：每张 slide 单独调用一次
+        对应 AGENTS.md 中“检索策略设计”确定的方案：每张 slide 单独调用一次
         LLM，不做文档级摊薄；只传标题大纲而不是全文，控制 token 成本。
 
         Args:
