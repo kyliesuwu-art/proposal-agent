@@ -1,0 +1,238 @@
+[
+  {
+    "args": [],
+    "code": 1,
+    "stdout": "方案知识库的命令行入口。\n\n本文件只负责解析命令行参数和调用业务模块；检索、生成、渲染等具体逻辑分别在\n``pipeline.py``、``markdown_proposal.py``、``render_word.py`` 和 ``render_pptx.py`` 中。\n\n核心业务命令：\n    # 查询知识库，将检索结果输出为 Markdown。\n    uv run python src/main.py query \"需求描述\" [--output outputs/query.md]\n\n    # 使用 RAG 检索和大模型生成方案 Markdown。\n    uv run python src/main.py proposal \"需求描述\" --output outputs/proposal.md [--debug] [--run-log outputs/proposal.run.log]\n    uv run python src/main.py generate \"需求描述\" --formats md docx pptx [--output-dir outputs/generate-run]\n\n    # 将已有方案 Markdown 渲染为 Word。\n    uv run python src/main.py render-word --input outputs/proposal.md --output outputs/proposal.docx\n\n    # 从方案 Markdown 生成适合演示的中间 Markdown 和幻灯片计划。\n    uv run python src/main.py build-slides --input outputs/proposal.md --output outputs/slides.md [--sources outputs/proposal.sources.json] [--mode briefing] [--max-slides 15]\n\n    # 将方案或中间 Markdown 渲染为 PPTX；可复用 build-slides 生成的计划。\n    uv run python src/main.py render-pptx --input outputs/slides.md --output outputs/proposal.pptx [--plan outputs/slides.slide-plan.json]\n\n数据库维护命令：\n    # 只读检查 MinerU 缓存目录，不打开目标数据库。\n    uv run python src/main.py ingest-cache-dir <缓存目录> --db <候选数据库目录> --dry-run\n\n    # 将缓存恢复并分批写入明确指定的候选数据库。\n    uv run python src/main.py ingest-cache-dir <缓存目录> --db <候选数据库目录> --resume --limit 10 --batch-size 32\n\n    # 只读生成受影响文档的定向重建预检报告；当前不执行实际重建。\n    uv run python src/main.py reindex-affected --cache-dir <缓存目录> --source-db <源数据库目录> --target-db <候选数据库目录> --plan <计划文件> --dry-run\n\n诊断命令：\n    # 检查已有方案 Markdown，并输出可移植的诊断报告。\n    uv run python src/main.py proposal-diagnose outputs/proposal.md [--output outputs/proposal.diagnosis.md]\n\n    # 检查 PPTX 几何布局；未提供页面渲染图时，视觉检查会标记为受阻。\n    uv run python src/main.py audit-pptx --input outputs/proposal.pptx --plan outputs/slides.slide-plan.json --output-dir outputs/pptx-audit\n\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "--help"
+    ],
+    "code": 0,
+    "stdout": "方案知识库的命令行入口。\n\n本文件只负责解析命令行参数和调用业务模块；检索、生成、渲染等具体逻辑分别在\n``pipeline.py``、``markdown_proposal.py``、``render_word.py`` 和 ``render_pptx.py`` 中。\n\n核心业务命令：\n    # 查询知识库，将检索结果输出为 Markdown。\n    uv run python src/main.py query \"需求描述\" [--output outputs/query.md]\n\n    # 使用 RAG 检索和大模型生成方案 Markdown。\n    uv run python src/main.py proposal \"需求描述\" --output outputs/proposal.md [--debug] [--run-log outputs/proposal.run.log]\n    uv run python src/main.py generate \"需求描述\" --formats md docx pptx [--output-dir outputs/generate-run]\n\n    # 将已有方案 Markdown 渲染为 Word。\n    uv run python src/main.py render-word --input outputs/proposal.md --output outputs/proposal.docx\n\n    # 从方案 Markdown 生成适合演示的中间 Markdown 和幻灯片计划。\n    uv run python src/main.py build-slides --input outputs/proposal.md --output outputs/slides.md [--sources outputs/proposal.sources.json] [--mode briefing] [--max-slides 15]\n\n    # 将方案或中间 Markdown 渲染为 PPTX；可复用 build-slides 生成的计划。\n    uv run python src/main.py render-pptx --input outputs/slides.md --output outputs/proposal.pptx [--plan outputs/slides.slide-plan.json]\n\n数据库维护命令：\n    # 只读检查 MinerU 缓存目录，不打开目标数据库。\n    uv run python src/main.py ingest-cache-dir <缓存目录> --db <候选数据库目录> --dry-run\n\n    # 将缓存恢复并分批写入明确指定的候选数据库。\n    uv run python src/main.py ingest-cache-dir <缓存目录> --db <候选数据库目录> --resume --limit 10 --batch-size 32\n\n    # 只读生成受影响文档的定向重建预检报告；当前不执行实际重建。\n    uv run python src/main.py reindex-affected --cache-dir <缓存目录> --source-db <源数据库目录> --target-db <候选数据库目录> --plan <计划文件> --dry-run\n\n诊断命令：\n    # 检查已有方案 Markdown，并输出可移植的诊断报告。\n    uv run python src/main.py proposal-diagnose outputs/proposal.md [--output outputs/proposal.diagnosis.md]\n\n    # 检查 PPTX 几何布局；未提供页面渲染图时，视觉检查会标记为受阻。\n    uv run python src/main.py audit-pptx --input outputs/proposal.pptx --plan outputs/slides.slide-plan.json --output-dir outputs/pptx-audit\n\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "unknown"
+    ],
+    "code": 1,
+    "stdout": "未知命令: unknown\n方案知识库的命令行入口。\n\n本文件只负责解析命令行参数和调用业务模块；检索、生成、渲染等具体逻辑分别在\n``pipeline.py``、``markdown_proposal.py``、``render_word.py`` 和 ``render_pptx.py`` 中。\n\n核心业务命令：\n    # 查询知识库，将检索结果输出为 Markdown。\n    uv run python src/main.py query \"需求描述\" [--output outputs/query.md]\n\n    # 使用 RAG 检索和大模型生成方案 Markdown。\n    uv run python src/main.py proposal \"需求描述\" --output outputs/proposal.md [--debug] [--run-log outputs/proposal.run.log]\n    uv run python src/main.py generate \"需求描述\" --formats md docx pptx [--output-dir outputs/generate-run]\n\n    # 将已有方案 Markdown 渲染为 Word。\n    uv run python src/main.py render-word --input outputs/proposal.md --output outputs/proposal.docx\n\n    # 从方案 Markdown 生成适合演示的中间 Markdown 和幻灯片计划。\n    uv run python src/main.py build-slides --input outputs/proposal.md --output outputs/slides.md [--sources outputs/proposal.sources.json] [--mode briefing] [--max-slides 15]\n\n    # 将方案或中间 Markdown 渲染为 PPTX；可复用 build-slides 生成的计划。\n    uv run python src/main.py render-pptx --input outputs/slides.md --output outputs/proposal.pptx [--plan outputs/slides.slide-plan.json]\n\n数据库维护命令：\n    # 只读检查 MinerU 缓存目录，不打开目标数据库。\n    uv run python src/main.py ingest-cache-dir <缓存目录> --db <候选数据库目录> --dry-run\n\n    # 将缓存恢复并分批写入明确指定的候选数据库。\n    uv run python src/main.py ingest-cache-dir <缓存目录> --db <候选数据库目录> --resume --limit 10 --batch-size 32\n\n    # 只读生成受影响文档的定向重建预检报告；当前不执行实际重建。\n    uv run python src/main.py reindex-affected --cache-dir <缓存目录> --source-db <源数据库目录> --target-db <候选数据库目录> --plan <计划文件> --dry-run\n\n诊断命令：\n    # 检查已有方案 Markdown，并输出可移植的诊断报告。\n    uv run python src/main.py proposal-diagnose outputs/proposal.md [--output outputs/proposal.diagnosis.md]\n\n    # 检查 PPTX 几何布局；未提供页面渲染图时，视觉检查会标记为受阻。\n    uv run python src/main.py audit-pptx --input outputs/proposal.pptx --plan outputs/slides.slide-plan.json --output-dir outputs/pptx-audit\n\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "ingest-cache-dir",
+      "--help"
+    ],
+    "code": 1,
+    "stdout": "用法: python main.py ingest-cache-dir <缓存目录> --db <候选库目录> --dry-run | --resume --limit <数量> --batch-size <数量>\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "ingest-cache-dir"
+    ],
+    "code": 1,
+    "stdout": "用法: python main.py ingest-cache-dir <缓存目录> --db <候选库目录> --dry-run | --resume --limit <数量> --batch-size <数量>\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "reindex-affected",
+      "--help"
+    ],
+    "code": 0,
+    "stdout": "usage: python src/main.py reindex-affected [-h] --cache-dir CACHE_DIR\n                                           --source-db SOURCE_DB --target-db\n                                           TARGET_DB --plan PLAN [--dry-run]\n                                           [--resume] [--limit LIMIT]\n                                           [--batch-size BATCH_SIZE]\n\noptions:\n  -h, --help            show this help message and exit\n  --cache-dir CACHE_DIR\n  --source-db SOURCE_DB\n  --target-db TARGET_DB\n  --plan PLAN\n  --dry-run\n  --resume\n  --limit LIMIT\n  --batch-size BATCH_SIZE\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "reindex-affected"
+    ],
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: python src/main.py reindex-affected [-h] --cache-dir CACHE_DIR\n                                           --source-db SOURCE_DB --target-db\n                                           TARGET_DB --plan PLAN [--dry-run]\n                                           [--resume] [--limit LIMIT]\n                                           [--batch-size BATCH_SIZE]\npython src/main.py reindex-affected: error: the following arguments are required: --cache-dir, --source-db, --target-db, --plan\n"
+  },
+  {
+    "args": [
+      "query",
+      "--help"
+    ],
+    "code": "dispatch blocked",
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "query"
+    ],
+    "code": 1,
+    "stdout": "用法: python main.py query \"需求描述\" [--output <路径>]\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "proposal-diagnose",
+      "--help"
+    ],
+    "code": 1,
+    "stdout": "",
+    "stderr": "方案诊断失败：Guard: dispatch blocked\n"
+  },
+  {
+    "args": [
+      "proposal-diagnose"
+    ],
+    "code": 1,
+    "stdout": "",
+    "stderr": "用法: python main.py proposal-diagnose <proposal.md> [--output <proposal.diagnosis.md>]\n"
+  },
+  {
+    "args": [
+      "render-word",
+      "--help"
+    ],
+    "code": 1,
+    "stdout": "",
+    "stderr": "用法: python src/main.py render-word --input <proposal.md> --output <proposal.docx>\n"
+  },
+  {
+    "args": [
+      "render-word"
+    ],
+    "code": 1,
+    "stdout": "",
+    "stderr": "用法: python src/main.py render-word --input <proposal.md> --output <proposal.docx>\n"
+  },
+  {
+    "args": [
+      "render-pptx",
+      "--help"
+    ],
+    "code": 0,
+    "stdout": "usage: python src/main.py render-pptx [-h] --input INPUT --output OUTPUT\n                                      [--mode {briefing,faithful,presentation}]\n                                      [--max-slides MAX_SLIDES]\n                                      [--sources SOURCES] [--plan PLAN]\n\noptions:\n  -h, --help            show this help message and exit\n  --input INPUT\n  --output OUTPUT\n  --mode {briefing,faithful,presentation}\n  --max-slides MAX_SLIDES\n                        Hard cap for briefing; presentation uses it as a\n                        continuation warning threshold\n  --sources SOURCES\n  --plan PLAN           Use an existing proposal.slide-plan.json produced by\n                        build-slides\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "render-pptx"
+    ],
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: python src/main.py render-pptx [-h] --input INPUT --output OUTPUT\n                                      [--mode {briefing,faithful,presentation}]\n                                      [--max-slides MAX_SLIDES]\n                                      [--sources SOURCES] [--plan PLAN]\npython src/main.py render-pptx: error: the following arguments are required: --input, --output\n"
+  },
+  {
+    "args": [
+      "build-slides",
+      "--help"
+    ],
+    "code": 0,
+    "stdout": "usage: python src/main.py build-slides [-h] --input INPUT --output OUTPUT\n                                       [--sources SOURCES]\n                                       [--mode {briefing,presentation,faithful}]\n                                       [--max-slides MAX_SLIDES]\n\nBuild presentation Markdown and a slide plan. briefing creates an evidence-\ntraceable summary under a hard slide cap.\n\noptions:\n  -h, --help            show this help message and exit\n  --input INPUT\n  --output OUTPUT\n  --sources SOURCES\n  --mode {briefing,presentation,faithful}\n  --max-slides MAX_SLIDES\n                        Hard total-slide cap in briefing mode; includes cover,\n                        agenda, content, and references\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "build-slides"
+    ],
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: python src/main.py build-slides [-h] --input INPUT --output OUTPUT\n                                       [--sources SOURCES]\n                                       [--mode {briefing,presentation,faithful}]\n                                       [--max-slides MAX_SLIDES]\npython src/main.py build-slides: error: the following arguments are required: --input, --output\n"
+  },
+  {
+    "args": [
+      "audit-pptx",
+      "--help"
+    ],
+    "code": 0,
+    "stdout": "usage: python src/main.py audit-pptx [-h] --input INPUT --plan PLAN\n                                     --output-dir OUTPUT_DIR\n\nWrite PPTX geometry audit. It reports visual rendering as BLOCKED until a\nrenderer produces page PNGs.\n\noptions:\n  -h, --help            show this help message and exit\n  --input INPUT\n  --plan PLAN\n  --output-dir OUTPUT_DIR\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "audit-pptx"
+    ],
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: python src/main.py audit-pptx [-h] --input INPUT --plan PLAN\n                                     --output-dir OUTPUT_DIR\npython src/main.py audit-pptx: error: the following arguments are required: --input, --plan, --output-dir\n"
+  },
+  {
+    "args": [
+      "generate",
+      "--help"
+    ],
+    "code": 0,
+    "stdout": "usage: python src/main.py generate [-h] --formats {md,docx,pptx}\n                                   [{md,docx,pptx} ...]\n                                   [--output-dir OUTPUT_DIR]\n                                   [--run-log RUN_LOG] [--debug]\n                                   [--ppt-mode {briefing,faithful,presentation}]\n                                   [--max-slides MAX_SLIDES]\n                                   request\n\nGenerate Markdown first, then optionally render DOCX and PPTX from that same\nMarkdown.\n\npositional arguments:\n  request\n\noptions:\n  -h, --help            show this help message and exit\n  --formats {md,docx,pptx} [{md,docx,pptx} ...]\n  --output-dir OUTPUT_DIR\n                        Directory for proposal.md and requested artifacts\n  --run-log RUN_LOG\n  --debug\n  --ppt-mode {briefing,faithful,presentation}\n  --max-slides MAX_SLIDES\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "generate"
+    ],
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: python src/main.py generate [-h] --formats {md,docx,pptx}\n                                   [{md,docx,pptx} ...]\n                                   [--output-dir OUTPUT_DIR]\n                                   [--run-log RUN_LOG] [--debug]\n                                   [--ppt-mode {briefing,faithful,presentation}]\n                                   [--max-slides MAX_SLIDES]\n                                   request\npython src/main.py generate: error: the following arguments are required: request, --formats\n"
+  },
+  {
+    "args": [
+      "proposal",
+      "--help"
+    ],
+    "code": 0,
+    "stdout": "用法: python main.py proposal \"需求描述\" --output <proposal.md> [--debug]\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "proposal"
+    ],
+    "code": 1,
+    "stdout": "",
+    "stderr": "用法: python main.py proposal \"需求描述\" --output <proposal.md> [--debug] [--run-log <proposal.run.log>]\n"
+  },
+  {
+    "args": [
+      "generate",
+      "req",
+      "--formats",
+      "bad"
+    ],
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: python src/main.py generate [-h] --formats {md,docx,pptx}\n                                   [{md,docx,pptx} ...]\n                                   [--output-dir OUTPUT_DIR]\n                                   [--run-log RUN_LOG] [--debug]\n                                   [--ppt-mode {briefing,faithful,presentation}]\n                                   [--max-slides MAX_SLIDES]\n                                   request\npython src/main.py generate: error: argument --formats: invalid choice: 'bad' (choose from 'md', 'docx', 'pptx')\n"
+  },
+  {
+    "args": [
+      "generate",
+      "req",
+      "--formats",
+      "md",
+      "--max-slides",
+      "bad"
+    ],
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: python src/main.py generate [-h] --formats {md,docx,pptx}\n                                   [{md,docx,pptx} ...]\n                                   [--output-dir OUTPUT_DIR]\n                                   [--run-log RUN_LOG] [--debug]\n                                   [--ppt-mode {briefing,faithful,presentation}]\n                                   [--max-slides MAX_SLIDES]\n                                   request\npython src/main.py generate: error: argument --max-slides: invalid int value: 'bad'\n"
+  },
+  {
+    "args": [
+      "proposal",
+      "req",
+      "--output"
+    ],
+    "code": 1,
+    "stdout": "",
+    "stderr": "用法: python main.py proposal \"需求描述\" --output <proposal.md> [--debug] [--run-log <proposal.run.log>]\n"
+  },
+  {
+    "args": [
+      "query",
+      "req",
+      "--bad"
+    ],
+    "code": 1,
+    "stdout": "用法: python main.py query \"需求描述\" [--output <路径>]\n",
+    "stderr": ""
+  }
+]

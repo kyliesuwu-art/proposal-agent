@@ -179,3 +179,8 @@ Impact: The unified `generate` workflow no longer loses quality-gate and publica
 Decision: Branch `codex/integration-phase1` replays the 25 uncommitted main-Core changes onto the verified phase1 HEAD `7b79fee` in a dedicated worktree, without touching the main checkout. The 20 deprecated experiment script deletions, documentation/comment updates and `.gitignore`/TOOLKIT changes apply unchanged. In `src/main.py` the WIP docstring/comment rewrite is retained in full while the phase1 `generate` command, `_proposal_workflow` composition root and application import are preserved byte-for-byte; the diff of the merged file against the WIP file is exactly the 59 additive phase1 lines with zero removals.
 
 Impact: Both the legacy `proposal` CLI and the unified `generate` CLI coexist with identical business logic; no business conflict was found, only comment/docstring context shifts. Full offline regression is 503 passed / 7 skipped (five pre-existing skips, LibreOffice visual placeholder, and two opt-in billable DashScope live tests). The main checkout keeps its uncommitted WIP untouched; this branch is review-only and must not be merged without an explicit decision.
+
+
+## 2026-11-10????? 2A CLI ????
+
+CLI ????????? `src/cli.py`?????????????? `src/cli_admin.py` ? `src/cli_diagnostics.py`?`src/main.py` ???????????????????????????????????????????????????????????????????????????????? `query --help` ???????????
