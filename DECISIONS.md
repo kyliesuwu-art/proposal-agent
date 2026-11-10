@@ -193,3 +193,7 @@ HybridTestStore ???? SQLite ????????????????????????readonly ????? Chroma ??????
 ## 2026-11-10 — 2B-2 source identity
 
 Retain document and version identity in evidence, disambiguate colliding display names with a stable identity-derived label, and build the source sidecar from used evidence. Preserve existing filename and page fields, with optional structured IDs. PPT plans retain per-bullet source IDs; legacy sidecars remain readable and missing underlying identity is marked unknown. Unmatched references produce a warning and ambiguous matches fail rather than guessing. The existing retrieval merge by source key and page is unchanged, so simultaneous versions of the same source and page can still be merged upstream.
+
+## 2026-11 — Disposable-copy knowledge base consistency checker
+
+Provide an offline, standalone checker restricted to explicitly declared disposable copies under the system temporary directory. It checks SQLite integrity and schema, page identity and version cardinality, FTS and Chroma page sets and metadata, and recorded cache identity collisions. Absence of a matching human-confirmed version and ZIP inventory declaration blocks acceptance; the declaration's authority and completeness are not independently verified. Chroma may mutate the disposable copy, so this is not a read-only guarantee for the source or a replacement for a consistent snapshot. The checker does not change production retrieval, repair indexes, or infer active versions.
