@@ -103,26 +103,23 @@ def test_storage_retrieval_and_evidence_keep_distinct_identities(evidence_run):
     assert d["llm"].evidence_prompt is not None
 
 
-def test_delivery_observed_ambiguity(evidence_run):
+def test_delivery_mapping_matches_each_capacity(evidence_run):
     d = evidence_run
-    citation = "[来源: 技术方案.pdf, 第 12 页]"
-    assert "500 kW" in d["markdown"] and "800 kW" in d["markdown"]
-    assert d["markdown"].count(citation) >= 2
-    assert "500 kW" in d["word_text"] and "800 kW" in d["word_text"]
-    assert d["word_text"].count(citation) >= 2
+    records = {record["document_id"]: record for record in d["sidecar"]["sources"]}
+    assert len(records) == 2
+    by_capacity = {"500": records[d["identities"][0].document_id], "800": records[d["identities"][1].document_id]}
+    for capacity, record in by_capacity.items():
+        line = next(line for line in d["markdown"].splitlines() if f"{capacity} kW" in line)
+        assert f"[来源: {record['filename']}, 第 12 页]" in line
+        assert any(f"{capacity} kW" in line and record["filename"] in line for line in d["word_text"].splitlines())
+        matched = [(bullet, ids) for slide in d["plan"]["slides"]
+                   for bullet, ids in zip(slide.get("bullets", []), slide.get("bullet_source_ids", []))
+                   if f"{capacity} kW" in bullet]
+        assert matched and all(ids == [record["source_id"]] for _, ids in matched)
     assert "500 kW" in d["ppt_text"] and "800 kW" in d["ppt_text"]
-    assert d["sidecar"]["sources"] == [{"source_id": "S1", "filename": "技术方案.pdf", "pages": [12]}]
-    assert list(d["plan"]["sources"]) == ["S1"]
-    content = [slide for slide in d["plan"]["slides"] if any("500 kW" in b or "800 kW" in b for b in slide.get("bullets", []))]
-    assert content and all(slide["source_ids"] == ["S1"] for slide in content)
-    print("identities:", [(i.source_key, i.document_id, i.version_id) for i in d["identities"]])
-    print("hits:", [(h.source_file, h.page_number, h.metadata.get("page_id")) for h in d["result"].hits])
-    print("evidence:", [(e.evidence_id, e.file_name, e.page_number) for e in d["evidence"]])
-    print("visible citation:", citation, "sidecar:", d["sidecar"]["sources"])
-    print("ppt mapping:", [(s["bullets"], s["source_ids"]) for s in content])
+    assert by_capacity["500"]["filename"] != by_capacity["800"]["filename"]
 
 
-@pytest.mark.xfail(strict=True, reason="confirmed basename/page collision in delivery sidecar")
 def test_delivery_preserves_two_distinct_source_identities(evidence_run):
     d = evidence_run
     assert "500 kW" in d["markdown"] and "800 kW" in d["markdown"]

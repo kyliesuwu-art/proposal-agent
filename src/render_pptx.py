@@ -69,7 +69,8 @@ def _load_sources(path: Path | None, markdown: Path, text: str, warnings: list[s
                 if isinstance(pages, (int, str)): pages = [pages]
                 # The slide plan is a delivery artifact.  It must not carry
                 # retrieval internals such as chunk IDs from the sidecar.
-                result[sid] = {"filename": filename, "pages": [str(p) for p in pages]}
+                result[sid] = {"filename": filename, "pages": [str(p) for p in pages],
+                               "identity_status": "known" if item.get("document_id") and item.get("version_id") else "unknown"}
         except (OSError, json.JSONDecodeError, TypeError) as exc:
             warnings.append(f"invalid sources JSON ({path.name}): {exc}")
     if result:
@@ -85,12 +86,29 @@ def _load_sources(path: Path | None, markdown: Path, text: str, warnings: list[s
 
 def _ids_for(text: str, sources: OrderedDict[str, dict]) -> list[str]:
     found: list[str] = []
-    references = CITATION.findall(text) + LEGACY_IMAGE_SOURCE.findall(text)
+    references = CITATION.findall(text) + [(name, page) for name, page in LEGACY_IMAGE_SOURCE.findall(text) if not name.strip().startswith("[来源:")]
     for filename, page in references:
-        for sid, value in sources.items():
-            if value["filename"] == filename.strip() and (not value["pages"] or page in value["pages"]):
-                if sid not in found: found.append(sid)
+        matches = [sid for sid, value in sources.items()
+                   if value["filename"] == filename.strip() and (not value["pages"] or page in value["pages"])]
+        if len(matches) > 1:
+            raise RenderPptxError(f"ambiguous source reference: {filename.strip()}, page {page}")
+        if matches and matches[0] not in found:
+            found.append(matches[0])
     return found
+
+
+def _sentence_items(text: str, sources: OrderedDict[str, dict]) -> list[tuple[str, list[str]]]:
+    """Keep citations attached to their sentence before removing them for display."""
+    pattern = re.compile(r".*?(?:[。！？；;](?:\s*\[来源:\s*[^,\]]+?,\s*第\s*\d+\s*页\])*|$)")
+    result = []
+    for match in pattern.finditer(text):
+        segment = match.group().strip()
+        if not segment:
+            continue
+        value = _clean(segment)
+        if value:
+            result.append((value, _ids_for(segment, sources)))
+    return result
 
 
 def _visible_sources_for(text: str) -> list[str]:
@@ -217,7 +235,7 @@ def _briefing_slides(title: str, sections: list[dict], figures: OrderedDict[str,
         source_ids = list(dict.fromkeys(sid for _, ids in bullets_and_ids for sid in ids))
         source_ids.extend(sid for fid in figure_ids for sid in figures[fid]["source_ids"])
         source_ids = list(dict.fromkeys(source_ids))
-        slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "content_image" if figure_ids else "content", "title": text_title, "bullets": [text for text, _ in bullets_and_ids], "figure_ids": figure_ids, "source_ids": source_ids, "visible_sources": visible_sources})
+        slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "content_image" if figure_ids else "content", "title": text_title, "bullets": [text for text, _ in bullets_and_ids], "bullet_source_ids": [ids for _, ids in bullets_and_ids], "figure_ids": figure_ids, "source_ids": source_ids, "visible_sources": visible_sources})
         for section in group:
             selected = _briefing_bullets(section["items"])
             status = "merged" if len(group) > 1 else "covered"
@@ -280,6 +298,10 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
         raise RenderPptxError("invalid proposal image syntax: " + "；".join(image_errors))
     warnings.extend(image_errors)
     sources = _load_sources(source_file if source_file.is_file() else None, markdown, text, warnings)
+    if sources:
+        for name, page in CITATION.findall(text):
+            if not _ids_for(f"[来源: {name}, 第 {page} 页]", sources):
+                warnings.append(f"SOURCE_IDENTITY: unresolved reference: {name}, page {page}")
     sidecar_images = {}
     if source_file.is_file():
         try:
@@ -333,10 +355,9 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
             i += 1; continue
         if current and line.strip():
             bullet = LIST.match(line)
-            parts = [_clean(bullet.group(1))] if bullet else _sentences(line)
-            ids = _ids_for(line, sources)
+            items = [(_clean(bullet.group(1)), _ids_for(line, sources))] if bullet else _sentence_items(line, sources)
             current["visible_sources"].extend(_visible_sources_for(line))
-            for part in parts:
+            for part, ids in items:
                 if part: current["items"].append((part, ids)); current["source_ids"].extend(ids)
         i += 1
     # Explicit sidecar provenance always wins over a heuristic topic match.
@@ -375,7 +396,7 @@ def build_slide_plan(input_path: str | Path, *, mode: str = "presentation", max_
                 figure_ids = [section["figures"].pop(0)] if section["figures"] else []
                 ids = list(dict.fromkeys([sid for _, item_ids in chunk for sid in item_ids] + section["source_ids"] + sum((figures[f]["source_ids"] for f in figure_ids), [])))
                 label = section["title"] + ("（续）" if number else "")
-                slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "content_image" if figure_ids else "content", "title": label, "bullets": [value for value, _ in chunk], "figure_ids": figure_ids, "source_ids": ids, "visible_sources": list(dict.fromkeys(section["visible_sources"]))})
+                slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "content_image" if figure_ids else "content", "title": label, "bullets": [value for value, _ in chunk], "bullet_source_ids": [item_ids for _, item_ids in chunk], "figure_ids": figure_ids, "source_ids": ids, "visible_sources": list(dict.fromkeys(section["visible_sources"]))})
             while section["figures"]:
                 fid = section["figures"].pop(0)
                 slides.append({"slide_id": f"slide-{len(slides)+1:03d}", "layout": "content_image", "title": section["title"] + "（续）", "bullets": [], "figure_ids": [fid], "source_ids": figures[fid]["source_ids"], "visible_sources": figures[fid]["visible_sources"]})

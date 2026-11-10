@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import shutil
@@ -83,6 +84,10 @@ class EvidenceItem:
     images: list[dict]
     title: str = ""
     role: str = "unknown"
+    document_id: str = ""
+    version_id: str = ""
+    page_id: str = ""
+    source_key: str = ""
 
 
 @dataclass(frozen=True)
@@ -267,10 +272,10 @@ def _evidence_role(hit: SearchHit) -> str:
 def _evidence(hits: list[SearchHit]) -> list[EvidenceItem]:
     result, seen = [], set()
     for hit in hits:
-        identity = (hit.source_file, hit.page_number)
+        identity = (hit.metadata.get("document_id") or hit.source_file, hit.metadata.get("version_id", ""), hit.page_number)
         if identity not in seen:
             seen.add(identity)
-            result.append(EvidenceItem(f"S{len(result) + 1}", hit.source_file, hit.page_number, hit.content, hit.images, hit.title, _evidence_role(hit)))
+            result.append(EvidenceItem(f"S{len(result) + 1}", hit.source_file, hit.page_number, hit.content, hit.images, hit.title, _evidence_role(hit), str(hit.metadata.get("document_id") or ""), str(hit.metadata.get("version_id") or ""), str(hit.metadata.get("page_id") or ""), str(hit.metadata.get("source_key") or "")))
     return result
 
 
@@ -321,6 +326,34 @@ def _document_brief(plan: ProposalPlan, request: str, index: int) -> str:
 def _display_name(file_name: str) -> str:
     """Show only a portable source basename; identities retain the original key."""
     return Path(file_name.replace("\\", "/")).name
+
+
+def _source_identity(item: EvidenceItem) -> tuple[str, str]:
+    return (item.document_id or item.source_key or item.file_name, item.version_id)
+
+
+def _source_labels(sections: dict[str, _SectionDraft]) -> dict[tuple[str, str], str]:
+    items = [item for draft in sections.values() for item in draft.evidence]
+    names: dict[str, set[tuple[str, str]]] = {}
+    for item in items:
+        name = _display_name(item.file_name)
+        if not name or any(c in name for c in ",]\n\r"):
+            raise ProposalQualityError("来源名称无法安全用于引用")
+        names.setdefault(name, set()).add(_source_identity(item))
+    labels = {}
+    for item in items:
+        identity = _source_identity(item)
+        name = _display_name(item.file_name)
+        label = name
+        if len(names[name]) > 1:
+            digest = hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
+            label = f"{name}（来源 {digest}）"
+        if identity in labels and labels[identity] != label:
+            raise ProposalQualityError("同一来源身份具有不一致的显示名称")
+        labels[identity] = label
+    if len(set(labels.values())) != len(labels):
+        raise ProposalQualityError("来源显示名称存在歧义")
+    return labels
 
 
 def _caption(item: EvidenceItem, image: dict) -> str:
@@ -752,7 +785,7 @@ def _deduplicate_selected_image_markers(sections: dict[str, _SectionDraft], tele
     telemetry["duplicate_image_markers_removed"] = telemetry.get("duplicate_image_markers_removed", 0) + removed
 
 
-def _render_body(raw_body: str, draft: _SectionDraft, assets: dict[tuple[str, str], _ImageAsset], *, preview: bool) -> tuple[str, set[str], list[dict]]:
+def _render_body(raw_body: str, draft: _SectionDraft, assets: dict[tuple[str, str], _ImageAsset], *, preview: bool, labels: dict[tuple[str, str], str] | None = None) -> tuple[str, set[str], list[dict]]:
     raw_body = _demote_document_level_headings(
         _normalise_markdown(normalise_internal_image_markers(raw_body, set(draft.selected_images)))
     )
@@ -760,13 +793,15 @@ def _render_body(raw_body: str, draft: _SectionDraft, assets: dict[tuple[str, st
     evidence_by_id = {item.evidence_id: item for item in draft.evidence}
     used: set[str] = set()
     rendered_blocks: list[dict] = []
+    def label(item: EvidenceItem) -> str:
+        return labels[_source_identity(item)] if labels is not None else _display_name(item.file_name)
 
     def replace(match: re.Match[str]) -> str:
         value = match.group(1)
         if value.startswith("S"):
             item = evidence_by_id[value]
             used.add(value)
-            return f"[来源: {_display_name(item.file_name)}, 第 {item.page_number} 页]"
+            return f"[来源: {label(item)}, 第 {item.page_number} 页]"
         asset = assets[(draft.plan.section_id, value)]
         if asset.section_id != draft.plan.section_id:
             raise ProposalQualityError(
@@ -774,10 +809,10 @@ def _render_body(raw_body: str, draft: _SectionDraft, assets: dict[tuple[str, st
             )
         used.add(asset.evidence.evidence_id)
         if preview:
-            return f"*图：{asset.caption}。来源：{_display_name(asset.evidence.file_name)}，第{asset.evidence.page_number}页。*"
+            return f"*图：{asset.caption}。来源：{label(asset.evidence)}，第{asset.evidence.page_number}页。*"
         rendered_blocks.append({"section_id": asset.section_id, "image_id": asset.image_id,
                                 "relative_path": asset.relative_path, "selected_by": asset.selected_by})
-        return f"![{normalise_caption(asset.caption)}]({asset.relative_path})\n\n图片来源：{_display_name(asset.evidence.file_name)}，第 {asset.evidence.page_number} 页"
+        return f"![{normalise_caption(asset.caption)}]({asset.relative_path})\n\n图片来源：{label(asset.evidence)}，第 {asset.evidence.page_number} 页"
 
     return _ID_RE.sub(replace, raw_body).strip(), used, rendered_blocks
 
@@ -882,6 +917,7 @@ def _confirmation_checklist(request: str, confirmations: list[str]) -> list[tupl
 
 
 def _render(plan: ProposalPlan, sections: dict[str, _SectionDraft], *, image_root: Path, request: str = "", preview: bool = False) -> tuple[str, dict[tuple[str, str], _ImageAsset]]:
+    labels = _source_labels(sections)
     assets = _asset_plan(sections, image_root)
     lines = [f"# {plan.title}", ""]
     used_evidence: dict[tuple[str, int], EvidenceItem] = {}
@@ -890,7 +926,7 @@ def _render(plan: ProposalPlan, sections: dict[str, _SectionDraft], *, image_roo
         draft = sections.get(section.section_id)
         if not draft:
             continue
-        body, used, rendered_blocks = _render_body(draft.raw_body, draft, assets, preview=preview)
+        body, used, rendered_blocks = _render_body(draft.raw_body, draft, assets, preview=preview, labels=labels)
         sections[section.section_id] = _with_draft(draft, rendered_image_blocks=rendered_blocks)
         duplicate_title = re.compile(rf"(?m)^\s*第\s*{number}\s*章\s*{re.escape(section.heading)}\s*$")
         body = duplicate_title.sub("", body).strip()
@@ -898,7 +934,7 @@ def _render(plan: ProposalPlan, sections: dict[str, _SectionDraft], *, image_roo
         lines.extend([f"## {number}. {section.heading}", "", body, ""])
         for item in draft.evidence:
             if item.evidence_id in used:
-                used_evidence[(item.file_name, item.page_number)] = item
+                used_evidence[(*_source_identity(item), item.page_number)] = item
         confirmations.extend(_confirmation_items(body))
         confirmations.extend(_confirmation_section_items(section_confirmations))
     checklist = _confirmation_checklist(request, confirmations)
@@ -913,7 +949,7 @@ def _render(plan: ProposalPlan, sections: dict[str, _SectionDraft], *, image_roo
     if used_evidence:
         grouped: dict[str, list[int]] = {}
         for item in used_evidence.values():
-            grouped.setdefault(_display_name(item.file_name), []).append(item.page_number)
+            grouped.setdefault(labels[_source_identity(item)], []).append(item.page_number)
         lines.extend(f"- {name}：第 {', '.join(map(str, sorted(set(pages))))} 页" for name, pages in grouped.items())
     else:
         lines.append("（本方案没有使用可引用资料。）")
@@ -925,16 +961,25 @@ def _strict_image_links(markdown: str) -> list[str]:
     return [block.asset_path for block in image_blocks(markdown)]
 
 
-def _source_manifest(markdown: str, assets: dict[tuple[str, str], _ImageAsset]) -> dict:
+def _source_manifest(markdown: str, assets: dict[tuple[str, str], _ImageAsset], *, used_evidence: list[EvidenceItem] | None = None, labels: dict[tuple[str, str], str] | None = None) -> dict:
     """Build a portable stable source/page and figure provenance sidecar."""
     source_keys: list[tuple[str, int]] = []
+    evidence_by_key: dict[tuple[str, int], EvidenceItem] = {}
+    if used_evidence is not None:
+        for item in used_evidence:
+            key = (labels[_source_identity(item)], item.page_number)
+            if key not in source_keys:
+                source_keys.append(key)
+                evidence_by_key[key] = item
     for filename, page in _VISIBLE_SOURCE_RE.findall(markdown):
         key = (_display_name(filename.strip()), int(page))
+        if used_evidence is not None and key not in source_keys:
+            raise ProposalQualityError("可见引用无法唯一关联已使用证据")
         if key not in source_keys:
             source_keys.append(key)
     images: list[dict] = []
     for asset in assets.values():
-        key = (_display_name(asset.evidence.file_name), asset.evidence.page_number)
+        key = ((labels[_source_identity(asset.evidence)] if labels is not None else _display_name(asset.evidence.file_name)), asset.evidence.page_number)
         if key not in source_keys:
             source_keys.append(key)
         images.append({
@@ -948,10 +993,19 @@ def _source_manifest(markdown: str, assets: dict[tuple[str, str], _ImageAsset]) 
             "asset_path": asset.relative_path,
             "selected_by": asset.selected_by,
         })
+    sources = []
+    for i, (name, page) in enumerate(source_keys):
+        record = {"source_id": f"S{i + 1}", "filename": name, "pages": [page]}
+        item = evidence_by_key.get((name, page))
+        if item:
+            for field_name in ("document_id", "version_id", "page_id"):
+                value = getattr(item, field_name)
+                if value and re.fullmatch(r"[A-Za-z0-9_.:-]+", value):
+                    record[field_name] = value
+        sources.append(record)
     return {
         "schema_version": 1,
-        "sources": [{"source_id": f"S{i + 1}", "filename": name, "pages": [page]}
-                    for i, (name, page) in enumerate(source_keys)],
+        "sources": sources,
         "images": images,
     }
 
@@ -1271,7 +1325,7 @@ def diagnose_markdown_proposal(path: Path, output_path: Path | None = None) -> P
     return output_path
 
 
-def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]) -> dict:
+def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset], *, used_evidence: list[EvidenceItem] | None = None, labels: dict[tuple[str, str], str] | None = None) -> dict:
     """Publish Markdown and assets together; retain old successful artefacts on failure."""
     path.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=".proposal-stage-", dir=path.parent))
@@ -1300,7 +1354,7 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
         if errors:
             raise ProposalQualityError("；".join(errors))
         operation = "build_sources_manifest"
-        sources_manifest = _source_manifest(rendered, assets)
+        sources_manifest = _source_manifest(rendered, assets, used_evidence=used_evidence, labels=labels)
         staged_sources = stage / "proposal.sources.json"
         operation = "stage_sources_manifest"
         staged_sources.write_text(json.dumps(sources_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -1566,7 +1620,20 @@ def generate_markdown_proposal(
         raise ProposalGenerationError("markdown_write", exc) from exc
     try:
         metrics["images"]["removal_reasons"] = [item["reason"] for item in metrics["images"]["removed_images"]]
-        published = _write(output_path, markdown, assets)
+        labels = _source_labels(sections)
+        visible = {(name.strip(), int(page)) for name, page in _VISIBLE_SOURCE_RE.findall(markdown)}
+        image_sources = {(_source_identity(asset.evidence), asset.evidence.page_number) for asset in assets.values()}
+        used_evidence: list[EvidenceItem] = []
+        seen_sources: set[tuple[tuple[str, str], int]] = set()
+        for draft in sections.values():
+            _, used, _ = _render_body(draft.raw_body, draft, assets, preview=False, labels=labels)
+            for item in draft.evidence:
+                key = (_source_identity(item), item.page_number)
+                if (item.evidence_id in used and key not in seen_sources
+                        and ((labels[key[0]], item.page_number) in visible or key in image_sources)):
+                    seen_sources.add(key)
+                    used_evidence.append(item)
+        published = _write(output_path, markdown, assets, used_evidence=used_evidence, labels=labels)
         metrics["images"].update(published)
         metrics["sources_path"] = published["sources_path"]
         metrics["sources"] = published["sources"]
