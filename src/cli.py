@@ -27,7 +27,8 @@ def dispatch(context) -> None:
     _proposal_workflow = context._proposal_workflow
     _write_proposal_run_log = context._write_proposal_run_log
     _write_proposal_request = context._write_proposal_request
-    help_text = context.__doc__
+    from src.cli_help import CLI_HELP
+    help_text = CLI_HELP
     if len(sys.argv) < 2:
         print(help_text)
         sys.exit(1)
