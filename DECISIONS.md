@@ -201,3 +201,11 @@ Keep startup and historical module-level compatibility in `src/main.py`. Move le
 ## 2026-11 — Disposable-copy knowledge base consistency checker
 
 Provide an offline, standalone checker restricted to explicitly declared disposable copies under the system temporary directory. It checks SQLite integrity and schema, page identity and version cardinality, FTS and Chroma page sets and metadata, and recorded cache identity collisions. Absence of a matching human-confirmed version and ZIP inventory declaration blocks acceptance; the declaration's authority and completeness are not independently verified. Chroma may mutate the disposable copy, so this is not a read-only guarantee for the source or a replacement for a consistent snapshot. The checker does not change production retrieval, repair indexes, or infer active versions.
+
+## 2026-11 — Offline quality gate and recoverable proposal publication
+
+Decision: Run the locked offline test suite and syntax check on Windows for each push and pull request, with billable DashScope acceptance disabled. Before replacing a published proposal, retain recoverable copies of the prior Markdown and source sidecar in the temporary stage. If either replacement fails, restore both files and the previous assets; a failed rollback retains the stage for manual recovery.
+
+Impact: A sidecar publication failure no longer leaves a new Markdown paired with old source metadata. The repository still requires explicit production configuration and real environment acceptance before external deployment.
+
+The overwritten early vector-only `query` draft and its private helpers were removed from `src/pipeline.py`; the structured `query` and hybrid `retrieve_evidence` remain the active interfaces. An offline source-structure test guards against repeated top-level definitions.

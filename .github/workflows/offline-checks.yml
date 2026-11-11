@@ -1,0 +1,27 @@
+name: Offline checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    env:
+      DASHSCOPE_LIVE_APPROVED: "0"
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Install locked dependencies
+        run: uv sync --locked --group dev
+      - name: Check Python syntax
+        run: uv run --no-sync python -m compileall -q src
+      - name: Run offline suite
+        run: uv run --no-sync python -m pytest tests -q

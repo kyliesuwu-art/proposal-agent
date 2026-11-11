@@ -493,6 +493,38 @@ def test_write_failure_records_safe_publication_operation(tmp_path: Path, monkey
     assert type(exc_info.value.cause).__name__ == "OSError"
 
 
+@pytest.mark.parametrize("previous_delivery", [False, True])
+def test_sidecar_publish_failure_restores_entire_delivery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, previous_delivery: bool) -> None:
+    output = tmp_path / "proposal.md"
+    sidecar = tmp_path / "proposal.sources.json"
+    assets = tmp_path / "assets"
+    if previous_delivery:
+        output.write_text("# old proposal\n", encoding="utf-8")
+        sidecar.write_text('{"old": true}\n', encoding="utf-8")
+        assets.mkdir()
+        (assets / "existing.png").write_bytes(b"old asset")
+
+    real_replace = markdown_proposal.os.replace
+
+    def fail_sidecar(source, destination):
+        if Path(destination) == sidecar and Path(source).name == "proposal.sources.json":
+            raise OSError("injected sidecar failure")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(markdown_proposal.os, "replace", fail_sidecar)
+    with pytest.raises(markdown_proposal.ProposalWriteError) as exc_info:
+        markdown_proposal._write(output, "# new proposal\n", {})
+
+    assert exc_info.value.operation == "publish_sources_manifest"
+    assert output.exists() is previous_delivery
+    assert sidecar.exists() is previous_delivery
+    assert assets.exists() is previous_delivery
+    if previous_delivery:
+        assert output.read_text(encoding="utf-8") == "# old proposal\n"
+        assert sidecar.read_text(encoding="utf-8") == '{"old": true}\n'
+        assert (assets / "existing.png").read_bytes() == b"old asset"
+
+
 def test_review_skips_only_explicitly_advisory_malformed_items() -> None:
     result = markdown_proposal._review_from(json.dumps({"issues": [
         {"severity": "advisory", "issue_type": "clarity"},

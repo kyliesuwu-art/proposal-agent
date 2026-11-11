@@ -17,7 +17,7 @@
 - `src/pipeline.py::retrieve_evidence()`：纯检索入口；执行 Chroma 语义检索、SQLite FTS5 词法检索、RRF 融合与 supporting pages 选择，不生成答案。
 - `src/query_result.py`：`SearchHit`、`Citation`、`QueryResult` 传递结构化检索结果。
 - `src/adapters/llm_client.py`：DashScope 文本调用封装。
-- `src/main.py proposal`：唯一的真实方案生成 CLI；`src/render_word.py` 与 `src/render_pptx.py` 是仅消费已交付 Markdown 的独立下游渲染器。
+- `src/main.py`：程序入口；`src/cli.py` 分发命令。`proposal` 是历史方案生成 CLI，`generate` 通过 `src/application/proposal_workflow.py` 统一协调 Markdown 与可选 Office 交付。`src/render_word.py` 与 `src/render_pptx.py` 仅消费已交付 Markdown。
 
 LLM 负责大纲规划、分章写作、全文审查和命中章节的定向修订；确定性代码负责检索、证据 ID 校验、文件名/页码/图片路径映射与 Markdown 组装。
 

@@ -1330,6 +1330,9 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
     path.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=".proposal-stage-", dir=path.parent))
     backup: Path | None = None
+    prior_files: dict[Path, Path | None] = {}
+    published_files: list[Path] = []
+    preserve_stage = False
     operation = "stage_markdown"
     try:
         staged_markdown = stage / path.name
@@ -1372,6 +1375,16 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
                     shutil.copy2(source, merged / source.name)
             shutil.rmtree(staged_assets, ignore_errors=True)
             merged.rename(staged_assets)
+        # Finish all file backups before changing any published destination.
+        sources_path = path.with_name("proposal.sources.json")
+        operation = "backup_existing_delivery"
+        for destination in (path, sources_path):
+            if destination.exists():
+                saved = stage / f"previous-{destination.name}"
+                shutil.copy2(destination, saved)
+                prior_files[destination] = saved
+            else:
+                prior_files[destination] = None
         if published_assets.exists():
             operation = "backup_existing_assets"
             backup = path.parent / f".assets-backup-{uuid.uuid4().hex}"
@@ -1382,12 +1395,26 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
         try:
             operation = "publish_markdown"
             os.replace(staged_markdown, path)
+            published_files.append(path)
             operation = "publish_sources_manifest"
-            os.replace(staged_sources, path.with_name("proposal.sources.json"))
+            os.replace(staged_sources, sources_path)
+            published_files.append(sources_path)
         except Exception:
-            if published_assets.exists() and backup is not None:
-                shutil.rmtree(published_assets, ignore_errors=True)
-                backup.rename(published_assets)
+            try:
+                for destination in reversed(published_files):
+                    saved = prior_files[destination]
+                    if saved is None:
+                        destination.unlink()
+                    else:
+                        os.replace(saved, destination)
+                if published_assets.exists() and backup is not None:
+                    shutil.rmtree(published_assets)
+                    backup.rename(published_assets)
+                elif backup is None and published_assets.exists():
+                    shutil.rmtree(published_assets)
+            except Exception as rollback_error:
+                preserve_stage = True
+                raise RuntimeError(f"发布回滚失败；原文件备份保留在 {stage}，图片备份为 {backup}") from rollback_error
             raise
         if backup is not None:
             shutil.rmtree(backup)
@@ -1399,7 +1426,8 @@ def _write(path: Path, markdown: str, assets: dict[tuple[str, str], _ImageAsset]
     finally:
         if backup is not None and backup.exists() and not (path.parent / "assets").exists():
             backup.rename(path.parent / "assets")
-        shutil.rmtree(stage, ignore_errors=True)
+        if not preserve_stage:
+            shutil.rmtree(stage, ignore_errors=True)
 
 
 def _validated_raw(llm: ProposalLLM, raw: str, draft: _SectionDraft, *, stage: str, repair_prompt: str, system_prompt: str, warnings: list[str], call: Callable[..., str]) -> str:
