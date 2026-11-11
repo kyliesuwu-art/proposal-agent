@@ -197,3 +197,7 @@ Retain document and version identity in evidence, disambiguate colliding display
 ## 2026-11 — Main entry responsibility and compatibility
 
 Keep startup and historical module-level compatibility in `src/main.py`. Move legacy command help, ingestion helpers and proposal log writers to dedicated modules; assemble the workflow in a plain bootstrap function using the entry point's current dependencies. The CLI receives the executing module and does not import `src.main`, preserving script execution and existing dependency overrides. Startup environment loading and legacy CLI output remain unchanged.
+
+## 2026-11 — Disposable-copy knowledge base consistency checker
+
+Provide an offline, standalone checker restricted to explicitly declared disposable copies under the system temporary directory. It checks SQLite integrity and schema, page identity and version cardinality, FTS and Chroma page sets and metadata, and recorded cache identity collisions. Absence of a matching human-confirmed version and ZIP inventory declaration blocks acceptance; the declaration's authority and completeness are not independently verified. Chroma may mutate the disposable copy, so this is not a read-only guarantee for the source or a replacement for a consistent snapshot. The checker does not change production retrieval, repair indexes, or infer active versions.

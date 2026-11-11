@@ -1,0 +1,73 @@
+{
+  "status": "PASS",
+  "can_enter_next_stage": true,
+  "checks": [
+    {
+      "name": "required_files",
+      "status": "PASS",
+      "basis": "lexical SQLite, Chroma SQLite and cache manifest",
+      "findings": []
+    },
+    {
+      "name": "sqlite_integrity",
+      "status": "PASS",
+      "basis": "PRAGMA integrity_check, mode=ro",
+      "findings": [
+        "{'hybrid_lexical.sqlite3': 'ok', 'chroma.sqlite3': 'ok', 'cache_ingest_manifest.sqlite3': 'ok'}"
+      ]
+    },
+    {
+      "name": "schema",
+      "status": "PASS",
+      "basis": "required pages columns and FTS5 table/columns",
+      "findings": []
+    },
+    {
+      "name": "page_identity_versions",
+      "status": "PASS",
+      "basis": "pages primary key, payload identity and document/version/source cardinality",
+      "findings": [
+        "pages=1, invalid=0, multi_version_docs=0, identity_conflicts=0"
+      ]
+    },
+    {
+      "name": "fts_pages",
+      "status": "PASS",
+      "basis": "FTS page_id set, multiplicity and stored indexed fields versus payload",
+      "findings": [
+        "missing=0, orphan=0, duplicate=0, mismatched=0"
+      ]
+    },
+    {
+      "name": "chroma_pages",
+      "status": "PASS",
+      "basis": "paginated Chroma IDs and metadata versus SQLite pages",
+      "findings": [
+        "chroma=1, missing=0, orphan=0, metadata_mismatch=0"
+      ]
+    },
+    {
+      "name": "zip_identity",
+      "status": "PASS",
+      "basis": "cache_documents recorded ZIP paths/hashes/source keys and indexed document IDs",
+      "findings": [
+        "entries=0, collision_keys=0, cross_conflicts=0, incomplete=0, completed_missing_index=0, duplicate_hash_sources=0"
+      ]
+    },
+    {
+      "name": "version_attestation",
+      "status": "PASS",
+      "basis": "caller-supplied human attestation; authenticity not independently verified",
+      "findings": [
+        "explicit document/version and ZIP inventory attestation matches"
+      ]
+    }
+  ],
+  "unable_to_check": [
+    "Chroma PersistentClient may modify the disposable copy; this is not a strictly read-only client.",
+    "Vector contents, ANN quality, FTS index internals, source authenticity and snapshot quiescence are not proven.",
+    "ZIP collisions are limited to cache manifest entries; unrecorded archives and original source identity are not independently checked.",
+    "Existing indexes have no authoritative active-version registry; hashes and scores do not establish the current version.",
+    "Attestation is a caller declaration; independent authority, ZIP scope and real-world source identity cannot be verified by this tool."
+  ]
+}
