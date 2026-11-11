@@ -1,6 +1,7 @@
 """项目运行路径配置：默认固定在仓库根目录，可用环境变量覆盖。"""
 
 import os
+import math
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -35,11 +36,18 @@ def dashscope_settings() -> dict[str, str]:
         raise DashScopeConfigurationError(
             "DASHSCOPE_BASE_URL 必须是以 /compatible-mode/v1 结尾的 OpenAI 兼容端点。"
         )
+    timeout_seconds = os.environ.get("DASHSCOPE_TIMEOUT_SECONDS", "300").strip() or "300"
+    try:
+        timeout_value = float(timeout_seconds)
+    except ValueError as exc:
+        raise DashScopeConfigurationError("DASHSCOPE_TIMEOUT_SECONDS 必须是正数。") from exc
+    if not math.isfinite(timeout_value) or timeout_value <= 0:
+        raise DashScopeConfigurationError("DASHSCOPE_TIMEOUT_SECONDS 必须是正数。")
     return {
         "api_key": api_key,
         "base_url": base_url,
         "model": os.environ.get("DASHSCOPE_MODEL", "qwen3.7-plus").strip() or "qwen3.7-plus",
-        "timeout_seconds": os.environ.get("DASHSCOPE_TIMEOUT_SECONDS", "300").strip() or "300",
+        "timeout_seconds": timeout_seconds,
     }
 
 

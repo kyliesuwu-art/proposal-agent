@@ -28,7 +28,20 @@ class LocalHashEmbeddingFunction(EmbeddingFunction):
     """Deterministic local embedding for offline cache acceptance only, not production QA."""
 
     def __init__(self, dimensions: int = 256) -> None:
+        if dimensions < 1:
+            raise ValueError("离线 embedding 维度必须为正数")
         self.dimensions = dimensions
+
+    @staticmethod
+    def name() -> str:
+        return "local-hash-offline"
+
+    def get_config(self) -> dict[str, int]:
+        return {"dimensions": self.dimensions}
+
+    @staticmethod
+    def build_from_config(config: dict[str, int]) -> "LocalHashEmbeddingFunction":
+        return LocalHashEmbeddingFunction(dimensions=int(config["dimensions"]))
 
     def __call__(self, input: list[str]) -> list[list[float]]:  # Chroma embedding protocol
         vectors: list[list[float]] = []

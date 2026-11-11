@@ -118,3 +118,14 @@ def test_invalid_base_url_is_rejected_before_client_creation(
     monkeypatch.setenv("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/api/v1")
     with pytest.raises(config.DashScopeConfigurationError, match="compatible-mode/v1"):
         config.dashscope_settings()
+
+
+@pytest.mark.parametrize("value", ["zero", "0", "-1", "nan", "inf"])
+def test_invalid_timeout_is_rejected_before_remote_client_creation(
+    monkeypatch: pytest.MonkeyPatch, value: str,
+) -> None:
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "safe-test-key")
+    monkeypatch.setenv("DASHSCOPE_BASE_URL", config.DEFAULT_DASHSCOPE_BASE_URL)
+    monkeypatch.setenv("DASHSCOPE_TIMEOUT_SECONDS", value)
+    with pytest.raises(config.DashScopeConfigurationError, match="DASHSCOPE_TIMEOUT_SECONDS"):
+        config.dashscope_settings()

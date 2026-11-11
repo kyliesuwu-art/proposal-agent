@@ -22,6 +22,8 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --locked --group dev
       - name: Check Python syntax
-        run: uv run --no-sync python -m compileall -q src
+        run: uv run --no-sync python -m compileall -q src scripts
+      - name: Check CLI startup
+        run: uv run --no-sync python src/main.py --help
       - name: Run offline suite
         run: uv run --no-sync python -m pytest tests -q

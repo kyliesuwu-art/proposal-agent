@@ -13,7 +13,7 @@ import tempfile
 
 import chromadb
 
-from src.v3_hnsw_rebuild import NoRemoteEmbedding, _read_integrity
+from src.v3_hnsw_rebuild import _read_integrity
 
 
 def _check(name, status, basis, findings=None):
@@ -98,7 +98,9 @@ def inspect_copy(path, *, disposable_copy=False, attestation=None):
                              "FTS page_id set, multiplicity and stored indexed fields versus payload",
                              [f"missing={len(missing_fts)}, orphan={len(orphan_fts)}, duplicate={duplicates}, mismatched={fts_bad}"]))
 
-        collection = chromadb.PersistentClient(path=str(root / "chroma_v2")).get_collection("electrical_pages_v2", embedding_function=NoRemoteEmbedding())
+        # This check reads IDs and metadata only. Supplying an unrelated
+        # embedding function conflicts with the persisted collection config.
+        collection = chromadb.PersistentClient(path=str(root / "chroma_v2")).get_collection("electrical_pages_v2", embedding_function=None)
         count = collection.count()
         vectors = {}
         for offset in range(0, count, 500):

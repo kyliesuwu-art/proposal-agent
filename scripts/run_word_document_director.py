@@ -254,7 +254,12 @@ def validate_global_plan(raw: dict[str, Any], sections: list[Section], sha: str,
 
 
 def set_run(run: Any, size: float = 10.5, bold: bool = False, color: str = INK, font: str = "宋体") -> None:
-    run.font.name = font; run.font.size = Pt(size); run.bold = bold; run.font.color.rgb = RGBColor.from_string(color); props = run._element.get_or_add_rPr(); fonts = props.rFonts or OxmlElement("w:rFonts"); fonts.set(qn("w:eastAsia"), font); fonts.set(qn("w:ascii"), "Arial"); props.insert(0, fonts)
+    run.font.name = font; run.font.size = Pt(size); run.bold = bold; run.font.color.rgb = RGBColor.from_string(color)
+    props = run._element.get_or_add_rPr()
+    fonts = props.rFonts
+    if fonts is None:
+        fonts = OxmlElement("w:rFonts")
+    fonts.set(qn("w:eastAsia"), font); fonts.set(qn("w:ascii"), "Arial"); props.insert(0, fonts)
 
 
 def shade(cell: Any, fill: str) -> None:

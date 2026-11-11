@@ -2,7 +2,6 @@
 """Chroma 向量库封装：按 slide 存入，支持语义检索 + metadata 过滤。"""
 
 import json
-import os
 import time
 from typing import NotRequired, TypedDict
 
@@ -10,7 +9,7 @@ import chromadb
 from chromadb.utils.embedding_functions import EmbeddingFunction
 from openai import APIStatusError, OpenAI
 from src.adapters.parser import MinerUParser
-from src.config import RAG_DB_PATH, resolve_project_path
+from src.config import RAG_DB_PATH, dashscope_settings, resolve_project_path
 
 
 class SlideDict(TypedDict):
@@ -25,16 +24,23 @@ class SlideDict(TypedDict):
     indexable: NotRequired[bool]
     raw_blocks: NotRequired[list[dict]]
 
-#前期保持联网embedding吧，别改了
 class DashScopeEmbeddingFunction(EmbeddingFunction):
     """调用 DashScope text-embedding-v3 生成向量，替换 Chroma 默认的本地 ONNX 模型。"""
 
     def __init__(self) -> None:
-        # DashScope 兼容 OpenAI 接口，直接用 openai 包调用
-        self._client = OpenAI(
-            api_key=os.environ.get("DASHSCOPE_API_KEY", ""),
-            base_url=os.environ.get("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-        )
+        # Local collection inspection must not require a remote credential.
+        self._client: OpenAI | None = None
+
+    def _remote_client(self) -> OpenAI:
+        if self._client is None:
+            settings = dashscope_settings()
+            self._client = OpenAI(
+                api_key=settings["api_key"],
+                base_url=settings["base_url"],
+                timeout=float(settings["timeout_seconds"]),
+                max_retries=0,
+            )
+        return self._client
 
     # DashScope text-embedding-v3 单次请求最多接受 10 条文本，超过会报
     # InvalidParameter: batch size is invalid, it should not be larger than 10.
@@ -49,6 +55,20 @@ class DashScopeEmbeddingFunction(EmbeddingFunction):
 
     # 重试前的等待时间（秒），比批次间隔更长，给限流窗口一点恢复时间
     _RETRY_SLEEP_SECONDS = 2.0
+
+    @staticmethod
+    def name() -> str:
+        return "dashscope-text-embedding-v3"
+
+    def get_config(self) -> dict[str, str]:
+        # Chroma may persist this config; credentials must stay in the process environment.
+        return {"model": "text-embedding-v3"}
+
+    @staticmethod
+    def build_from_config(config: dict[str, str]) -> "DashScopeEmbeddingFunction":
+        if config.get("model") != "text-embedding-v3":
+            raise ValueError("不支持的 embedding 模型配置")
+        return DashScopeEmbeddingFunction()
 
     def __call__(self, input: list[str]) -> list[list[float]]:
         """把一批文本转成向量列表，自动按 _MAX_BATCH_SIZE 分批调用 API。"""
@@ -77,12 +97,16 @@ class DashScopeEmbeddingFunction(EmbeddingFunction):
 
         for attempt in range(1, self._MAX_RETRIES + 1):
             try:
-                resp = self._client.embeddings.create(
+                resp = self._remote_client().embeddings.create(
                     model="text-embedding-v3",
                     input=batch,
                 )
-                # 保险起见按 index 排序，防止极端情况下返回顺序与输入顺序不一致
-                return sorted(resp.data, key=lambda item: item.index)
+                # A partial or repeated response would attach vectors to the
+                # wrong pages when Chroma stores this batch.
+                sorted_data = sorted(resp.data, key=lambda item: item.index)
+                if [item.index for item in sorted_data] != list(range(len(batch))):
+                    raise ValueError("embedding 返回数量或序号不匹配，拒绝写入索引")
+                return sorted_data
             except APIStatusError as e:
                 last_error = e
                 # 429 是限流，其他 5xx 也大概率是瞬时问题，值得重试；

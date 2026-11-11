@@ -209,3 +209,11 @@ Decision: Run the locked offline test suite and syntax check on Windows for each
 Impact: A sidecar publication failure no longer leaves a new Markdown paired with old source metadata. The repository still requires explicit production configuration and real environment acceptance before external deployment.
 
 The overwritten early vector-only `query` draft and its private helpers were removed from `src/pipeline.py`; the structured `query` and hybrid `retrieve_evidence` remain the active interfaces. An offline source-structure test guards against repeated top-level definitions.
+
+## 2026-11 — Embedding configuration and index integrity
+
+Decision: Keep the embedding client lazy so local collection inspection does not require a remote credential. Before any embedding request, use the same validated DashScope settings as the text client. Reject responses with missing, extra, or repeated indexes before the vectors can be associated with pages. Persist only non-secret embedding configuration through Chroma's embedding interface; the offline hash implementation records its dimensions.
+
+Impact: Remote embedding fails clearly on missing credentials or invalid timeout, while local inspection remains available. This does not authorize a live embedding call or a production database mutation.
+
+The disposable-copy consistency checker opens Chroma collections without an embedding function because it only reads IDs and metadata. This avoids a false conflict with the embedding configuration stored in the collection.

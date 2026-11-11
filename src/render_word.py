@@ -12,7 +12,9 @@ from src.delivery_text import formal_markdown, forbidden_delivery_tokens
 HEADING=re.compile(r"^(#{1,6})\s+(.+)$"); NUM=re.compile(r"\b\d+(?:\.\d+)?\s*(?:MWp|MWh|MW|kV|kW|V|W|A|mm²|mm2|%)\b",re.I)
 class RenderWordError(RuntimeError): pass
 def font(run,name='宋体',size=12,bold=False,italic=False):
- run.font.name=name;run.font.size=Pt(size);run.bold=bold;run.italic=italic;r=run._element.get_or_add_rPr();f=r.rFonts or OxmlElement('w:rFonts');f.set(qn('w:eastAsia'),name);f.set(qn('w:ascii'),'Arial');r.insert(0,f)
+ run.font.name=name;run.font.size=Pt(size);run.bold=bold;run.italic=italic;r=run._element.get_or_add_rPr();f=r.rFonts
+ if f is None:f=OxmlElement('w:rFonts')
+ f.set(qn('w:eastAsia'),name);f.set(qn('w:ascii'),'Arial');r.insert(0,f)
 def inline(p,s):
  for x in re.split(r"(\*\*.+?\*\*|\*.+?\*|`.+?`)",s):
   b=x.startswith('**'); i=not b and x.startswith('*'); code=x.startswith('`'); font(p.add_run(x[2:-2] if b else x[1:-1] if i or code else x),'Consolas' if code else '宋体',10 if code else 12,b,i)
