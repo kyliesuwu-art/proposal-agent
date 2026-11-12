@@ -10,6 +10,7 @@ from src.application import GenerateRequest, GenerateWorkflowError
 from src.markdown_proposal import ProposalGenerationError, ProposalQualityError, ProposalWriteError
 from src.render_word import RenderWordError
 from src.render_pptx import RenderPptxError
+from src.config import redact_runtime_secrets
 
 
 def dispatch(context) -> None:
@@ -142,9 +143,9 @@ def dispatch(context) -> None:
         except (GenerateWorkflowError, ValueError) as exc:
             stage = exc.stage if isinstance(exc, GenerateWorkflowError) else "input_validation"
             cause = exc.cause if isinstance(exc, GenerateWorkflowError) else exc
-            print(f"统一生成失败 [{stage}] {type(cause).__name__}: {cause}", file=sys.stderr)
+            print(redact_runtime_secrets(f"统一生成失败 [{stage}] {type(cause).__name__}: {cause}"), file=sys.stderr)
             if args.debug:
-                traceback.print_exception(exc, file=sys.stderr)
+                sys.stderr.write(redact_runtime_secrets("".join(traceback.format_exception(exc))))
             sys.exit(1)
         print(f"Markdown: {result.markdown_path.resolve()}\nRun log: {result.run_log_path.resolve()}\nQuality: {result.quality_status}")
         if result.word_path:
@@ -203,9 +204,9 @@ def dispatch(context) -> None:
                     details["write_operation"] = exc.cause.operation
                     details["write_cause_type"] = type(exc.cause.cause).__name__
             _write_proposal_run_log(run_log, status="FATAL", stage=stage, **details)
-            print(f"方案生成失败 [{stage}] {type(exc).__name__}: {exc}", file=sys.stderr)
+            print(redact_runtime_secrets(f"方案生成失败 [{stage}] {type(exc).__name__}: {exc}"), file=sys.stderr)
             if debug:
-                traceback.print_exception(exc, file=sys.stderr)
+                sys.stderr.write(redact_runtime_secrets("".join(traceback.format_exception(exc))))
             sys.exit(1)
         print(f"已写入 Markdown：{result.path.resolve()}")
         print(f"质量状态：{result.quality_status}；通过项：{result.metrics['quality_passed_checks']}；warning：{len(result.warnings)}；DOCX：未生成")

@@ -129,3 +129,12 @@ def test_invalid_timeout_is_rejected_before_remote_client_creation(
     monkeypatch.setenv("DASHSCOPE_TIMEOUT_SECONDS", value)
     with pytest.raises(config.DashScopeConfigurationError, match="DASHSCOPE_TIMEOUT_SECONDS"):
         config.dashscope_settings()
+
+
+@pytest.mark.parametrize("name", ["DASHSCOPE_API_KEY", "ARK_API_KEY", "MINERU_TOKEN", "AIBOT_SECRET"])
+@pytest.mark.parametrize("secret", ["offline-secret-value-123456", "xyz"])
+def test_runtime_secret_redaction_covers_configured_providers(
+    monkeypatch: pytest.MonkeyPatch, name: str, secret: str,
+) -> None:
+    monkeypatch.setenv(name, secret)
+    assert config.redact_runtime_secrets(f"failed: {secret}") == "failed: [REDACTED]"

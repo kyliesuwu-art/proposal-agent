@@ -8,9 +8,8 @@ import time
 
 import httpx
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
-import os
 
-from src.config import dashscope_settings
+from src.config import dashscope_settings, redact_runtime_secrets
 
 # 默认使用的模型。qwen3.7-plus  是性价比和能力的均衡档，先用它跑通整条链路；
 # 如果后面发现生成质量不够，换成 qwen-max 只需要改这一个字符串。
@@ -32,10 +31,7 @@ _RETRY_SLEEP_SECONDS = 2.0
 
 def _redact_secret_text(value: str) -> str:
     """Keep diagnostic text useful without allowing an API key to escape logs."""
-    key = os.environ.get("DASHSCOPE_API_KEY", "")
-    if key:
-        value = value.replace(key, "[REDACTED]")
-    return value
+    return redact_runtime_secrets(value)
 
 # 生成 slide context 摘要 + metadata 用的系统提示词。强制要求只输出 JSON，
 # 不输出别的文字，方便下游直接解析。

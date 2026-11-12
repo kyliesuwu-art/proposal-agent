@@ -175,6 +175,41 @@ def test_proposal_cli_failure_is_nonzero_and_debug_can_print_traceback(monkeypat
     assert ("Traceback" in output.err) is debug
 
 
+@pytest.mark.parametrize("command", ["proposal", "generate"])
+@pytest.mark.parametrize("debug", [False, True])
+def test_generation_cli_redacts_runtime_key_from_errors(
+    monkeypatch, capsys, tmp_path, command: str, debug: bool,
+) -> None:
+    secret = "offline-secret-value-123456"
+    monkeypatch.setenv("DASHSCOPE_API_KEY", secret)
+
+    class FailingLLM:
+        def __init__(self):
+            raise RuntimeError(f"provider failed with {secret}")
+
+    class FailingWorkflow:
+        def run(self, _request):
+            raise main.GenerateWorkflowError("planning", RuntimeError(f"provider failed with {secret}"))
+
+    if command == "proposal":
+        monkeypatch.setattr(main, "LLMClient", FailingLLM)
+        argv = ["main.py", "proposal", "需求", "--output", str(tmp_path / "proposal.md")]
+    else:
+        monkeypatch.setattr(main, "_proposal_workflow", FailingWorkflow)
+        argv = ["main.py", "generate", "需求", "--formats", "md", "--output-dir", str(tmp_path)]
+    if debug:
+        argv.append("--debug")
+    monkeypatch.setattr(sys, "argv", argv)
+
+    with pytest.raises(SystemExit) as exited:
+        main.main()
+    stderr = capsys.readouterr().err
+    assert exited.value.code == 1
+    assert secret not in stderr
+    assert "[REDACTED]" in stderr
+    assert ("Traceback" in stderr) is debug
+
+
 def test_proposal_cli_records_complete_deterministic_quality_gate_error(monkeypatch, tmp_path) -> None:
     class ConfiguredLLM:
         connection_settings = {"model": "fake"}

@@ -217,3 +217,9 @@ Decision: Keep the embedding client lazy so local collection inspection does not
 Impact: Remote embedding fails clearly on missing credentials or invalid timeout, while local inspection remains available. This does not authorize a live embedding call or a production database mutation.
 
 The disposable-copy consistency checker opens Chroma collections without an embedding function because it only reads IDs and metadata. This avoids a false conflict with the embedding configuration stored in the collection.
+
+## 2026-11 — Redacted CLI failure diagnostics
+
+Decision: Before displaying generation failures or optional debug tracebacks, replace configured DashScope, Ark, MinerU and WeCom credentials with a redaction marker. The structured run log continues to store error types and safe stage information rather than raw provider exceptions.
+
+Impact: A provider error that echoes a configured credential does not print that credential to the CLI. Debug tracebacks may still include non-secret customer or request context and should be handled as operational diagnostics.

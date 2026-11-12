@@ -10,10 +10,20 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PROJECT_ENV_FILE = PROJECT_ROOT / ".env"
 DEFAULT_DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+_SECRET_ENV_NAMES = ("DASHSCOPE_API_KEY", "ARK_API_KEY", "MINERU_TOKEN", "AIBOT_SECRET")
 
 
 class DashScopeConfigurationError(RuntimeError):
     """Raised before a remote request when DashScope configuration is incomplete."""
+
+
+def redact_runtime_secrets(value: str) -> str:
+    """Remove configured credentials from user-visible errors and diagnostics."""
+    for name in _SECRET_ENV_NAMES:
+        secret = os.environ.get(name, "")
+        if secret:
+            value = value.replace(secret, "[REDACTED]")
+    return value
 
 
 def load_project_environment(*, override: bool = False) -> bool:
