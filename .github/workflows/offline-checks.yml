@@ -21,6 +21,8 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.3
       - name: Install locked dependencies
         run: uv sync --locked --group dev
+      - name: Verify dependency compatibility
+        run: uv pip check
       - name: Check Python syntax
         run: uv run --no-sync python -m compileall -q src scripts
       - name: Check CLI startup

@@ -235,3 +235,9 @@ Impact: A failed report publication no longer leaves an apparently complete new 
 Decision: Give the isolated HNSW rebuild guard and cache-ingest test embedding the same explicit Chroma configuration interface as the production and local hash embedders. The guard still raises on every attempted text embedding; the change only affects how Chroma records and reopens a temporary collection.
 
 Impact: Offline checks no longer rely on Chroma's deprecated legacy embedding fallback. This does not move the version research prototype into the production query path.
+
+## 2026-11 — Locked dependency acceptance
+
+Decision: Validate the project in a clean, isolated Python 3.12 environment installed from `uv.lock`, and run `uv pip check` in the offline CI gate. Keep the developer's existing `.venv` untouched when it contains unrelated packages.
+
+Impact: The locked environment passes dependency compatibility and the full offline suite. Conflicts among optional packages in a previously used local environment do not establish a lockfile conflict.

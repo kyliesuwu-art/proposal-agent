@@ -21,12 +21,13 @@
 ## 常用离线验证
 
 ```powershell
-uv sync --group dev
+uv sync --locked --group dev
+uv pip check
 uv run python -m pytest tests -q
 uv run python src/main.py --help
 ```
 
-提交和拉取请求会在 Windows 上自动执行锁定依赖安装、语法检查、命令入口检查和完整离线测试。两项真实 DashScope 测试默认禁用；自动检查没有外部服务密钥。
+提交和拉取请求会在 Windows 上自动执行锁定依赖安装、依赖兼容性检查、语法检查、命令入口检查和完整离线测试。两项真实 DashScope 测试默认禁用；自动检查没有外部服务密钥。
 
 正式运行前应显式配置 `RAG_DB_PATH` 指向经过授权的目标库，并核对该路径。代码默认值 `runtime_data/word_test_db` 仅供本项目当前受控验证使用，不应当作正式环境配置。`src.config` 导入时会加载仓库根目录的 `.env`；修改环境变量后须重启进程。
 
