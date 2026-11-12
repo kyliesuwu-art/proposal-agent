@@ -8,6 +8,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from chromadb.utils.embedding_functions import EmbeddingFunction
 
 from src.cache_batch import CacheBatchIngestor, _safe_member_path, inspect_cache_directory, select_trial_candidates
 
@@ -61,7 +62,7 @@ def test_dry_run_explains_missing_cache_components_and_image_assets(tmp_path: Pa
     assert "图片" in report["failures"][0]["reason"]
 
 
-class FakeEmbedding:
+class FakeEmbedding(EmbeddingFunction):
     def __init__(self) -> None:
         self.calls: list[list[str]] = []
 
@@ -69,8 +70,18 @@ class FakeEmbedding:
         self.calls.append(input)
         return [[float(len(text)), 1.0, 0.0] for text in input]
 
-    def name(self) -> str:
+    @staticmethod
+    def name() -> str:
         return "fake_embedding"
+
+    def get_config(self) -> dict[str, str]:
+        return {"mode": "test-only"}
+
+    @staticmethod
+    def build_from_config(config: dict[str, str]) -> "FakeEmbedding":
+        if config.get("mode") != "test-only":
+            raise ValueError("invalid fake embedding config")
+        return FakeEmbedding()
 
 
 def _run(source: Path, target: Path, fake: FakeEmbedding, *, limit: int = 10, batch_size: int = 32) -> dict:

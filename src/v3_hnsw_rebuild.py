@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import chromadb
+from chromadb.utils.embedding_functions import EmbeddingFunction
 
 from src.cache_batch import EMBEDDING_MODEL_ID, EmbeddingCache
 
@@ -25,14 +26,27 @@ COLLECTION = "electrical_pages_v2"
 SQLITE_FILES = ("cache_ingest_manifest.sqlite3", "hybrid_lexical.sqlite3", "embedding_cache.sqlite3")
 
 
-class NoRemoteEmbedding:
+class NoRemoteEmbedding(EmbeddingFunction):
     """Guard against an accidental Chroma text-embedding request."""
+
+    def __init__(self) -> None:
+        pass
 
     def __call__(self, input: list[str]) -> list[list[float]]:
         raise RuntimeError("离线 HNSW 重建禁止调用 embedding；请提供缓存向量")
 
-    def name(self) -> str:
+    @staticmethod
+    def name() -> str:
         return "offline-cache-only"
+
+    def get_config(self) -> dict[str, str]:
+        return {"mode": "cached-vectors-only"}
+
+    @staticmethod
+    def build_from_config(config: dict[str, str]) -> "NoRemoteEmbedding":
+        if config.get("mode") != "cached-vectors-only":
+            raise ValueError("不支持的离线向量配置")
+        return NoRemoteEmbedding()
 
 
 def _read_integrity(path: Path) -> str:

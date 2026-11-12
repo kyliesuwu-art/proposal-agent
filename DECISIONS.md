@@ -229,3 +229,9 @@ Impact: A provider error that echoes a configured credential does not print that
 Decision: Build the DOCX and its validation report in a temporary directory, back up any previous pair, then publish both. If either replacement fails, restore the previous files or remove the incomplete new pair. Retain backups for manual recovery if rollback itself fails.
 
 Impact: A failed report publication no longer leaves an apparently complete new DOCX without its matching validation record.
+
+## 2026-11 — Offline embedding protocol compatibility
+
+Decision: Give the isolated HNSW rebuild guard and cache-ingest test embedding the same explicit Chroma configuration interface as the production and local hash embedders. The guard still raises on every attempted text embedding; the change only affects how Chroma records and reopens a temporary collection.
+
+Impact: Offline checks no longer rely on Chroma's deprecated legacy embedding fallback. This does not move the version research prototype into the production query path.
