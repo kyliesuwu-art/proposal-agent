@@ -1,6 +1,6 @@
 """Offline deterministic Markdown-to-DOCX renderer."""
 from __future__ import annotations
-import json, os, re, tempfile, zipfile
+import json, os, re, shutil, tempfile, zipfile
 from pathlib import Path
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -28,6 +28,45 @@ def sources(md, rejected=()):
   if not p: raise RenderWordError(f'line {block.line_number}: missing or unsafe image: {block.asset_path}')
   refs.append((block.caption,p))
  return refs,list(dict.fromkeys(p for _,p in refs))
+def _publish_docx_report(staged_docx: Path, staged_report: Path, output: Path) -> None:
+    report_path = output.with_suffix('.render_report.json')
+    backup_dir = Path(tempfile.mkdtemp(dir=output.parent, prefix='.render-word-backup-'))
+    prior: dict[Path, Path | None] = {}
+    published: list[Path] = []
+    preserve_backup = False
+    try:
+        for destination in (output, report_path):
+            if destination.exists():
+                saved = backup_dir / destination.name
+                shutil.copy2(destination, saved)
+                prior[destination] = saved
+            else:
+                prior[destination] = None
+        try:
+            for source, destination in ((staged_docx, output), (staged_report, report_path)):
+                os.replace(source, destination)
+                published.append(destination)
+        except Exception as exc:
+            try:
+                for destination in reversed(published):
+                    saved = prior[destination]
+                    if saved is None:
+                        destination.unlink()
+                    else:
+                        os.replace(saved, destination)
+            except Exception as rollback_error:
+                preserve_backup = True
+                raise RenderWordError(
+                    f'Word publication rollback failed; backups retained at {backup_dir}'
+                ) from rollback_error
+            raise RenderWordError(f'Word publication failed: {type(exc).__name__}') from exc
+    except RenderWordError:
+        raise
+    except Exception as exc:
+        raise RenderWordError(f'Word delivery backup failed: {type(exc).__name__}') from exc
+    finally:
+        if not preserve_backup:
+            shutil.rmtree(backup_dir, ignore_errors=True)
 def render_word(input_path,output_path,*,formal=False,image_decisions_path=None):
  md=Path(input_path).resolve();out=Path(output_path).resolve()
  if not md.is_file() or md.suffix.lower()!='.md':raise RenderWordError('--input must be an existing Markdown file')
@@ -67,5 +106,8 @@ def render_word(input_path,output_path,*,formal=False,image_decisions_path=None)
   if len(set(counts.values())) != 1: raise RenderWordError('image count mismatch: '+json.dumps(counts))
   forbidden=forbidden_delivery_tokens(body) if formal else []
   if forbidden: raise RenderWordError('formal delivery tokens remain: '+','.join(forbidden))
-  report={'status':'PASS','backend':'local_python_docx','formal_delivery':formal,'input_markdown':md.name,'output_docx':out.name,'source_heading_count':sum(bool(HEADING.match(x)) for x in lines),'rendered_heading_count':hs,'source_table_count':ts,'rendered_table_count':len(check.tables),'source_image_reference_count':len(refs),'unique_source_image_count':len(unique),**counts,'docx_media_count':len(media),'inline_shape_count':len(check.inline_shapes),'checked_numeric_tokens':NUM.findall(text),'warnings':[],'errors':[]};os.replace(temp,out);out.with_suffix('.render_report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
+  report={'status':'PASS','backend':'local_python_docx','formal_delivery':formal,'input_markdown':md.name,'output_docx':out.name,'source_heading_count':sum(bool(HEADING.match(x)) for x in lines),'rendered_heading_count':hs,'source_table_count':ts,'rendered_table_count':len(check.tables),'source_image_reference_count':len(refs),'unique_source_image_count':len(unique),**counts,'docx_media_count':len(media),'inline_shape_count':len(check.inline_shapes),'checked_numeric_tokens':NUM.findall(text),'warnings':[],'errors':[]}
+  staged_report=Path(d)/out.with_suffix('.render_report.json').name
+  staged_report.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
+  _publish_docx_report(temp,staged_report,out)
  return out.with_suffix('.render_report.json')

@@ -223,3 +223,9 @@ The disposable-copy consistency checker opens Chroma collections without an embe
 Decision: Before displaying generation failures or optional debug tracebacks, replace configured DashScope, Ark, MinerU and WeCom credentials with a redaction marker. The structured run log continues to store error types and safe stage information rather than raw provider exceptions.
 
 Impact: A provider error that echoes a configured credential does not print that credential to the CLI. Debug tracebacks may still include non-secret customer or request context and should be handled as operational diagnostics.
+
+## 2026-11 — Recoverable Word delivery
+
+Decision: Build the DOCX and its validation report in a temporary directory, back up any previous pair, then publish both. If either replacement fails, restore the previous files or remove the incomplete new pair. Retain backups for manual recovery if rollback itself fails.
+
+Impact: A failed report publication no longer leaves an apparently complete new DOCX without its matching validation record.
