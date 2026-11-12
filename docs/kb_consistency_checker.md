@@ -19,7 +19,7 @@ python -X utf8 -m src.kb_consistency_check <系统临时目录中的可丢弃副
 }
 ```
 
-检查器要求 `hybrid_lexical.sqlite3`、`chroma_v2/chroma.sqlite3`、`cache_ingest_manifest.sqlite3` 和 `electrical_pages_v2` collection；读取 SQLite 使用 `mode=ro`，复用已有 `_read_integrity` 与 `NoRemoteEmbedding`。核对 pages、FTS5 的 ID 集合、重复和存储字段、Chroma 的 ID/metadata，核对文档/版本/source key 的对应关系及缓存清单可检测的碰撞；多版本、缺页、缺字段、损坏、空库、异常、缺少确认清单或不匹配均 BLOCKED。相同 ZIP hash 被记录为不同来源名称时 WARNING。工具只验证确认清单内容与索引相符，**不会认证确认人、来源真伪、清单完整性或当前版本权威性**；依赖人工确认，不能根据哈希或分数推断版本。
+检查器要求 `hybrid_lexical.sqlite3`、`chroma_v2/chroma.sqlite3`、`cache_ingest_manifest.sqlite3` 和 `electrical_pages_v2` collection；读取 SQLite 使用 `mode=ro`，复用已有 `_read_integrity`，读取 Chroma ID/metadata 时不提供向量函数。核对 pages、FTS5 的 ID 集合、重复和存储字段、Chroma 的 ID/metadata，核对文档/版本/source key 的对应关系及缓存清单可检测的碰撞；多版本、缺页、缺字段、损坏、空库、异常、缺少确认清单或不匹配均 BLOCKED。相同 ZIP hash 被记录为不同来源名称时 WARNING。工具只验证确认清单内容与索引相符，**不会认证确认人、来源真伪、清单完整性或当前版本权威性**；依赖人工确认，不能根据哈希或分数推断版本。
 
 `PASS` 是基于列出的检查和人工声明的必要条件，不是对知识库质量、真实模型检索、Chroma/HNSW 和 FTS 内部索引完整性、向量准确性或来源事实真实性的全面保证。`WARNING` 可进入下一阶段，但需人工审阅；`BLOCKED` 不得进入。报告列出各项依据、发现、未完成检查与局限，不输出页面正文。[示例报告](kb_consistency_example.json)来自单页合成测试库和虚构确认清单，不代表实际知识库结果。
 

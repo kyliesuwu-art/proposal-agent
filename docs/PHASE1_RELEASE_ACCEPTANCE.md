@@ -1,7 +1,7 @@
 # Phase 1 Release Acceptance — Live Calls, Isolation and Remaining Gates
 
-Status: design and evidence record. No billable DashScope call and no formal
-database access was performed while producing this document. All offline tests
+Status: design and evidence record, updated after bounded live acceptance on
+2026-11-12. No existing knowledge base was opened. Default offline tests
 continue to use fake LLM/fake retriever and pytest temporary directories.
 
 ## 1. Embedding compatibility verdict
@@ -68,13 +68,13 @@ locks each override independently and must stay green.
   directly.
 - When no embedding function is supplied (the production
   `retrieve_evidence` path), `get_collection` defaults to
-  `DashScopeEmbeddingFunction()`. Constructing it only builds an OpenAI client
-  object and reads `DASHSCOPE_API_KEY`; it performs no network I/O and no write.
+  `DashScopeEmbeddingFunction()`. Its constructor performs no network I/O;
+  credentials are validated when a remote embedding is first needed.
 - A network call happens only when Chroma needs an embedding for a
   `query_texts` search. Offline tests neutralise this by monkeypatching
   `src.hybrid_v2.DashScopeEmbeddingFunction` to the local hash function.
 
-## 4. Live test designs (opt-in, independent resources, not executed here)
+## 4. Live test contracts (opt-in, independent resources)
 
 Both tests must be skipped by default and enabled only by an explicit approval
 environment variable, mirroring the existing `PPT_MODEL_LIVE_APPROVED=1`
@@ -93,9 +93,9 @@ convention. They must never run in the default `pytest tests` invocation.
   observed. No retries against the live service in the smoke path.
 
 ### 4.2 Real Embedding + RAG test — implemented `tests/live/test_dashscope_embedding_rag.py` (skips by default)
-- Gate: same explicit approval variable plus a requirement that
-  `RAG_DB_PATH` points inside a pytest-created temporary directory; refuse to
-  start if it resolves to the default formal root or any pre-existing library.
+- Gate: same explicit approval variable. The test creates its index under
+  `tmp_path` and asserts it differs from `RAG_DB_PATH`; it never opens that
+  configured root.
 - Corpus: a tiny fixed set of representative pages (single digits) defined
   inside the test, written through the normal `HybridTestStore.add_version`
   write path with the real `DashScopeEmbeddingFunction` into the temp root.
@@ -115,9 +115,9 @@ convention. They must never run in the default `pytest tests` invocation.
 
 ## 5. Remaining release acceptance items
 
-- Real DashScope LLM acceptance: not yet executed (no billable call in this round); gated test implemented in section 4.1, skipped unless DASHSCOPE_LIVE_APPROVED=1.
-- Real Embedding/RAG acceptance: not yet executable against the hash indexes;
-  gated test implemented in section 4.2, using an independent 1024-dimension temp index; skipped unless DASHSCOPE_LIVE_APPROVED=1.
+- 2026-11-12: Real DashScope LLM smoke acceptance passed with one request and no database access.
+- 2026-11-12: Real embedding/RAG acceptance passed on six synthetic pages in an independent temporary index, with a hard limit of three embedding requests. An earlier attempt failed during the first TLS connection before index creation; the bounded retry passed. Neither run opened the existing knowledge base.
+- Both live tests remain opt-in and are skipped by default. These synthetic checks do not establish quality against customer documents or approve a production database.
 - DOCX Office visual acceptance: only OOXML structural validation currently
   runs (python-docx open, render report checks).
   `test_visual_layout_requires_office_renderer` is a placeholder that is

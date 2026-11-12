@@ -74,7 +74,7 @@ def _corpus() -> list[dict]:
     ]
 
 
-def test_real_embedding_index_answers_semantic_queries_in_isolation(tmp_path: Path) -> None:
+def test_real_embedding_index_answers_semantic_queries_in_isolation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     if not os.environ.get("DASHSCOPE_API_KEY", "").strip():
         pytest.skip("DASHSCOPE_API_KEY is not configured")
 
@@ -85,6 +85,20 @@ def test_real_embedding_index_answers_semantic_queries_in_isolation(tmp_path: Pa
     assert not temp_root.exists()
 
     embedding_function = DashScopeEmbeddingFunction()
+    # One probe, one six-page batch and one query. Reject an unexpected fourth
+    # request before it can reach the metered service.
+    monkeypatch.setattr(embedding_function, "_MAX_RETRIES", 1)
+    client = embedding_function._remote_client()
+    create = client.embeddings.create
+    calls = {"count": 0}
+
+    def bounded_create(*args, **kwargs):
+        if calls["count"] >= 3:
+            raise RuntimeError("live embedding request budget exceeded")
+        calls["count"] += 1
+        return create(*args, **kwargs)
+
+    monkeypatch.setattr(client.embeddings, "create", bounded_create)
     probe = embedding_function(["储能电池容量与光伏装机配置"])
     assert len(probe) == 1
     assert len(probe[0]) == _EXPECTED_DIMENSION
@@ -106,6 +120,7 @@ def test_real_embedding_index_answers_semantic_queries_in_isolation(tmp_path: Pa
         best_relevant = min(matched_relevant)
         assert all(best_relevant < top_ids.index(identifier) for identifier in unrelated if identifier in top_ids)
         assert "retrieval" in hits[0]
+        assert calls["count"] == 3
     finally:
         store.close()
 
